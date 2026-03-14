@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Stargazing Events & Astrophotography — Michalis Reisis</title>
+  <meta name="description" content="Stargazing events and astrophotography experiences for hotels, resorts, weddings, bars and wineries in Kos, nearby islands, Greece and Bodrum." />
+  <link rel="canonical" href="https://www.stargazing.events/">
+  <style>
+    :root{
+      --bg: #0b0f14;
+      --panel: #0f141b;
+      --text: #e8ecf1;
+      --muted: #a9b3bf;
+      --accent: #7dc6ff;
+      --accent-2: #b49cff;
+      --border: #1f2a37;
+    }
+    *{box-sizing:border-box}
+    html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font:16px/1.6 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,"Helvetica Neue",Arial}
+    a{color:var(--accent);text-decoration:none}
+    a:hover{opacity:.92}
+    img{max-width:100%;height:auto;display:block}
+    .container{width:100%;max-width:1100px;margin:0 auto;padding:0 20px}
+
+    header{position:sticky;top:0;z-index:20;background:rgba(11,15,20,.82);backdrop-filter:blur(10px);border-bottom:1px solid var(--border)}
+    .nav{display:flex;align-items:center;justify-content:space-between;padding:14px 0;gap:20px}
+    .brand{display:flex;align-items:center;gap:10px;font-weight:700}
+    .brand .dot{width:10px;height:10px;border-radius:50%;background:radial-gradient(circle at 30% 30%, #fff, var(--accent));box-shadow:0 0 12px var(--accent)}
+    nav{display:flex;flex-wrap:wrap;align-items:center;gap:12px}
+    .nav a{color:var(--text)}
+    .btn{padding:10px 14px;border:1px solid var(--border);border-radius:12px;background:linear-gradient(180deg,#111720,#0a0e14);color:var(--text);display:inline-block}
+    .btn.primary{border-color:transparent;background:linear-gradient(180deg,var(--accent),#4ea9f5);color:#001225;font-weight:700}
+
+    .hero{position:relative;min-height:70vh;display:grid;align-items:center}
+    .hero::before{content:"";position:absolute;inset:0;background:radial-gradient(1200px 600px at 20% 10%, rgba(125,198,255,.18), transparent), radial-gradient(900px 500px at 80% 20%, rgba(180,156,255,.16), transparent)}
+    .hero .inner{position:relative;z-index:1;padding:64px 0}
+    .kicker{color:var(--accent);text-transform:uppercase;letter-spacing:.12em;font-weight:700;font-size:.85rem}
+    h1{font-size:clamp(2rem,4vw,3.2rem);line-height:1.1;margin:.5rem 0 1rem}
+    .lede{color:var(--muted);max-width:760px}
+    .hero-cta{margin-top:22px;display:flex;gap:12px;flex-wrap:wrap}
+
+    section{padding:64px 0;border-top:1px solid var(--border)}
+    section h2{font-size:clamp(1.6rem,3.2vw,2.2rem);margin:0 0 16px}
+    section p.lead{color:var(--muted);margin-top:0;max-width:800px}
+
+    .trust{display:grid;grid-template-columns:repeat(2,1fr);gap:18px}
+    .trust .logo{background:var(--panel);border:1px solid var(--border);padding:14px;border-radius:12px;display:flex;align-items:center;justify-content:center;min-height:70px;color:var(--muted)}
+    @media(min-width:700px){.trust{grid-template-columns:repeat(5,1fr)}}
+
+    .cards{display:grid;grid-template-columns:1fr;gap:16px}
+    @media(min-width:800px){.cards{grid-template-columns:repeat(3,1fr)}}
+    .card{background:linear-gradient(180deg,#0f141b,#0a0e14);border:1px solid var(--border);border-radius:16px;padding:18px}
+    .card h3{margin:8px 0 6px}
+    .chip{display:inline-block;border:1px solid var(--border);padding:4px 8px;border-radius:999px;font-size:.8rem;color:var(--muted)}
+
+    .filters{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+    .filters button{cursor:pointer;border:1px solid var(--border);background:var(--panel);color:var(--text);padding:8px 12px;border-radius:999px}
+    .filters button.active{outline:2px solid var(--accent)}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    @media(min-width:900px){.grid{grid-template-columns:repeat(3,1fr)}}
+    .grid figure{position:relative;border-radius:12px;overflow:hidden;border:1px solid var(--border);margin:0}
+    .grid figcaption{position:absolute;left:0;right:0;bottom:0;padding:10px;background:linear-gradient(180deg,transparent,rgba(0,0,0,.6));font-size:.9rem}
+    .grid img{width:100%;height:220px;object-fit:cover}
+
+    .lightbox{position:fixed;inset:0;background:rgba(0,0,0,.85);display:none;align-items:center;justify-content:center;padding:20px;z-index:50}
+    .lightbox.open{display:flex}
+    .lightbox img{max-height:84vh;width:auto;height:auto;border-radius:14px;border:1px solid var(--border)}
+    .lightbox .caption{margin-top:10px;color:#cfd8e3;text-align:center}
+
+    .logo-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}
+    @media(min-width:800px){.logo-grid{grid-template-columns:repeat(4,1fr)}}
+    .partner{background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:16px;display:flex;flex-direction:column;gap:10px;align-items:center;text-align:center}
+    .partner img{height:40px;width:auto;filter:grayscale(100%);opacity:.9}
+    .partner p{margin:0;color:var(--muted);font-size:.95rem}
+
+    .about{display:grid;gap:20px;grid-template-columns:1fr}
+    @media(min-width:900px){.about{grid-template-columns:1.2fr .8fr;align-items:start}}
+    .about .panel{background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:18px}
+
+    form{display:grid;gap:10px;margin-top:10px}
+    input, textarea{width:100%;padding:12px 14px;border-radius:12px;border:1px solid var(--border);background:#0b1118;color:var(--text)}
+    textarea{min-height:120px}
+    .inline{display:grid;gap:10px;grid-template-columns:1fr}
+    @media(min-width:700px){.inline{grid-template-columns:1fr 1fr}}
+    .note{color:var(--muted);font-size:.9rem}
+
+    footer{border-top:1px solid var(--border);padding:28px 0;color:var(--muted);text-align:center}
+  </style>
+</head>
+<body>
+  <header>
+    <div class="container nav">
+      <div class="brand"><span class="dot"></span><span>Michalis Reisis</span></div>
+      <nav>
+        <a href="#gallery">Gallery</a>
+        <a href="#about">About</a>
+        <a href="#partnerships">Partnerships</a>
+        <a href="#contact" class="btn">Contact</a>
+        <a href="mailto:mixalakiss1987@hotmail.com" class="btn primary">Email me</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="container inner">
+        <div class="kicker">Stargazing Events • Astrophotography</div>
+        <h1>Stargazing Events for Hotels, Weddings & Signature Night Experiences</h1>
+        <p class="lede">I design and host premium stargazing nights and create high‑quality astrophotography for hospitality, luxury weddings, bars and wineries. Based in Kos and working across nearby islands, Greece and Bodrum, I bring telescopes, guest education and weather‑safe plans for a memorable night‑sky experience.</p>
+        <div class="hero-cta">
+          <a class="btn primary" href="#contact">Discuss a partnership</a>
+          <a class="btn" href="mailto:mixalakiss1987@hotmail.com">Email me</a>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div class="container">
+        <p class="lead">Trusted by hospitality teams and venues to create memorable low‑lift night experiences.</p>
+        <div class="trust">
+          <div class="logo">Partner Logo</div>
+          <div class="logo">Partner Logo</div>
+          <div class="logo">Partner Logo</div>
+          <div class="logo">Partner Logo</div>
+          <div class="logo">Partner Logo</div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div class="container">
+        <h2>What I do</h2>
+        <div class="cards">
+          <article class="card">
+            <span class="chip">Guest Experience</span>
+            <h3>Stargazing Nights</h3>
+            <p>Turnkey evenings with telescopes, laser sky tours and Q&amp;A. Ideal for hotels, luxury weddings, bars and wineries.</p>
+          </article>
+          <article class="card">
+            <span class="chip">Content</span>
+            <h3>Astrophotography</h3>
+            <p>Hero shots and night ambience visuals for campaigns, social media and property marketing. Commercial licensing available.</p>
+          </article>
+          <article class="card">
+            <span class="chip">Regions</span>
+            <h3>Kos • Nearby Islands • Bodrum</h3>
+            <p>Local Greek partner based in Kos, available across nearby islands, around Greece and in nearby Bodrum.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="gallery">
+      <div class="container">
+        <h2>Gallery</h2>
+        <p class="lead">Selected work. Replace these placeholder image files with your own photos inside the <strong>images</strong> folder.</p>
+        <div class="filters" aria-label="Gallery filters">
+          <button class="active" data-filter="all">All</button>
+          <button data-filter="astro">Astrophotos</button>
+          <button data-filter="events">Events</button>
+          <button data-filter="venue">Venues</button>
+        </div>
+        <div class="grid" id="grid">
+          <figure data-category="astro">
+            <img loading="lazy" src="images/astro-01.jpg" alt="Milky Way over the landscape" />
+            <figcaption>Astrophotography — replace with your image</figcaption>
+          </figure>
+          <figure data-category="astro">
+            <img loading="lazy" src="images/astro-02.jpg" alt="Deep sky object photograph" />
+            <figcaption>Deep sky work — replace with your image</figcaption>
+          </figure>
+          <figure data-category="events">
+            <img loading="lazy" src="images/event-01.jpg" alt="Guests around a telescope" />
+            <figcaption>Stargazing event — replace with your image</figcaption>
+          </figure>
+          <figure data-category="venue">
+            <img loading="lazy" src="images/venue-01.jpg" alt="Night venue under the stars" />
+            <figcaption>Hotel or venue atmosphere — replace with your image</figcaption>
+          </figure>
+          <figure data-category="events">
+            <img loading="lazy" src="images/event-02.jpg" alt="Laser pointer night sky tour" />
+            <figcaption>Guided sky tour — replace with your image</figcaption>
+          </figure>
+          <figure data-category="astro">
+            <img loading="lazy" src="images/astro-03.jpg" alt="Moon close up" />
+            <figcaption>Moon or planetary image — replace with your image</figcaption>
+          </figure>
+        </div>
+      </div>
+
+      <div class="lightbox" id="lightbox" role="dialog" aria-modal="true" aria-label="Image viewer">
+        <div>
+          <img id="lightbox-img" alt="" />
+          <div class="caption" id="lightbox-cap"></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="partnerships">
+      <div class="container">
+        <h2>Partnerships</h2>
+        <p class="lead">Built for hotels, resorts, weddings and selected venues looking to offer a memorable night activity with a premium visual identity.</p>
+
+        <div class="cards" style="margin-bottom:16px">
+          <article class="card">
+            <h3>Hotel & Resort Nights</h3>
+            <p>Guest‑friendly stargazing sessions with telescopes, laser tours and storytelling under the night sky.</p>
+          </article>
+          <article class="card">
+            <h3>Luxury Weddings</h3>
+            <p>A memorable evening experience for couples and guests, with the sky as part of the celebration.</p>
+          </article>
+          <article class="card">
+            <h3>Bars, Wineries & Special Venues</h3>
+            <p>Atmospheric events that blend local hospitality with astronomy and visual storytelling.</p>
+          </article>
+        </div>
+
+        <div class="logo-grid">
+          <div class="partner">
+            <img src="images/logo-1.png" alt="Partner logo placeholder" />
+            <p>Add your partner logo and a short description here.</p>
+          </div>
+          <div class="partner">
+            <img src="images/logo-2.png" alt="Partner logo placeholder" />
+            <p>Add your partner logo and a short description here.</p>
+          </div>
+          <div class="partner">
+            <img src="images/logo-3.png" alt="Partner logo placeholder" />
+            <p>Add your partner logo and a short description here.</p>
+          </div>
+          <div class="partner">
+            <img src="images/logo-4.png" alt="Partner logo placeholder" />
+            <p>Add your partner logo and a short description here.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="about">
+      <div class="container about">
+        <div class="panel">
+          <h2>About me</h2>
+          <p>Hi, I’m Michalis Reisis — a local Greek, born and raised on Kos Island. I’m an amateur astronomer and advanced astrophotographer, hosting stargazing events for the past four years on Kos, in other areas of Greece and in nearby Bodrum.</p>
+          <p>I love to travel and create high‑quality images that people remember. My goal is to help guests explore the night sky in a way that feels personal, elegant and memorable.</p>
+          <p class="note">Small extra detail: I have two cats and still wish I had learned guitar younger.</p>
+        </div>
+        <div class="panel">
+          <img src="images/about.jpg" alt="Michalis Reisis running a stargazing event" />
+        </div>
+      </div>
+    </section>
+
+    <section id="contact">
+      <div class="container">
+        <h2>Contact</h2>
+        <p class="lead">Tell me about your venue, dates or ideas. I’ll reply with availability and a proposal.</p>
+        <div class="inline">
+          <div>
+            <a class="btn primary" href="mailto:mixalakiss1987@hotmail.com">Email Michalis</a>
+            <p class="note">Email: <a href="mailto:mixalakiss1987@hotmail.com">mixalakiss1987@hotmail.com</a></p>
+          </div>
+          <form action="mailto:mixalakiss1987@hotmail.com" method="post" enctype="text/plain">
+            <input name="name" placeholder="Your name" required />
+            <input name="company" placeholder="Hotel / Company / Venue" required />
+            <div class="inline">
+              <input name="location" placeholder="Location" />
+              <input name="timeline" placeholder="When (e.g. Aug–Sep)" />
+            </div>
+            <textarea name="notes" placeholder="What are you planning? Hotel activation, wedding, bar or winery event?"></textarea>
+            <button class="btn primary" type="submit">Send</button>
+            <span class="note">By submitting, you consent to be contacted about this inquiry.</span>
+          </form>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="container">
+      © <span id="year"></span> Michalis Reisis • Stargazing Events
+    </div>
+  </footer>
+
+  <script>
+    document.getElementById('year').textContent = new Date().getFullYear();
+
+    const filterButtons = document.querySelectorAll('.filters button');
+    const items = document.querySelectorAll('#grid figure');
+    filterButtons.forEach(btn => btn.addEventListener('click', () => {
+      filterButtons.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      const f = btn.dataset.filter;
+      items.forEach(item => {
+        item.style.display = (f === 'all' || item.dataset.category === f) ? '' : 'none';
+      });
+    }));
+
+    const lightbox = document.getElementById('lightbox');
+    const lbImg = document.getElementById('lightbox-img');
+    const lbCap = document.getElementById('lightbox-cap');
+    document.getElementById('grid').addEventListener('click', e => {
+      const fig = e.target.closest('figure');
+      if(!fig) return;
+      const img = fig.querySelector('img');
+      lbImg.src = img.src;
+      lbImg.alt = img.alt;
+      lbCap.textContent = fig.querySelector('figcaption')?.textContent || '';
+      lightbox.classList.add('open');
+    });
+    lightbox.addEventListener('click', () => lightbox.classList.remove('open'));
+    document.addEventListener('keydown', e => {
+      if(e.key === 'Escape') lightbox.classList.remove('open');
+    });
+  </script>
+</body>
+</html>
