@@ -1,105 +1,377 @@
-  <!DOCTYPE html>
+from pathlib import Path
+
+html = """<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Stargazing Events & Astrophotography — Michalis Reisis</title>
-  <meta name="description" content="Stargazing events and astrophotography experiences for hotels, resorts, weddings, bars and wineries in Kos, nearby islands, Greece and Bodrum." />
-  <link rel="canonical" href="https://www.stargazing.events/">
+  <meta name="description" content="Premium stargazing experiences and astrophotography for hotels, weddings and luxury venues in Kos, nearby islands, Greece and Bodrum." />
+  <meta name="author" content="Michalis Reisis" />
+  <meta property="og:title" content="Stargazing Events — Michalis Reisis" />
+  <meta property="og:description" content="Premium stargazing experiences and astrophotography for hotels, weddings and luxury venues in Kos, nearby islands, Greece and Bodrum." />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://www.stargazing.events" />
+  <link rel="canonical" href="https://www.stargazing.events/" />
   <style>
     :root{
-      --bg: #0b0f14;
-      --panel: #0f141b;
-      --text: #e8ecf1;
-      --muted: #a9b3bf;
-      --accent: #7dc6ff;
-      --accent-2: #b49cff;
-      --border: #1f2a37;
+      --bg:#0b0f14;
+      --panel:#10161f;
+      --panel-2:#0f141b;
+      --text:#e8ecf1;
+      --muted:#a9b3bf;
+      --accent:#7dc6ff;
+      --border:#1f2a37;
+      --shadow:0 12px 30px rgba(0,0,0,.25);
     }
+
     *{box-sizing:border-box}
-    html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font:16px/1.6 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,"Helvetica Neue",Arial}
+    html,body{
+      margin:0;
+      padding:0;
+      background:var(--bg);
+      color:var(--text);
+      font:16px/1.6 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,"Helvetica Neue",Arial,sans-serif;
+    }
+
     a{color:var(--accent);text-decoration:none}
     a:hover{opacity:.92}
     img{max-width:100%;height:auto;display:block}
-    .container{width:100%;max-width:1100px;margin:0 auto;padding:0 20px}
 
-    header{position:sticky;top:0;z-index:20;background:rgba(11,15,20,.82);backdrop-filter:blur(10px);border-bottom:1px solid var(--border)}
-    .nav{display:flex;align-items:center;justify-content:space-between;padding:14px 0;gap:20px}
-    .brand{display:flex;align-items:center;gap:10px;font-weight:700}
-    .brand .dot{width:10px;height:10px;border-radius:50%;background:radial-gradient(circle at 30% 30%, #fff, var(--accent));box-shadow:0 0 12px var(--accent)}
+    .container{width:min(1120px,100% - 40px);margin:0 auto}
+    .section{padding:72px 0;border-top:1px solid var(--border)}
+    h1,h2,h3{line-height:1.15;margin:0 0 14px}
+    h1{font-size:clamp(2.1rem,5vw,4rem)}
+    h2{font-size:clamp(1.6rem,3vw,2.3rem)}
+    h3{font-size:1.1rem}
+    p{margin:0 0 14px}
+    .lead{color:var(--muted);max-width:860px}
+    .muted{color:var(--muted)}
+
+    header{
+      position:sticky;top:0;z-index:30;
+      background:rgba(11,15,20,.85);
+      backdrop-filter:blur(10px);
+      border-bottom:1px solid var(--border);
+    }
+
+    .nav{
+      min-height:72px;
+      display:flex;align-items:center;justify-content:space-between;gap:16px;
+    }
+
+    .brand{
+      display:flex;align-items:center;gap:10px;
+      font-weight:700;color:var(--text)
+    }
+
+    .brand-dot{
+      width:10px;height:10px;border-radius:50%;
+      background:radial-gradient(circle at 35% 35%,#fff,var(--accent));
+      box-shadow:0 0 14px var(--accent);
+    }
+
     nav{display:flex;flex-wrap:wrap;align-items:center;gap:12px}
-    .nav a{color:var(--text)}
-    .btn{padding:10px 14px;border:1px solid var(--border);border-radius:12px;background:linear-gradient(180deg,#111720,#0a0e14);color:var(--text);display:inline-block}
-    .btn.primary{border-color:transparent;background:linear-gradient(180deg,var(--accent),#4ea9f5);color:#001225;font-weight:700}
+    nav a{color:var(--text)}
 
-    .hero{position:relative;min-height:70vh;display:grid;align-items:center}
-    .hero::before{content:"";position:absolute;inset:0;background:radial-gradient(1200px 600px at 20% 10%, rgba(125,198,255,.18), transparent), radial-gradient(900px 500px at 80% 20%, rgba(180,156,255,.16), transparent)}
-    .hero .inner{position:relative;z-index:1;padding:64px 0}
-    .kicker{color:var(--accent);text-transform:uppercase;letter-spacing:.12em;font-weight:700;font-size:.85rem}
-    h1{font-size:clamp(2rem,4vw,3.2rem);line-height:1.1;margin:.5rem 0 1rem}
-    .lede{color:var(--muted);max-width:760px}
-    .hero-cta{margin-top:22px;display:flex;gap:12px;flex-wrap:wrap}
+    .btn{
+      display:inline-block;
+      padding:11px 16px;
+      border:1px solid var(--border);
+      border-radius:12px;
+      background:linear-gradient(180deg,#121a24,#0b1016);
+      color:var(--text);
+      box-shadow:var(--shadow);
+    }
 
-    section{padding:64px 0;border-top:1px solid var(--border)}
-    section h2{font-size:clamp(1.6rem,3.2vw,2.2rem);margin:0 0 16px}
-    section p.lead{color:var(--muted);margin-top:0;max-width:800px}
+    .btn.primary{
+      border-color:transparent;
+      background:linear-gradient(180deg,var(--accent),#53adf7);
+      color:#001726;
+      font-weight:700;
+    }
 
-    .trust{display:grid;grid-template-columns:repeat(2,1fr);gap:18px}
-    .trust .logo{background:var(--panel);border:1px solid var(--border);padding:14px;border-radius:12px;display:flex;align-items:center;justify-content:center;min-height:70px;color:var(--muted)}
-    @media(min-width:700px){.trust{grid-template-columns:repeat(5,1fr)}}
+    .hero{
+      position:relative;
+      min-height:84vh;
+      display:grid;
+      align-items:end;
+      overflow:hidden;
+      border-top:none;
+    }
 
-    .cards{display:grid;grid-template-columns:1fr;gap:16px}
-    @media(min-width:800px){.cards{grid-template-columns:repeat(3,1fr)}}
-    .card{background:linear-gradient(180deg,#0f141b,#0a0e14);border:1px solid var(--border);border-radius:16px;padding:18px}
-    .card h3{margin:8px 0 6px}
-    .chip{display:inline-block;border:1px solid var(--border);padding:4px 8px;border-radius:999px;font-size:.8rem;color:var(--muted)}
+    .hero-media{
+      position:absolute;inset:0;
+      background:
+        linear-gradient(180deg,rgba(5,8,12,.25),rgba(5,8,12,.55) 45%, rgba(5,8,12,.86)),
+        url("images/wide-01.jpg") center center / cover no-repeat;
+      transform:scale(1.02);
+    }
 
-    .filters{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}
-    .filters button{cursor:pointer;border:1px solid var(--border);background:var(--panel);color:var(--text);padding:8px 12px;border-radius:999px}
-    .filters button.active{outline:2px solid var(--accent)}
-    .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-    @media(min-width:900px){.grid{grid-template-columns:repeat(3,1fr)}}
-    .grid figure{position:relative;border-radius:12px;overflow:hidden;border:1px solid var(--border);margin:0}
-    .grid figcaption{position:absolute;left:0;right:0;bottom:0;padding:10px;background:linear-gradient(180deg,transparent,rgba(0,0,0,.6));font-size:.9rem}
-    .grid img{width:100%;height:220px;object-fit:cover}
+    .hero::after{
+      content:"";
+      position:absolute;inset:0;
+      background:
+        radial-gradient(900px 500px at 20% 15%, rgba(125,198,255,.18), transparent),
+        radial-gradient(800px 500px at 80% 20%, rgba(180,156,255,.12), transparent);
+      pointer-events:none;
+    }
 
-    .lightbox{position:fixed;inset:0;background:rgba(0,0,0,.85);display:none;align-items:center;justify-content:center;padding:20px;z-index:50}
+    .hero-inner{
+      position:relative;z-index:2;
+      padding:110px 0 72px;
+    }
+
+    .kicker{
+      display:inline-block;
+      margin-bottom:14px;
+      color:var(--accent);
+      text-transform:uppercase;
+      letter-spacing:.12em;
+      font-size:.82rem;
+      font-weight:700;
+    }
+
+    .hero p.lead{max-width:760px}
+    .hero-cta{display:flex;flex-wrap:wrap;gap:12px;margin-top:24px}
+
+    .grid-3{
+      display:grid;
+      grid-template-columns:repeat(3,1fr);
+      gap:18px;
+    }
+
+    .grid-2{
+      display:grid;
+      grid-template-columns:repeat(2,1fr);
+      gap:18px;
+    }
+
+    .card{
+      background:linear-gradient(180deg,var(--panel),var(--panel-2));
+      border:1px solid var(--border);
+      border-radius:18px;
+      padding:20px;
+      box-shadow:var(--shadow);
+    }
+
+    .chip{
+      display:inline-block;
+      margin-bottom:10px;
+      padding:4px 10px;
+      border-radius:999px;
+      border:1px solid var(--border);
+      font-size:.8rem;
+      color:var(--muted);
+    }
+
+    .trust-grid{
+      display:grid;
+      grid-template-columns:repeat(5,1fr);
+      gap:14px;
+      margin-top:20px;
+    }
+
+    .trust-item{
+      min-height:84px;
+      display:flex;align-items:center;justify-content:center;
+      text-align:center;
+      padding:14px;
+      border-radius:16px;
+      border:1px solid var(--border);
+      background:var(--panel);
+      color:var(--text);
+      box-shadow:var(--shadow);
+      font-size:.95rem;
+    }
+
+    .gallery-filters{
+      display:flex;flex-wrap:wrap;gap:10px;margin:18px 0 18px;
+    }
+
+    .gallery-filters button{
+      cursor:pointer;
+      color:var(--text);
+      background:var(--panel);
+      border:1px solid var(--border);
+      padding:9px 14px;
+      border-radius:999px;
+      font:inherit;
+    }
+
+    .gallery-filters button.active{outline:2px solid var(--accent)}
+
+    .gallery-grid{
+      display:grid;
+      grid-template-columns:repeat(3,1fr);
+      gap:12px;
+    }
+
+    .gallery-card{
+      margin:0;
+      overflow:hidden;
+      position:relative;
+      border-radius:16px;
+      border:1px solid var(--border);
+      background:#070a0e;
+      box-shadow:var(--shadow);
+      cursor:pointer;
+    }
+
+    .gallery-card img{
+      width:100%;
+      height:250px;
+      object-fit:cover;
+      transition:transform .25s ease;
+    }
+
+    .gallery-card:hover img{transform:scale(1.03)}
+
+    .gallery-card figcaption{
+      position:absolute;
+      left:0;right:0;bottom:0;
+      padding:12px;
+      background:linear-gradient(180deg,transparent,rgba(0,0,0,.78));
+      font-size:.92rem;
+    }
+
+    .about-grid{
+      display:grid;
+      grid-template-columns:1.15fr .85fr;
+      gap:22px;
+      align-items:start;
+    }
+
+    .about-photo img{
+      width:100%;
+      border-radius:18px;
+      border:1px solid var(--border);
+      box-shadow:var(--shadow);
+    }
+
+    .meta-list{
+      display:grid;
+      grid-template-columns:repeat(2,1fr);
+      gap:10px;
+      margin-top:16px;
+    }
+
+    .meta-list div{
+      background:rgba(255,255,255,.02);
+      border:1px solid var(--border);
+      border-radius:12px;
+      padding:10px 12px;
+      font-size:.95rem;
+    }
+
+    .partnership-columns{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:18px;
+      margin-top:22px;
+    }
+
+    .partner-list{
+      list-style:none;
+      padding:0;margin:10px 0 0;
+    }
+
+    .partner-list li{
+      padding:10px 0;
+      border-bottom:1px solid rgba(255,255,255,.06);
+    }
+
+    .testimonial-grid{
+      display:grid;
+      grid-template-columns:repeat(3,1fr);
+      gap:18px;
+    }
+
+    blockquote{
+      margin:0;
+      font-size:1rem;
+    }
+
+    .quote-author{
+      margin-top:12px;
+      color:var(--muted);
+      font-size:.95rem;
+    }
+
+    .contact-card{
+      max-width:760px;
+    }
+
+    .socials{
+      display:flex;flex-wrap:wrap;gap:14px;
+      margin-top:12px;
+    }
+
+    .socials a{
+      display:inline-flex;align-items:center;
+      padding:9px 12px;
+      border-radius:999px;
+      border:1px solid var(--border);
+      background:var(--panel);
+      color:var(--text);
+    }
+
+    footer{
+      padding:28px 0 40px;
+      border-top:1px solid var(--border);
+      color:var(--muted);
+      text-align:center;
+    }
+
+    .lightbox{
+      position:fixed;inset:0;z-index:100;
+      display:none;align-items:center;justify-content:center;
+      background:rgba(0,0,0,.9);
+      padding:20px;
+    }
+
     .lightbox.open{display:flex}
-    .lightbox img{max-height:84vh;width:auto;height:auto;border-radius:14px;border:1px solid var(--border)}
-    .lightbox .caption{margin-top:10px;color:#cfd8e3;text-align:center}
+    .lightbox-inner{max-width:min(1200px,100%);text-align:center}
+    .lightbox img{
+      max-width:100%;
+      max-height:82vh;
+      width:auto;height:auto;
+      border-radius:18px;
+      border:1px solid var(--border);
+      box-shadow:var(--shadow);
+    }
 
-    .logo-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}
-    @media(min-width:800px){.logo-grid{grid-template-columns:repeat(4,1fr)}}
-    .partner{background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:16px;display:flex;flex-direction:column;gap:10px;align-items:center;text-align:center}
-    .partner img{height:40px;width:auto;filter:grayscale(100%);opacity:.9}
-    .partner p{margin:0;color:var(--muted);font-size:.95rem}
+    .lightbox-caption{
+      margin-top:12px;
+      color:#d5dde7;
+    }
 
-    .about{display:grid;gap:20px;grid-template-columns:1fr}
-    @media(min-width:900px){.about{grid-template-columns:1.2fr .8fr;align-items:start}}
-    .about .panel{background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:18px}
+    @media (max-width: 980px){
+      .grid-3,.trust-grid,.gallery-grid,.testimonial-grid{grid-template-columns:repeat(2,1fr)}
+      .about-grid,.partnership-columns,.grid-2{grid-template-columns:1fr}
+    }
 
-    form{display:grid;gap:10px;margin-top:10px}
-    input, textarea{width:100%;padding:12px 14px;border-radius:12px;border:1px solid var(--border);background:#0b1118;color:var(--text)}
-    textarea{min-height:120px}
-    .inline{display:grid;gap:10px;grid-template-columns:1fr}
-    @media(min-width:700px){.inline{grid-template-columns:1fr 1fr}}
-    .note{color:var(--muted);font-size:.9rem}
-
-    footer{border-top:1px solid var(--border);padding:28px 0;color:var(--muted);text-align:center}
+    @media (max-width: 700px){
+      .nav{padding:14px 0}
+      nav{justify-content:flex-end}
+      .gallery-grid,.trust-grid,.testimonial-grid,.meta-list{grid-template-columns:1fr}
+      .gallery-card img{height:240px}
+      .hero-inner{padding:96px 0 60px}
+    }
   </style>
 </head>
 <body>
   <header>
     <div class="container nav">
-      <p>
-  Instagram: <a href="https://instagram.com/mixalre" target="_blank">@mixalre</a> •
-  Facebook: <a href="https://fb.com/nextdoorphotographer" target="_blank">Nextdoorphotographer</a>
-</p>
-      <div class="brand"><span class="dot"></span><span>Michalis Reisis</span></div>
+      <div class="brand">
+        <span class="brand-dot"></span>
+        <span>Michalis Reisis</span>
+      </div>
       <nav>
         <a href="#gallery">Gallery</a>
-        <a href="#about">About</a>
         <a href="#partnerships">Partnerships</a>
+        <a href="#about">About</a>
+        <a href="#testimonials">Testimonials</a>
         <a href="#contact" class="btn">Contact</a>
         <a href="mailto:mixalakiss1987@hotmail.com" class="btn primary">Email me</a>
       </nav>
@@ -107,169 +379,234 @@
   </header>
 
   <main>
-    <section class="hero">
-      <div class="container inner">
-        <div class="kicker">Stargazing Events • Astrophotography</div>
+    <section class="hero section">
+      <div class="hero-media"></div>
+      <div class="container hero-inner">
+        <span class="kicker">Stargazing Events • Astrophotography</span>
         <h1>Premium Stargazing Experiences for Hotels, Weddings & Luxury Venues</h1>
-        <p class="lede">I design and host premium stargazing events and create high-quality astrophotography experiences for hotels, resorts, luxury weddings, bars and wineries. Based on Kos Island and working across nearby islands, Greece and Bodrum, I bring telescopes, laser sky tours and storytelling under the stars for unforgettable guest experiences.</p>
+        <p class="lead">
+          I design and host premium stargazing events and create high-quality astrophotography experiences for hotels, resorts, luxury weddings, bars and wineries.
+          Based on Kos Island and working across nearby islands, Greece and Bodrum, I bring telescopes, laser sky tours and storytelling under the stars for unforgettable guest experiences.
+        </p>
         <div class="hero-cta">
           <a class="btn primary" href="#contact">Discuss a partnership</a>
-          <a class="btn" href="mailto:mixalakiss1987@hotmail.com">Email me</a>
+          <a class="btn" href="#gallery">View gallery</a>
         </div>
       </div>
     </section>
 
-    <section>
+    <section class="section">
       <div class="container">
-        <p class="lead">Trusted by hospitality teams and venues to create memorable low‑lift night experiences.</p>
-        <div class="trust">
-          <div class="logo">Caravia Beach Hotel – Kos</div>
-          <div class="logo">OKU Kos</div>
-          <div class="logo">Astir Odysseus Resort & Spa</div>
-          <div class="logo">Palazzo del Mare</div>
-          <div class="logo">Kyma Mare Dunes Resort</div>
+        <h2>Trusted by hospitality teams</h2>
+        <p class="lead">A premium night-sky activity that adds atmosphere, storytelling and memorable moments to a guest’s stay.</p>
+        <div class="trust-grid">
+          <div class="trust-item">Caravia Beach Hotel – Kos</div>
+          <div class="trust-item">OKU Kos</div>
+          <div class="trust-item">Astir Odysseus</div>
+          <div class="trust-item">Palazzo del Mare</div>
+          <div class="trust-item">Kyma Mare Dunes Resort</div>
         </div>
       </div>
     </section>
 
-    <section>
+    <section class="section">
       <div class="container">
         <h2>What I do</h2>
-        <div class="cards">
+        <div class="grid-3">
           <article class="card">
             <span class="chip">Guest Experience</span>
             <h3>Stargazing Nights</h3>
-            <p>Turnkey evenings with telescopes, laser sky tours and Q&amp;A. Ideal for hotels, luxury weddings, bars and wineries.</p>
+            <p>Turnkey evenings with telescopes, laser sky tours and live storytelling under the night sky for hotels, weddings and special venues.</p>
           </article>
           <article class="card">
             <span class="chip">Content</span>
             <h3>Astrophotography</h3>
-            <p>Hero shots and night ambience visuals for campaigns, social media and property marketing. Commercial licensing available.</p>
+            <p>High-quality deep sky, wide-field and nightscape imagery for campaigns, social media, PR and destination storytelling.</p>
           </article>
           <article class="card">
-            <span class="chip">Regions</span>
+            <span class="chip">Coverage</span>
             <h3>Kos • Nearby Islands • Bodrum</h3>
-            <p>Local Greek partner based in Kos, available across nearby islands, around Greece and in nearby Bodrum.</p>
+            <p>Based on Kos and available across nearby islands, around Greece and in Bodrum for selected collaborations and private events.</p>
           </article>
         </div>
       </div>
     </section>
 
-    <section id="gallery">
+    <section id="gallery" class="section">
       <div class="container">
         <h2>Gallery</h2>
-        <p class="lead">Selected work. Replace these placeholder image files with your own photos inside the <strong>images</strong> folder.</p>
-        <div class="filters" aria-label="Gallery filters">
+        <p class="lead">A first selection of astrophotography and night-sky work. Click any image to view it larger.</p>
+
+        <div class="gallery-filters" aria-label="Gallery filters">
           <button class="active" data-filter="all">All</button>
-          <button data-filter="astro">Astrophotos</button>
-          <button data-filter="events">Events</button>
-          <button data-filter="venue">Venues</button>
+          <button data-filter="deep-sky">Deep Sky</button>
+          <button data-filter="wide-field">Wide Field</button>
+          <button data-filter="featured">Featured</button>
         </div>
-        <div class="grid" id="grid">
-          <figure data-category="astro">
-            <img loading="lazy" src="images/astro-01.jpg" alt="Milky Way over the landscape" />
-            <figcaption>Astrophotography — replace with your image</figcaption>
+
+        <div class="gallery-grid" id="galleryGrid">
+          <figure class="gallery-card" data-category="deep-sky featured">
+            <img loading="lazy" src="images/astro-01.jpg" alt="Deep sky astrophotography image" />
+            <figcaption>Pleiades / deep sky astrophotography</figcaption>
           </figure>
-          <figure data-category="astro">
-            <img loading="lazy" src="images/astro-02.jpg" alt="Deep sky object photograph" />
-            <figcaption>Deep sky work — replace with your image</figcaption>
+
+          <figure class="gallery-card" data-category="deep-sky featured">
+            <img loading="lazy" src="images/astro-02.jpg" alt="Annotated or alternate deep sky astrophotography image" />
+            <figcaption>Annotated or alternate deep sky presentation</figcaption>
           </figure>
-          <figure data-category="events">
-            <img loading="lazy" src="images/event-01.jpg" alt="Guests around a telescope" />
-            <figcaption>Stargazing event — replace with your image</figcaption>
+
+          <figure class="gallery-card" data-category="deep-sky">
+            <img loading="lazy" src="images/astro-03.jpg" alt="Deep sky object image" />
+            <figcaption>Deep sky object imaging</figcaption>
           </figure>
-          <figure data-category="venue">
-            <img loading="lazy" src="images/venue-01.jpg" alt="Night venue under the stars" />
-            <figcaption>Hotel or venue atmosphere — replace with your image</figcaption>
+
+          <figure class="gallery-card" data-category="deep-sky">
+            <img loading="lazy" src="images/astro-04.jpg" alt="Deep sky astrophotography composition" />
+            <figcaption>Long-exposure deep sky work</figcaption>
           </figure>
-          <figure data-category="events">
-            <img loading="lazy" src="images/event-02.jpg" alt="Laser pointer night sky tour" />
-            <figcaption>Guided sky tour — replace with your image</figcaption>
+
+          <figure class="gallery-card" data-category="deep-sky">
+            <img loading="lazy" src="images/astro-05.jpg" alt="Night sky astrophotography image" />
+            <figcaption>Astrophotography from Kos and beyond</figcaption>
           </figure>
-          <figure data-category="astro">
-            <img loading="lazy" src="images/astro-03.jpg" alt="Moon close up" />
-            <figcaption>Moon or planetary image — replace with your image</figcaption>
+
+          <figure class="gallery-card" data-category="deep-sky">
+            <img loading="lazy" src="images/astro-06.jpg" alt="Deep sky imaging example" />
+            <figcaption>Processed astronomical image</figcaption>
+          </figure>
+
+          <figure class="gallery-card" data-category="deep-sky">
+            <img loading="lazy" src="images/astro-07.jpg" alt="Deep sky astronomy photograph" />
+            <figcaption>Night sky detail and structure</figcaption>
+          </figure>
+
+          <figure class="gallery-card" data-category="wide-field featured">
+            <img loading="lazy" src="images/wide-01.jpg" alt="Wide-field Milky Way nightscape" />
+            <figcaption>Wide-field nightscape / Milky Way scene</figcaption>
           </figure>
         </div>
       </div>
 
-      <div class="lightbox" id="lightbox" role="dialog" aria-modal="true" aria-label="Image viewer">
-        <div>
-          <img id="lightbox-img" alt="" />
-          <div class="caption" id="lightbox-cap"></div>
+      <div class="lightbox" id="lightbox" aria-modal="true" role="dialog" aria-label="Image viewer">
+        <div class="lightbox-inner">
+          <img id="lightboxImg" alt="" />
+          <div class="lightbox-caption" id="lightboxCaption"></div>
         </div>
       </div>
     </section>
 
-    <section id="partnerships">
+    <section class="section">
+      <div class="container">
+        <h2>Planned image presentation features</h2>
+        <div class="grid-3">
+          <article class="card">
+            <span class="chip">Annotated Views</span>
+            <h3>Clean vs annotated</h3>
+            <p>Selected images will include a second annotated view showing visible stars, nebulae and key objects for an educational presentation.</p>
+          </article>
+          <article class="card">
+            <span class="chip">Overlay Mode</span>
+            <h3>Annotation overlay</h3>
+            <p>Where available, transparent PNG overlays can be toggled on top of the clean image to explain the scene without losing the original look.</p>
+          </article>
+          <article class="card">
+            <span class="chip">Filters & Data</span>
+            <h3>SHO / mono channels</h3>
+            <p>Future image pages can compare SII, H-alpha and OIII captures and explain how each filter isolates a different part of the spectrum.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="partnerships" class="section">
       <div class="container">
         <h2>Partnerships</h2>
-        <p class="lead">Built for hotels, resorts, weddings and selected venues looking to offer a memorable night activity with a premium visual identity.</p>
+        <p class="lead">Created for hotels, resorts, weddings and selected venues looking for a memorable premium night activity with real astronomy knowledge behind it.</p>
 
-        <div class="cards" style="margin-bottom:16px">
-          <article class="card">
-            <h3>Hotel & Resort Nights</h3>
-            <p>Guest‑friendly stargazing sessions with telescopes, laser tours and storytelling under the night sky.</p>
-          </article>
-          <article class="card">
-            <h3>Luxury Weddings</h3>
-            <p>A memorable evening experience for couples and guests, with the sky as part of the celebration.</p>
-          </article>
-          <article class="card">
-            <h3>Bars, Wineries & Special Venues</h3>
-            <p>Atmospheric events that blend local hospitality with astronomy and visual storytelling.</p>
-          </article>
-        </div>
+        <div class="partnership-columns">
+          <div class="card">
+            <span class="chip">Trusted Partners</span>
+            <h3>Current and recurring collaborations</h3>
+            <ul class="partner-list">
+              <li>Caravia Beach Hotel – Kos</li>
+              <li>OKU Kos</li>
+              <li>Astir Odysseus Resort & Spa</li>
+              <li>Palazzo del Mare</li>
+              <li>Kyma Mare Dunes Resort</li>
+            </ul>
+          </div>
 
-        <div class="logo-grid">
-          <div class="partner">
-            <img src="images/logo-1.png" alt="Partner logo placeholder" />
-            <p>Add your partner logo and a short description here.</p>
-          </div>
-          <div class="partner">
-            <img src="images/logo-2.png" alt="Partner logo placeholder" />
-            <p>Add your partner logo and a short description here.</p>
-          </div>
-          <div class="partner">
-            <img src="images/logo-3.png" alt="Partner logo placeholder" />
-            <p>Add your partner logo and a short description here.</p>
-          </div>
-          <div class="partner">
-            <img src="images/logo-4.png" alt="Partner logo placeholder" />
-            <p>Add your partner logo and a short description here.</p>
+          <div class="card">
+            <span class="chip">Selected Collaborations</span>
+            <h3>Additional venues and private events</h3>
+            <ul class="partner-list">
+              <li>Grecotel Kos Imperial</li>
+              <li>The Bodrum EDITION</li>
+              <li>The Peninsula Istanbul — private event</li>
+            </ul>
           </div>
         </div>
       </div>
     </section>
 
-    <section id="about">
-      <div class="container about">
-        <div class="panel">
+    <section id="about" class="section">
+      <div class="container about-grid">
+        <div class="card">
           <h2>About me</h2>
-          <p>Hi, I’m Michalis Reisis — a local Greek, born and raised on Kos Island. I’m an amateur astronomer and advanced astrophotographer, hosting stargazing events for the past four years on Kos, in other areas of Greece and in nearby Bodrum.</p>
-          <p>I love to travel and create high‑quality images that people remember. My goal is to help guests explore the night sky in a way that feels personal, elegant and memorable.</p>
-          <p class="note">Small extra detail: I have two cats and still wish I had learned guitar younger.</p>
+          <p>Born and raised on Kos Island, I am an amateur astronomer and advanced astrophotographer creating premium stargazing experiences across Kos, nearby islands, Greece and Bodrum.</p>
+          <p>For the past four years I have hosted astronomy nights for hotels, guests and private events, combining observation through telescopes with storytelling, education and atmosphere.</p>
+          <p>I love to travel and create images that people remember. My goal is to help guests explore the night sky in a way that feels personal, elegant and memorable.</p>
+
+          <div class="meta-list">
+            <div><strong>Base:</strong> Kos Island, Greece</div>
+            <div><strong>Coverage:</strong> Nearby islands, Greece, Bodrum</div>
+            <div><strong>Focus:</strong> Events, astrophotography, education</div>
+            <div><strong>Style:</strong> Premium, calm, memorable</div>
+          </div>
         </div>
-        <div class="panel">
+
+        <div class="about-photo">
           <img src="images/about.jpg" alt="Michalis Reisis running a stargazing event" />
         </div>
       </div>
     </section>
 
-    <section id="contact">
+    <section id="testimonials" class="section">
+      <div class="container">
+        <h2>Testimonials</h2>
+        <p class="lead">Add your real quotes here as they come in. Even short venue comments work well.</p>
+
+        <div class="testimonial-grid">
+          <div class="card">
+            <blockquote>“A memorable and elegant experience for our guests.”</blockquote>
+            <div class="quote-author">Partner testimonial placeholder</div>
+          </div>
+
+          <div class="card">
+            <blockquote>“Michalis combines real astronomy knowledge with a calm and premium presentation.”</blockquote>
+            <div class="quote-author">Venue / planner placeholder</div>
+          </div>
+
+          <div class="card">
+            <blockquote>“One of the most talked-about evening activities of the season.”</blockquote>
+            <div class="quote-author">Hospitality team placeholder</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="contact" class="section">
       <div class="container">
         <h2>Contact</h2>
-        <p class="lead">Tell me about your venue, dates or ideas. I’ll reply with availability and a proposal.</p>
-        <div class="inline">
-          <div>
-            <a class="btn primary" href="mailto:mixalakiss1987@hotmail.com">Email Michalis</a>
-            <p class="note">Email: <a href="mailto:mixalakiss1987@hotmail.com">mixalakiss1987@hotmail.com</a></p>
+        <div class="card contact-card">
+          <p class="lead">For partnerships, event requests, weddings, venue collaborations or astrophotography inquiries, email me directly and I’ll reply with availability and a proposal.</p>
+          <p><a class="btn primary" href="mailto:mixalakiss1987@hotmail.com">Email Michalis</a></p>
+          <p class="note">Temporary contact email: mixalakiss1987@hotmail.com</p>
+
+          <div class="socials">
+            <a href="https://instagram.com/mixalre" target="_blank" rel="noopener noreferrer">Instagram @mixalre</a>
+            <a href="https://fb.com/nextdoorphotographer" target="_blank" rel="noopener noreferrer">Facebook</a>
           </div>
-          <div class="panel" style="margin-top:10px;">
-  <p>For partnerships, event requests, weddings, venue collaborations or astrophotography inquiries, please email me directly.</p>
-  <p><a class="btn primary" href="mailto:mixalakiss1987@hotmail.com">Email Michalis</a></p>
-  <p class="note">Temporary contact email: mixalakiss1987@hotmail.com</p>
-</div>
         </div>
       </div>
     </section>
@@ -284,33 +621,50 @@
   <script>
     document.getElementById('year').textContent = new Date().getFullYear();
 
-    const filterButtons = document.querySelectorAll('.filters button');
-    const items = document.querySelectorAll('#grid figure');
-    filterButtons.forEach(btn => btn.addEventListener('click', () => {
-      filterButtons.forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      const f = btn.dataset.filter;
-      items.forEach(item => {
-        item.style.display = (f === 'all' || item.dataset.category === f) ? '' : 'none';
+    const filterButtons = document.querySelectorAll('.gallery-filters button');
+    const galleryItems = document.querySelectorAll('#galleryGrid .gallery-card');
+
+    filterButtons.forEach(button => {
+      button.addEventListener('click', () => {
+        filterButtons.forEach(b => b.classList.remove('active'));
+        button.classList.add('active');
+        const filter = button.dataset.filter;
+
+        galleryItems.forEach(item => {
+          const categories = item.dataset.category.split(' ');
+          item.style.display = (filter === 'all' || categories.includes(filter)) ? '' : 'none';
+        });
       });
-    }));
+    });
 
     const lightbox = document.getElementById('lightbox');
-    const lbImg = document.getElementById('lightbox-img');
-    const lbCap = document.getElementById('lightbox-cap');
-    document.getElementById('grid').addEventListener('click', e => {
-      const fig = e.target.closest('figure');
-      if(!fig) return;
-      const img = fig.querySelector('img');
-      lbImg.src = img.src;
-      lbImg.alt = img.alt;
-      lbCap.textContent = fig.querySelector('figcaption')?.textContent || '';
+    const lightboxImg = document.getElementById('lightboxImg');
+    const lightboxCaption = document.getElementById('lightboxCaption');
+
+    document.getElementById('galleryGrid').addEventListener('click', (event) => {
+      const card = event.target.closest('.gallery-card');
+      if (!card) return;
+      const img = card.querySelector('img');
+      const caption = card.querySelector('figcaption');
+
+      lightboxImg.src = img.src;
+      lightboxImg.alt = img.alt;
+      lightboxCaption.textContent = caption ? caption.textContent : '';
       lightbox.classList.add('open');
     });
-    lightbox.addEventListener('click', () => lightbox.classList.remove('open'));
-    document.addEventListener('keydown', e => {
-      if(e.key === 'Escape') lightbox.classList.remove('open');
+
+    lightbox.addEventListener('click', () => {
+      lightbox.classList.remove('open');
+    });
+
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') lightbox.classList.remove('open');
     });
   </script>
 </body>
 </html>
+"""
+
+path = Path("/mnt/data/index_recreated.html")
+path.write_text(html, encoding="utf-8")
+print(path)
