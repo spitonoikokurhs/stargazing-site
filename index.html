@@ -73,21 +73,27 @@
     nav a{color:var(--text)}
 
     .btn{
-      display:inline-block;
-      padding:11px 16px;
-      border:1px solid var(--border);
-      border-radius:12px;
-      background:linear-gradient(180deg,#121a24,#0b1016);
-      color:var(--text);
-      box-shadow:var(--shadow);
-    }
+  display:inline-block;
+  padding:11px 16px;
+  border:1px solid var(--border);
+  border-radius:12px;
+  background:linear-gradient(180deg,#121a24,#0b1016);
+  color:var(--text);
+  box-shadow:var(--shadow);
+  transition:transform .2s ease, opacity .2s ease, box-shadow .2s ease;
+}
 
-    .btn.primary{
-      border-color:transparent;
-      background:linear-gradient(180deg,var(--accent),#53adf7);
-      color:#001726;
-      font-weight:700;
-    }
+.btn:hover{
+  transform:translateY(-2px);
+  box-shadow:0 16px 34px rgba(0,0,0,.3);
+}
+
+.btn.primary{
+  border-color:transparent;
+  background:linear-gradient(180deg,var(--accent),#53adf7);
+  color:#001726;
+  font-weight:700;
+}
 
     .hero{
       position:relative;
@@ -101,10 +107,11 @@
 .hero-media{
   position:absolute;inset:0;
   background:
-    linear-gradient(180deg,rgba(5,8,12,.25),rgba(5,8,12,.55) 45%, rgba(5,8,12,.86)),
+    linear-gradient(180deg,rgba(5,8,12,.14),rgba(5,8,12,.42) 45%, rgba(5,8,12,.76)),
     url("images/astro-01.jpg") center center / cover no-repeat;
+  filter:contrast(1.12) saturate(1.12) brightness(1.06);
   transform:scale(1.02) rotate(0deg);
-  animation: heroDrift 12s ease-in-out infinite alternate;
+  animation:heroDrift 12s ease-in-out infinite alternate;
 }
 
 @keyframes heroDrift {
@@ -116,32 +123,73 @@
   }
 }
 
-    .hero::after{
-      content:"";
-      position:absolute;inset:0;
-      background:
-        radial-gradient(900px 500px at 20% 15%, rgba(125,198,255,.18), transparent),
-        radial-gradient(800px 500px at 80% 20%, rgba(180,156,255,.12), transparent);
-      pointer-events:none;
-    }
+.hero::after{
+  content:"";
+  position:absolute;inset:0;
+  background:
+    radial-gradient(900px 500px at 20% 15%, rgba(125,198,255,.12), transparent),
+    radial-gradient(800px 500px at 80% 20%, rgba(180,156,255,.08), transparent);
+  pointer-events:none;
+}
 
-    .hero-inner{
-      position:relative;z-index:2;
-      padding:110px 0 72px;
-    }
+.hero-inner{
+  position:relative;
+  z-index:2;
+  padding:110px 0 72px;
+}
 
-    .kicker{
-      display:inline-block;
-      margin-bottom:14px;
-      color:var(--accent);
-      text-transform:uppercase;
-      letter-spacing:.12em;
-      font-size:.82rem;
-      font-weight:700;
-    }
+.kicker{
+  display:inline-block;
+  margin-bottom:14px;
+  color:var(--accent);
+  text-transform:uppercase;
+  letter-spacing:.12em;
+  font-size:.82rem;
+  font-weight:700;
+}
 
-    .hero p.lead{max-width:760px}
-    .hero-cta{display:flex;flex-wrap:wrap;gap:12px;margin-top:24px}
+.hero p.lead{
+  max-width:760px;
+}
+
+.hero-cta{
+  display:flex;
+  flex-wrap:wrap;
+  gap:12px;
+  margin-top:24px;
+}
+
+.hero .kicker,
+.hero h1,
+.hero .lead,
+.hero .hero-cta{
+  opacity:0;
+  transform:translateY(16px);
+  animation:heroTextIn .9s ease forwards;
+}
+
+.hero .kicker{
+  animation-delay:.15s;
+}
+
+.hero h1{
+  animation-delay:.35s;
+}
+
+.hero .lead{
+  animation-delay:.55s;
+}
+
+.hero .hero-cta{
+  animation-delay:.75s;
+}
+
+@keyframes heroTextIn{
+  to{
+    opacity:1;
+    transform:translateY(0);
+  }
+}
 
     .grid-3{
       display:grid;
@@ -446,10 +494,10 @@
         <p class="lead">A first selection of astrophotography and night-sky work. Click any image to view it larger.</p>
 
         <div class="gallery-filters" aria-label="Gallery filters">
-          <button class="active" data-filter="all">All</button>
-          <button data-filter="deep-sky">Deep Sky</button>
-          <button data-filter="wide-field">Wide Field</button>
-          <button data-filter="featured">Featured</button>
+          <button class="active" data-filter="all" aria-label="Show all images">All</button>
+          <button data-filter="deep-sky" aria-label="Show deep sky images">Deep Sky</button>
+          <button data-filter="wide-field" aria-label="Show wide field images">Wide Field</button>
+          <button data-filter="featured" aria-label="Show featured images">Featured</button>
         </div>
 
         <div class="gallery-grid" id="galleryGrid">
@@ -561,7 +609,7 @@
       <div class="container about-grid">
         <div class="card">
           <h2>About me</h2>
-          <p>Born and raised on Kos Island, I am an amateur astronomer and advanced astrophotographer creating premium stargazing experiences across Kos, nearby islands, Greece and Bodrum.</p>
+          <p>Born and raised on Kos Island, I am an amateur astronomer and advanced astrophotographer creating premium stargazing experiences across Kos, nearby islands, Greece, and Bodrum.</p>
           <p>For the past four years I have hosted astronomy nights for hotels, guests and private events, combining observation through telescopes with storytelling, education and atmosphere.</p>
           <p>I love to travel and create images that people remember. My goal is to help guests explore the night sky in a way that feels personal, elegant and memorable.</p>
 
@@ -574,7 +622,7 @@
         </div>
 
         <div class="about-photo">
-          <img src="images/about.jpg" alt="Michalis Reisis running a stargazing event" />
+          <img loading="lazy" src="images/about.jpg" alt="Michalis Reisis running a stargazing event" />
         </div>
       </div>
     </section>
@@ -587,17 +635,17 @@
         <div class="testimonial-grid">
           <div class="card">
             <blockquote>“A memorable and elegant experience for our guests.”</blockquote>
-            <div class="quote-author">Partner testimonial placeholder</div>
+            <div class="quote-author">Hospitality partner</div>
           </div>
 
           <div class="card">
             <blockquote>“Michalis combines real astronomy knowledge with a calm and premium presentation.”</blockquote>
-            <div class="quote-author">Venue / planner placeholder</div>
+            <div class="quote-author">Venue collaboration</div>
           </div>
 
           <div class="card">
             <blockquote>“One of the most talked-about evening activities of the season.”</blockquote>
-            <div class="quote-author">Hospitality team placeholder</div>
+            <div class="quote-author">Guest experience feedback</div>
           </div>
         </div>
       </div>
