@@ -109,7 +109,7 @@
   background:
     linear-gradient(180deg,rgba(5,8,12,.14),rgba(5,8,12,.42) 45%, rgba(5,8,12,.76)),
     url("images/astro-01.jpg") center center / cover no-repeat;
-  filter:contrast(1.12) saturate(1.12) brightness(1.06);
+  filter:contrast(1.01) saturate(1.02) brightness(1.01);
   transform:scale(1.02) rotate(0deg);
   animation:heroDrift 12s ease-in-out infinite alternate;
 }
@@ -127,8 +127,8 @@
   content:"";
   position:absolute;inset:0;
   background:
-    radial-gradient(900px 500px at 20% 15%, rgba(125,198,255,.12), transparent),
-    radial-gradient(800px 500px at 80% 20%, rgba(180,156,255,.08), transparent);
+    radial-gradient(900px 500px at 20% 15%, rgba(125,198,255,.06), transparent),
+    radial-gradient(800px 500px at 80% 20%, rgba(180,156,255,.04), transparent);
   pointer-events:none;
 }
 
@@ -338,21 +338,41 @@
     }
 
     .testimonial-grid{
-      display:grid;
-      grid-template-columns:repeat(3,1fr);
-      gap:18px;
-    }
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:18px;
+}
 
-    blockquote{
-      margin:0;
-      font-size:1rem;
-    }
+.testimonial-grid .card{
+  display:flex;
+  flex-direction:column;
+  min-height:220px;
+}
 
-    .quote-author{
-      margin-top:12px;
-      color:var(--muted);
-      font-size:.95rem;
-    }
+blockquote{
+  margin:0;
+  font-size:1rem;
+  font-style:italic;
+  color:var(--text);
+  position:relative;
+}
+
+blockquote::before{
+  content:"“";
+  font-size:2.2rem;
+  line-height:1;
+  color:var(--accent);
+  display:block;
+  margin-bottom:8px;
+  opacity:.85;
+}
+
+.quote-author{
+  margin-top:auto;
+  padding-top:18px;
+  color:var(--muted);
+  font-size:.95rem;
+}
 
     .contact-card{
       max-width:760px;
@@ -364,13 +384,19 @@
     }
 
     .socials a{
-      display:inline-flex;align-items:center;
-      padding:9px 12px;
-      border-radius:999px;
-      border:1px solid var(--border);
-      background:var(--panel);
-      color:var(--text);
-    }
+  display:inline-flex;align-items:center;
+  padding:9px 12px;
+  border-radius:999px;
+  border:1px solid var(--border);
+  background:var(--panel);
+  color:var(--text);
+  transition:transform .2s ease, opacity .2s ease, box-shadow .2s ease;
+}
+
+.socials a:hover{
+  transform:translateY(-2px);
+  box-shadow:0 12px 24px rgba(0,0,0,.25);
+}
 
     footer{
       padding:28px 0 40px;
