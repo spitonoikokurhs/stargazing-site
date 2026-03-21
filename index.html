@@ -118,17 +118,6 @@
   color:var(--text);
   text-decoration:none;
 }
-
-.brand span:last-child{
-  font-size:0.92rem;
-  transition:transform .22s ease, opacity .22s ease;
-  transform-origin:left center;
-}
-
-.brand:hover span:last-child{
-  transform:scale(1.1);
-}
-
     .brand-dot{
       width:10px;
       height:10px;
@@ -236,19 +225,25 @@
       font-weight:700;
     }
 
-    .hero h1{
-      font-size:clamp(2.2rem,4.2vw,3.4rem);
-      line-height:1.15;
-      color:#f1f5f9;
-      text-shadow:0 2px 12px rgba(0,0,0,.4);
-      animation-delay:.55s;
-    }
+   .hero h1{
+  font-size:clamp(2.05rem,4vw,3.15rem);
+  line-height:1.15;
+  color:#f1f5f9;
+  text-shadow:0 2px 12px rgba(0,0,0,.4);
+  animation-delay:.55s;
+  transition:transform .25s ease;
+  transform-origin:left center;
+}
 
-    .hero p.lead{
-      max-width:760px;
-      font-size:0.95rem;
-      text-shadow:0 2px 12px rgba(0,0,0,.4);
-    }
+.hero p.lead{
+  max-width:760px;
+  font-size:0.93rem;
+  text-shadow:0 2px 12px rgba(0,0,0,.4);
+}
+
+.hero-inner:hover h1{
+  transform:scale(1.03);
+}
 
     .hero-cta{
       display:flex;
