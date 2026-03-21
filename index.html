@@ -11,6 +11,7 @@
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://www.stargazing.events" />
   <link rel="canonical" href="https://www.stargazing.events/" />
+
   <style>
     :root{
       --bg:#0b0f14;
@@ -24,9 +25,11 @@
     }
 
     html{
-  scroll-behavior:smooth;
-}
+      scroll-behavior:smooth;
+    }
+
     *{box-sizing:border-box}
+
     html,body{
       margin:0;
       padding:0;
@@ -35,22 +38,65 @@
       font:16px/1.6 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,"Helvetica Neue",Arial,sans-serif;
     }
 
-    a{color:var(--accent);text-decoration:none}
-    a:hover{opacity:.92}
-    img{max-width:100%;height:auto;display:block}
+    a{
+      color:var(--accent);
+      text-decoration:none;
+    }
 
-    .container{width:min(1120px,100% - 40px);margin:0 auto}
-    .section{padding:72px 0;border-top:1px solid var(--border)}
-    h1,h2,h3{line-height:1.15;margin:0 0 14px}
-    h1{font-size:clamp(2.1rem,5vw,4rem)}
-    h2{font-size:clamp(1.6rem,3vw,2.3rem)}
-    h3{font-size:1.1rem}
-    p{margin:0 0 14px}
-    .lead{color:var(--muted);max-width:860px}
-    .muted{color:var(--muted)}
+    a:hover{
+      opacity:.92;
+    }
+
+    img{
+      max-width:100%;
+      height:auto;
+      display:block;
+    }
+
+    .container{
+      width:min(1120px,100% - 40px);
+      margin:0 auto;
+    }
+
+    .section{
+      padding:72px 0;
+      border-top:1px solid var(--border);
+    }
+
+    h1,h2,h3{
+      line-height:1.15;
+      margin:0 0 14px;
+    }
+
+    h1{
+      font-size:clamp(2.1rem,5vw,4rem);
+    }
+
+    h2{
+      font-size:clamp(1.6rem,3vw,2.3rem);
+    }
+
+    h3{
+      font-size:1.1rem;
+    }
+
+    p{
+      margin:0 0 14px;
+    }
+
+    .lead{
+      color:var(--muted);
+      max-width:860px;
+    }
+
+    .muted{
+      color:var(--muted);
+    }
 
     header{
-      position:sticky;top:0;z-index:30;
+      position:sticky;
+      top:0;
+      z-index:30;
       background:rgba(11,15,20,.85);
       backdrop-filter:blur(10px);
       border-bottom:1px solid var(--border);
@@ -58,45 +104,62 @@
 
     .nav{
       min-height:72px;
-      display:flex;align-items:center;justify-content:space-between;gap:16px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:16px;
     }
 
     .brand{
-      display:flex;align-items:center;gap:10px;
-      font-weight:700;color:var(--text)
+      display:flex;
+      align-items:center;
+      gap:10px;
+      font-weight:700;
+      color:var(--text);
+      text-decoration:none;
     }
 
     .brand-dot{
-      width:10px;height:10px;border-radius:50%;
+      width:10px;
+      height:10px;
+      border-radius:50%;
       background:radial-gradient(circle at 35% 35%,#fff,var(--accent));
       box-shadow:0 0 14px var(--accent);
     }
 
-    nav{display:flex;flex-wrap:wrap;align-items:center;gap:12px}
-    nav a{color:var(--text)}
+    nav{
+      display:flex;
+      flex-wrap:wrap;
+      align-items:center;
+      gap:12px;
+    }
+
+    nav a{
+      color:var(--text);
+    }
 
     .btn{
-  display:inline-block;
-  padding:11px 16px;
-  border:1px solid var(--border);
-  border-radius:12px;
-  background:linear-gradient(180deg,#121a24,#0b1016);
-  color:var(--text);
-  box-shadow:var(--shadow);
-  transition:transform .2s ease, opacity .2s ease, box-shadow .2s ease;
-}
+      display:inline-block;
+      padding:11px 16px;
+      border:1px solid var(--border);
+      border-radius:12px;
+      background:linear-gradient(180deg,#121a24,#0b1016);
+      color:var(--text);
+      box-shadow:var(--shadow);
+      transition:transform .2s ease, opacity .2s ease, box-shadow .2s ease;
+    }
 
-.btn:hover{
-  transform:translateY(-2px);
-  box-shadow:0 16px 34px rgba(0,0,0,.3);
-}
+    .btn:hover{
+      transform:translateY(-2px);
+      box-shadow:0 16px 34px rgba(0,0,0,.3);
+    }
 
-.btn.primary{
-  border-color:transparent;
-  background:linear-gradient(180deg,var(--accent),#53adf7);
-  color:#001726;
-  font-weight:700;
-}
+    .btn.primary{
+      border-color:transparent;
+      background:linear-gradient(180deg,var(--accent),#53adf7);
+      color:#001726;
+      font-weight:700;
+    }
 
     .hero{
       position:relative;
@@ -107,108 +170,111 @@
       border-top:none;
     }
 
-.hero-media{
-  position:absolute;inset:0;
-  background:
-    linear-gradient(180deg,rgba(5,8,12,.24),rgba(5,8,12,.46) 45%, rgba(5,8,12,.80)),
-    url("images/wide-04.jpg") center center / cover no-repeat;
-  filter:contrast(1.01) saturate(1.02) brightness(1.00);
-  transform:scale(1.00) rotate(0deg);
-  animation:heroDrift 12s ease-in-out infinite alternate;
-}
+    .hero::before{
+      content:"";
+      position:absolute;
+      inset:0;
+      background:url("images/wide-04.jpg") center center / cover no-repeat;
+      filter:blur(30px) brightness(.5);
+      z-index:0;
+    }
 
-.hero::before{
-  content:"";
-  position:absolute;inset:0;
-  background:url("images/astro-01.jpg") center center / cover no-repeat;
-  filter:blur(30px) brightness(.5);
-  z-index:0;
-}
+    .hero-media{
+      position:absolute;
+      inset:0;
+      background:
+        linear-gradient(180deg,rgba(5,8,12,.24),rgba(5,8,12,.46) 45%, rgba(5,8,12,.80)),
+        url("images/wide-04.jpg") center center / cover no-repeat;
+      filter:contrast(1.01) saturate(1.02) brightness(1.00);
+      transform:scale(1.00) rotate(0deg);
+      animation:heroDrift 12s ease-in-out infinite alternate;
+    }
 
-@keyframes heroDrift {
-  0% {
-    transform: scale(1.00) translateX(0px) translateY(0px) rotate(0deg);
-  }
-  100% {
-    transform: scale(1.03) translateX(-8px) translateY(-2px) rotate(-0.3deg);
-  }
-}
+    @keyframes heroDrift{
+      0%{
+        transform:scale(1.00) translateX(0px) translateY(0px) rotate(0deg);
+      }
+      100%{
+        transform:scale(1.03) translateX(-8px) translateY(-2px) rotate(-0.3deg);
+      }
+    }
 
-.hero::after{
-  content:"";
-  position:absolute;inset:0;
-  background:
-    radial-gradient(900px 500px at 20% 15%, rgba(125,198,255,.06), transparent),
-    radial-gradient(800px 500px at 80% 20%, rgba(180,156,255,.04), transparent);
-  pointer-events:none;
-}
+    .hero::after{
+      content:"";
+      position:absolute;
+      inset:0;
+      background:
+        radial-gradient(900px 500px at 20% 15%, rgba(125,198,255,.06), transparent),
+        radial-gradient(800px 500px at 80% 20%, rgba(180,156,255,.04), transparent);
+      pointer-events:none;
+    }
 
-.hero-inner{
-  position:relative;
-  z-index:2;
-  max-width:760px;
-  padding:120px 0 64px;
-}
+    .hero-inner{
+      position:relative;
+      z-index:2;
+      max-width:760px;
+      padding:120px 0 64px;
+    }
 
-.kicker{
-  display:inline-block;
-  margin-bottom:14px;
-  color:var(--accent);
-  text-transform:uppercase;
-  letter-spacing:.12em;
-  font-size:.82rem;
-  font-weight:700;
-}
+    .kicker{
+      display:inline-block;
+      margin-bottom:14px;
+      color:var(--accent);
+      text-transform:uppercase;
+      letter-spacing:.12em;
+      font-size:.82rem;
+      font-weight:700;
+    }
 
-.hero h1{
-  font-size:clamp(2.2rem,4.2vw,3.4rem);
-  line-height:1.15;
-  color:#f1f5f9;
-  text-shadow:0 2px 12px rgba(0,0,0,.4);
-  animation-delay:.55s;
-}
+    .hero h1{
+      font-size:clamp(2.2rem,4.2vw,3.4rem);
+      line-height:1.15;
+      color:#f1f5f9;
+      text-shadow:0 2px 12px rgba(0,0,0,.4);
+      animation-delay:.55s;
+    }
 
-.hero p.lead{
-  max-width:760px;
-  font-size:0.95rem;
-  text-shadow:0 2px 12px rgba(0,0,0,.4);
-}
+    .hero p.lead{
+      max-width:760px;
+      font-size:0.95rem;
+      text-shadow:0 2px 12px rgba(0,0,0,.4);
+    }
 
-.hero-cta{
-  display:flex;
-  flex-wrap:wrap;
-  gap:12px;
-  margin-top:24px;
-}
+    .hero-cta{
+      display:flex;
+      flex-wrap:wrap;
+      gap:12px;
+      margin-top:24px;
+    }
 
-.hero .kicker,
-.hero h1,
-.hero .lead,
-.hero .hero-cta{
-  opacity:0;
-  transform:translateY(16px);
-  animation:heroTextIn 1.2s ease forwards;
-}
+    .hero .kicker,
+    .hero h1,
+    .hero .lead,
+    .hero .hero-cta{
+      opacity:0;
+      transform:translateY(16px);
+      animation:heroTextIn 1.2s ease forwards;
+    }
 
-.hero .kicker{
-  opacity:0.85;
-  animation-delay:.35s;
-}
+    .hero .kicker{
+      opacity:0.85;
+      animation-delay:.35s;
+    }
 
-.hero .lead{
-  animation-delay:.75s;
-}
+    .hero .lead{
+      animation-delay:.75s;
+    }
 
-.hero .hero-cta{
-  animation-delay:.95s;
-}
+    .hero .hero-cta{
+      animation-delay:.95s;
+    }
 
-@keyframes heroTextIn{
-  to{
-    opacity:1;
-    transform:translateY(0);
-  }
-}
+    @keyframes heroTextIn{
+      to{
+        opacity:1;
+        transform:translateY(0);
+      }
+    }
 
     .grid-3{
       display:grid;
@@ -247,50 +313,42 @@
       margin-top:20px;
     }
 
-.trust-item{
-  min-height:100px;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  text-align:center;
-  padding:18px;
-  border-radius:16px;
-  border:1px solid var(--border);
-  background:var(--panel);
-  color:var(--text);
-  box-shadow:var(--shadow);
-  font-size:.95rem;
-}
+    .trust-item{
+      min-height:100px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      text-align:center;
+      padding:18px;
+      border-radius:16px;
+      border:1px solid var(--border);
+      background:var(--panel);
+      color:var(--text);
+      box-shadow:var(--shadow);
+      font-size:.95rem;
+    }
 
-.trust-item img{
-  max-height:125px;
-  max-width:235px;
-  width:auto;
-  height:auto;
-  object-fit:contain;
-  opacity:0.95;
-  display:block;
-}
+    .trust-item img{
+      max-height:125px;
+      max-width:235px;
+      width:auto;
+      height:auto;
+      object-fit:contain;
+      opacity:0.95;
+      display:block;
+      transition:transform .3s ease, opacity .3s ease;
+    }
 
-.trust-item img{
-  max-height:42px;
-  filter:brightness(0.95) contrast(1.05);
-  opacity:0.9;
-  transition:all .3s ease;
-}
-    .logo-kyma{
-  height:56px;
-  max-height:none;
-  max-width:220px;
-  width:auto;
-  opacity:1;
-}
-.trust-item:hover img{
-  opacity:1;
-  transform:scale(1.05);
-}
+    .trust-item:hover img{
+      opacity:1;
+      transform:scale(1.05);
+    }
+
     .gallery-filters{
-      display:flex;flex-wrap:wrap;gap:10px;margin:18px 0 18px;
+      display:flex;
+      flex-wrap:wrap;
+      gap:10px;
+      margin:18px 0 18px;
     }
 
     .gallery-filters button{
@@ -303,7 +361,9 @@
       font:inherit;
     }
 
-    .gallery-filters button.active{outline:2px solid var(--accent)}
+    .gallery-filters button.active{
+      outline:2px solid var(--accent);
+    }
 
     .gallery-grid{
       display:grid;
@@ -329,11 +389,15 @@
       transition:transform .25s ease;
     }
 
-    .gallery-card:hover img{transform:scale(1.03)}
+    .gallery-card:hover img{
+      transform:scale(1.03);
+    }
 
     .gallery-card figcaption{
       position:absolute;
-      left:0;right:0;bottom:0;
+      left:0;
+      right:0;
+      bottom:0;
       padding:12px;
       background:linear-gradient(180deg,transparent,rgba(0,0,0,.78));
       font-size:.92rem;
@@ -377,7 +441,8 @@
 
     .partner-list{
       list-style:none;
-      padding:0;margin:10px 0 0;
+      padding:0;
+      margin:10px 0 0;
     }
 
     .partner-list li{
@@ -386,73 +451,73 @@
     }
 
     .testimonial-grid{
-  display:grid;
-  grid-template-columns:repeat(3,1fr);
-  gap:18px;
-}
+      display:grid;
+      grid-template-columns:repeat(3,1fr);
+      gap:18px;
+    }
 
-.testimonial-grid .card{
-  display:flex;
-  flex-direction:column;
-  min-height:220px;
-}
+    .testimonial-grid .card{
+      display:flex;
+      flex-direction:column;
+      min-height:220px;
+    }
 
-blockquote{
-  margin:0;
-  font-size:1rem;
-  font-style:italic;
-  color:var(--text);
-  position:relative;
-}
+    blockquote{
+      margin:0;
+      font-size:1rem;
+      font-style:italic;
+      color:var(--text);
+      position:relative;
+    }
 
-blockquote::before{
-  content:"“";
-  font-size:2.2rem;
-  line-height:1;
-  color:var(--accent);
-  display:block;
-  margin-bottom:8px;
-  opacity:.85;
-}
+    blockquote::before{
+      content:"“";
+      font-size:2.2rem;
+      line-height:1;
+      color:var(--accent);
+      display:block;
+      margin-bottom:8px;
+      opacity:.85;
+    }
 
-.quote-author{
-  margin-top:auto;
-  padding-top:18px;
-  color:var(--muted);
-  font-size:.95rem;
-}
+    .quote-author{
+      margin-top:auto;
+      padding-top:18px;
+      color:var(--muted);
+      font-size:.95rem;
+    }
 
-.contact-card{
-  max-width:760px;
-  margin:0 auto;
-}
+    .contact-card{
+      max-width:760px;
+      margin:0 auto;
+    }
 
-.contact-card .btn{
-  margin-top:6px;
-}
+    .contact-card .btn{
+      margin-top:6px;
+    }
 
-.socials{
-  display:flex;
-  flex-wrap:wrap;
-  gap:14px;
-  margin-top:18px;
-}
+    .socials{
+      display:flex;
+      flex-wrap:wrap;
+      gap:14px;
+      margin-top:18px;
+    }
 
-.socials a{
-  display:inline-flex;
-  align-items:center;
-  padding:9px 12px;
-  border-radius:999px;
-  border:1px solid var(--border);
-  background:var(--panel);
-  color:var(--text);
-  transition:transform .2s ease, opacity .2s ease, box-shadow .2s ease;
-}
+    .socials a{
+      display:inline-flex;
+      align-items:center;
+      padding:9px 12px;
+      border-radius:999px;
+      border:1px solid var(--border);
+      background:var(--panel);
+      color:var(--text);
+      transition:transform .2s ease, opacity .2s ease, box-shadow .2s ease;
+    }
 
-.socials a:hover{
-  transform:translateY(-2px);
-  box-shadow:0 12px 24px rgba(0,0,0,.25);
-}
+    .socials a:hover{
+      transform:translateY(-2px);
+      box-shadow:0 12px 24px rgba(0,0,0,.25);
+    }
 
     footer{
       padding:28px 0 40px;
@@ -462,18 +527,30 @@ blockquote::before{
     }
 
     .lightbox{
-      position:fixed;inset:0;z-index:100;
-      display:none;align-items:center;justify-content:center;
+      position:fixed;
+      inset:0;
+      z-index:100;
+      display:none;
+      align-items:center;
+      justify-content:center;
       background:rgba(0,0,0,.9);
       padding:20px;
     }
 
-    .lightbox.open{display:flex}
-    .lightbox-inner{max-width:min(1200px,100%);text-align:center}
+    .lightbox.open{
+      display:flex;
+    }
+
+    .lightbox-inner{
+      max-width:min(1200px,100%);
+      text-align:center;
+    }
+
     .lightbox img{
       max-width:100%;
       max-height:82vh;
-      width:auto;height:auto;
+      width:auto;
+      height:auto;
       border-radius:18px;
       border:1px solid var(--border);
       box-shadow:var(--shadow);
@@ -485,26 +562,69 @@ blockquote::before{
     }
 
     @media (max-width: 980px){
-      .grid-3,.trust-grid,.gallery-grid,.testimonial-grid{grid-template-columns:repeat(2,1fr)}
-      .about-grid,.partnership-columns,.grid-2{grid-template-columns:1fr}
+      .grid-3,
+      .trust-grid,
+      .gallery-grid,
+      .testimonial-grid{
+        grid-template-columns:repeat(2,1fr);
+      }
+
+      .about-grid,
+      .partnership-columns,
+      .grid-2{
+        grid-template-columns:1fr;
+      }
     }
 
     @media (max-width: 700px){
-      .nav{padding:14px 0}
-      nav{justify-content:flex-end}
-      .gallery-grid,.trust-grid,.testimonial-grid,.meta-list{grid-template-columns:1fr}
-      .gallery-card img{height:240px}
-      .hero-inner{padding:96px 0 60px}
+      .nav{
+        padding:14px 0;
+      }
+
+      nav{
+        justify-content:flex-end;
+      }
+
+      .gallery-grid,
+      .trust-grid,
+      .testimonial-grid,
+      .meta-list{
+        grid-template-columns:1fr;
+      }
+
+      .gallery-card img{
+        height:240px;
+      }
+
+      .hero-inner{
+        padding:96px 0 60px;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce){
+      .hero-media,
+      .hero .kicker,
+      .hero h1,
+      .hero .lead,
+      .hero .hero-cta,
+      .btn,
+      .socials a{
+        animation:none !important;
+        transition:none !important;
+        transform:none !important;
+      }
     }
   </style>
 </head>
+
 <body id="top">
   <header>
     <div class="container nav">
-     <a href="#top" class="brand">
-  <span class="brand-dot"></span>
-  <span>Michalis Reisis</span>
-</a>
+      <a href="#top" class="brand">
+        <span class="brand-dot"></span>
+        <span>Michalis Reisis</span>
+      </a>
+
       <nav>
         <a href="#gallery">Gallery</a>
         <a href="#partnerships">Partnerships</a>
@@ -519,6 +639,7 @@ blockquote::before{
   <main>
     <section class="hero section">
       <div class="hero-media"></div>
+
       <div class="container hero-inner">
         <span class="kicker">Stargazing Events • Astrophotography</span>
         <h1>Premium Stargazing Experiences for Hotels, Weddings & Luxury Venues</h1>
@@ -537,24 +658,24 @@ blockquote::before{
       <div class="container">
         <h2>Trusted by hospitality teams</h2>
         <p class="lead">A premium night-sky activity that adds atmosphere, storytelling and memorable moments to a guest’s stay.</p>
+
         <div class="trust-grid">
-<div class="trust-grid">
-  <div class="trust-item">
-    <img src="images/logos/caravialogo.png" alt="Caravia Beach Hotel" />
-  </div>
-  <div class="trust-item">
-    <img src="images/logos/okukoslogo.png" alt="OKU Kos" />
-  </div>
-  <div class="trust-item">
-    <img src="images/logos/astirlogo.png" alt="Astir Odysseus Resort &amp; Spa" />
-  </div>
-  <div class="trust-item">
-    <img src="images/logos/palazzologo.png" alt="Palazzo del Mare" />
-  </div>
-  <div class="trust-item">
-    <img src="images/logos/paralos-kyma-dunes.png" alt="Paralos Kyma Dunes" />
-  </div>
-</div>
+          <div class="trust-item">
+            <img src="images/logos/caravialogo.png" alt="Caravia Beach Hotel" />
+          </div>
+          <div class="trust-item">
+            <img src="images/logos/okukoslogo.png" alt="OKU Kos" />
+          </div>
+          <div class="trust-item">
+            <img src="images/logos/astirlogo.png" alt="Astir Odysseus Resort &amp; Spa" />
+          </div>
+          <div class="trust-item">
+            <img src="images/logos/palazzologo.png" alt="Palazzo del Mare" />
+          </div>
+          <div class="trust-item">
+            <img src="images/logos/paralos-kyma-dunes.png" alt="Paralos Kyma Dunes" />
+          </div>
+        </div>
       </div>
     </section>
 
@@ -567,11 +688,13 @@ blockquote::before{
             <h3>Stargazing Nights</h3>
             <p>Turnkey evenings with telescopes, laser sky tours and live storytelling under the night sky for hotels, weddings and special venues.</p>
           </article>
+
           <article class="card">
             <span class="chip">Content</span>
             <h3>Astrophotography</h3>
             <p>High-quality deep sky, wide-field and nightscape imagery for campaigns, social media, PR and destination storytelling.</p>
           </article>
+
           <article class="card">
             <span class="chip">Coverage</span>
             <h3>Kos • Nearby Islands • Bodrum</h3>
@@ -600,32 +723,32 @@ blockquote::before{
           </figure>
 
           <figure class="gallery-card" data-category="deep-sky featured">
-            <img loading="lazy" src="images/astro-02.jpg" alt="Annotated or alternate deep sky astrophotography image" />
-           <figcaption>Orion Nebula (M42) — a vast stellar nursery where new stars are being born</figcaption>
+            <img loading="lazy" src="images/astro-02.jpg" alt="Orion Nebula astrophotography image" />
+            <figcaption>Orion Nebula (M42) — a vast stellar nursery where new stars are being born</figcaption>
           </figure>
 
           <figure class="gallery-card" data-category="deep-sky">
-            <img loading="lazy" src="images/astro-03.jpg" alt="Deep sky object image" />
+            <img loading="lazy" src="images/astro-03.jpg" alt="Fireworks Galaxy and cluster image" />
             <figcaption>Fireworks Galaxy (NGC 6946) alongside the open star cluster NGC 6939</figcaption>
           </figure>
 
           <figure class="gallery-card" data-category="deep-sky">
-            <img loading="lazy" src="images/astro-04.jpg" alt="Deep sky astrophotography composition" />
+            <img loading="lazy" src="images/astro-04.jpg" alt="NGC 2403 astrophotography image" />
             <figcaption>NGC 2403 — a bright spiral galaxy in Camelopardalis with active star-forming regions</figcaption>
           </figure>
 
           <figure class="gallery-card" data-category="deep-sky">
-            <img loading="lazy" src="images/astro-05.jpg" alt="Night sky astrophotography image" />
+            <img loading="lazy" src="images/astro-05.jpg" alt="IC 342 astrophotography image" />
             <figcaption>IC 342 — a face-on spiral galaxy partially veiled by interstellar dust</figcaption>
           </figure>
 
           <figure class="gallery-card" data-category="deep-sky">
-            <img loading="lazy" src="images/astro-06.jpg" alt="Deep sky imaging example" />
+            <img loading="lazy" src="images/astro-06.jpg" alt="Milky Way dust clouds image" />
             <figcaption>Dense Milky Way dust clouds shaping the structure of our galaxy</figcaption>
           </figure>
 
           <figure class="gallery-card" data-category="deep-sky">
-            <img loading="lazy" src="images/astro-07.jpg" alt="Deep sky astronomy photograph" />
+            <img loading="lazy" src="images/astro-07.jpg" alt="Trifid Nebula astrophotography image" />
             <figcaption>Trifid Nebula (M20) — a rare combination of emission, reflection and dark nebula</figcaption>
           </figure>
 
@@ -653,11 +776,13 @@ blockquote::before{
             <h3>Clean vs annotated</h3>
             <p>Selected images will include a second annotated view showing visible stars, nebulae and key objects for an educational presentation.</p>
           </article>
+
           <article class="card">
             <span class="chip">Overlay Mode</span>
             <h3>Annotation overlay</h3>
             <p>Where available, transparent PNG overlays can be toggled on top of the clean image to explain the scene without losing the original look.</p>
           </article>
+
           <article class="card">
             <span class="chip">Filters & Data</span>
             <h3>SHO / mono channels</h3>
@@ -679,7 +804,7 @@ blockquote::before{
             <ul class="partner-list">
               <li>Caravia Beach Hotel – Kos</li>
               <li>OKU Kos</li>
-              <li>Astir Odysseus Resort & Spa</li>
+              <li>Astir Odysseus Resort &amp; Spa</li>
               <li>Palazzo del Mare</li>
               <li>Kyma Mare Dunes Resort</li>
             </ul>
@@ -723,7 +848,7 @@ blockquote::before{
     <section id="testimonials" class="section">
       <div class="container">
         <h2>Testimonials</h2>
-       <p class="lead">Feedback from hospitality partners and venue collaborations.</p>
+        <p class="lead">Feedback from hospitality partners and venue collaborations.</p>
 
         <div class="testimonial-grid">
           <div class="card">
@@ -751,6 +876,7 @@ blockquote::before{
           <p class="lead">For partnerships, weddings, venue collaborations or astrophotography inquiries, email me directly and I’ll reply with availability and a tailored proposal.</p>
           <a class="btn primary" href="mailto:mike@stargazing.events">Email Michalis</a>
           <p class="muted" style="margin-top:12px;">Email: <a href="mailto:mike@stargazing.events">mike@stargazing.events</a></p>
+
           <div class="socials">
             <a href="https://instagram.com/mixalre" target="_blank" rel="noopener noreferrer">Instagram @mixalre</a>
             <a href="https://fb.com/nextdoorphotographer" target="_blank" rel="noopener noreferrer">Facebook Page</a>
@@ -812,4 +938,3 @@ blockquote::before{
   </script>
 </body>
 </html>
-
