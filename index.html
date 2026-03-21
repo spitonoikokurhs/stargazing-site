@@ -656,7 +656,7 @@
         transform:none !important;
       }
     }
-    .feedback-form{
+.feedback-form{
   margin-top:22px;
 }
 
@@ -950,18 +950,14 @@
 <section id="guest-feedback" class="section">
   <div class="container">
     <div class="card contact-card">
-      <h2>Share your experience</h2>
-      <p class="lead">
-        Attended one of my stargazing events? I’d love to hear your feedback.
-        Your testimonial helps me improve future experiences and, with your permission,
-        may be featured on this website.
-      </p>
+<h2>Leave your feedback</h2>
+<p class="lead">
+  If you attended one of my stargazing events, I’d be grateful for your feedback.
+  With your permission, selected comments may be featured on this website as testimonials.
+</p>
 
-      <form
-        action="YOUR_FORM_ENDPOINT_HERE"
-        method="POST"
-        class="feedback-form"
-      >
+      <form action="https://formspree.io/f/mgonbldz" method="POST" class="feedback-form">
+        <input type="hidden" name="_subject" value="New Stargazing Events testimonial submission" />
         <div class="form-grid">
           <div class="form-group">
             <label for="guest-name">Your name</label>
@@ -972,6 +968,11 @@
             <label for="guest-hotel">Hotel / Venue</label>
             <input type="text" id="guest-hotel" name="hotel" required />
           </div>
+        </div>
+
+        <div class="form-group">
+          <label for="event-location">Event location</label>
+          <input type="text" id="event-location" name="event_location" />
         </div>
 
         <div class="form-group">
@@ -988,7 +989,7 @@
         <div class="form-group checkbox-group">
           <label>
             <input type="checkbox" name="permission" value="yes" required />
-            I give permission for my feedback, first name, and hotel / venue name to be used as a testimonial on the website and promotional material.
+            I give permission for my feedback, first name, and hotel / venue name to be displayed publicly as a testimonial.
           </label>
         </div>
 
@@ -997,7 +998,7 @@
     </div>
   </div>
 </section>
-    
+   <a href="#guest-feedback">Feedback</a> 
   <section id="contact" class="section">
   <div class="container">
     <div class="card contact-card">
