@@ -108,7 +108,8 @@
   position:absolute;inset:0;
   background:
     linear-gradient(180deg,rgba(5,8,12,.22),rgba(5,8,12,.48) 45%, rgba(5,8,12,.80)),
-    url("images/wide-02.jpg") center center / contain no-repeat;
+    url("images/wide-02.jpg") center center / cover no-repeat;
+  transform:scale(1.0); /* was 1.02 or higher */
 }
 
 .hero::before{
@@ -121,10 +122,10 @@
 
 @keyframes heroDrift {
   0% {
-    transform: scale(1.02) translateX(0px) translateY(0px) rotate(0deg);
+    transform: scale(1.0) translateX(0px) translateY(0px);
   }
   100% {
-    transform: scale(1.08) translateX(-14px) translateY(-6px) rotate(-0.8deg);
+    transform: scale(1.04) translateX(-10px) translateY(-4px);
   }
 }
 
