@@ -108,8 +108,15 @@
   position:absolute;inset:0;
   background:
     linear-gradient(180deg,rgba(5,8,12,.22),rgba(5,8,12,.48) 45%, rgba(5,8,12,.80)),
-    url("images/wide-02.jpg") center center / contain no-repeat;
-  background-color:#000; /* important */
+    url("images/astro-01.jpg") center center / contain no-repeat;
+}
+
+.hero::before{
+  content:"";
+  position:absolute;inset:0;
+  background:url("images/astro-01.jpg") center center / cover no-repeat;
+  filter:blur(30px) brightness(.5);
+  z-index:0;
 }
 
 @keyframes heroDrift {
