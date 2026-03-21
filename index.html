@@ -225,7 +225,7 @@
       font-weight:700;
     }
 
-   .hero h1{
+  .hero h1{
   font-size:clamp(2.05rem,4vw,3.15rem);
   line-height:1.15;
   color:#f1f5f9;
@@ -242,38 +242,37 @@
 }
 
 .hero-inner:hover h1{
-  transform:scale(1.03);
+  transform:translateY(0) scale(1.03);
 }
 
-    .hero-cta{
-      display:flex;
-      flex-wrap:wrap;
-      gap:12px;
-      margin-top:24px;
-    }
+.hero-cta{
+  display:flex;
+  flex-wrap:wrap;
+  gap:12px;
+  margin-top:24px;
+}
 
-    .hero .kicker,
-    .hero h1,
-    .hero .lead,
-    .hero .hero-cta{
-      opacity:0;
-      transform:translateY(16px);
-      animation:heroTextIn 1.2s ease forwards;
-    }
+.hero .kicker,
+.hero h1,
+.hero .lead,
+.hero .hero-cta{
+  opacity:0;
+  transform:translateY(16px);
+  animation:heroTextIn 1.2s ease forwards;
+}
 
-    .hero .kicker{
-      opacity:0.85;
-      animation-delay:.35s;
-    }
+.hero .kicker{
+  opacity:0.85;
+  animation-delay:.35s;
+}
 
-    .hero .lead{
-      animation-delay:.75s;
-    }
+.hero .lead{
+  animation-delay:.75s;
+}
 
-    .hero .hero-cta{
-      animation-delay:.95s;
-    }
-
+.hero .hero-cta{
+  animation-delay:.95s;
+}
     @keyframes heroTextIn{
       to{
         opacity:1;
