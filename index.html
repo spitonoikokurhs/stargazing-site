@@ -225,13 +225,14 @@
       font-weight:700;
     }
 
-  .hero h1{
+.hero h1{
+  display:inline-block;
   font-size:clamp(2.05rem,4vw,3.15rem);
   line-height:1.15;
   color:#f1f5f9;
   text-shadow:0 2px 12px rgba(0,0,0,.4);
   animation-delay:.55s;
-  transition:transform .25s ease;
+  transition:transform .28s ease, text-shadow .28s ease;
   transform-origin:left center;
 }
 
@@ -241,8 +242,9 @@
   text-shadow:0 2px 12px rgba(0,0,0,.4);
 }
 
-.hero-inner:hover h1{
-  transform:translateY(0) scale(1.03);
+.hero h1:hover{
+  transform:scale(1.06);
+  text-shadow:0 4px 18px rgba(0,0,0,.45);
 }
 
 .hero-cta{
