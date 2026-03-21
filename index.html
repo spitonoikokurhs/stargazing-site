@@ -267,7 +267,17 @@
   height:auto;
   opacity:0.9;
 }
+.trust-item img{
+  max-height:42px;
+  filter:brightness(0.95) contrast(1.05);
+  opacity:0.9;
+  transition:all .3s ease;
+}
 
+.trust-item:hover img{
+  opacity:1;
+  transform:scale(1.05);
+}
     .gallery-filters{
       display:flex;flex-wrap:wrap;gap:10px;margin:18px 0 18px;
     }
