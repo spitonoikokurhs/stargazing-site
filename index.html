@@ -656,6 +656,63 @@
         transform:none !important;
       }
     }
+    .feedback-form{
+  margin-top:22px;
+}
+
+.form-grid{
+  display:grid;
+  grid-template-columns:repeat(2,1fr);
+  gap:16px;
+}
+
+.form-group{
+  margin-bottom:16px;
+}
+
+.form-group label{
+  display:block;
+  margin-bottom:8px;
+  color:var(--text);
+  font-weight:600;
+}
+
+.form-group input,
+.form-group textarea{
+  width:100%;
+  padding:12px 14px;
+  border-radius:12px;
+  border:1px solid var(--border);
+  background:var(--panel);
+  color:var(--text);
+  font:inherit;
+  outline:none;
+}
+
+.form-group input:focus,
+.form-group textarea:focus{
+  border-color:var(--accent);
+  box-shadow:0 0 0 3px rgba(125,198,255,.12);
+}
+
+.checkbox-group label{
+  display:flex;
+  align-items:flex-start;
+  gap:10px;
+  font-weight:400;
+  color:var(--muted);
+}
+
+.checkbox-group input{
+  width:auto;
+  margin-top:3px;
+}
+
+@media (max-width: 700px){
+  .form-grid{
+    grid-template-columns:1fr;
+  }
+}
   </style>
 </head>
 
@@ -890,6 +947,57 @@
         </div>
       </div>
     </section>
+<section id="guest-feedback" class="section">
+  <div class="container">
+    <div class="card contact-card">
+      <h2>Share your experience</h2>
+      <p class="lead">
+        Attended one of my stargazing events? I’d love to hear your feedback.
+        Your testimonial helps me improve future experiences and, with your permission,
+        may be featured on this website.
+      </p>
+
+      <form
+        action="YOUR_FORM_ENDPOINT_HERE"
+        method="POST"
+        class="feedback-form"
+      >
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="guest-name">Your name</label>
+            <input type="text" id="guest-name" name="name" required />
+          </div>
+
+          <div class="form-group">
+            <label for="guest-hotel">Hotel / Venue</label>
+            <input type="text" id="guest-hotel" name="hotel" required />
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="guest-feedback-text">Your feedback</label>
+          <textarea
+            id="guest-feedback-text"
+            name="feedback"
+            rows="6"
+            required
+            placeholder="Tell me a few words about your stargazing experience..."
+          ></textarea>
+        </div>
+
+        <div class="form-group checkbox-group">
+          <label>
+            <input type="checkbox" name="permission" value="yes" required />
+            I give permission for my feedback, first name, and hotel / venue name to be used as a testimonial on the website and promotional material.
+          </label>
+        </div>
+
+        <button type="submit" class="btn primary">Submit feedback</button>
+      </form>
+    </div>
+  </div>
+</section>
+    
   <section id="contact" class="section">
   <div class="container">
     <div class="card contact-card">
