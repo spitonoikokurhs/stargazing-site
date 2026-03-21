@@ -248,24 +248,27 @@
     }
 
     .trust-item{
-      min-height:84px;
-      display:flex;align-items:center;justify-content:center;
-      text-align:center;
-      padding:14px;
-      border-radius:16px;
-      border:1px solid var(--border);
-      background:var(--panel);
-      color:var(--text);
-      box-shadow:var(--shadow);
-      font-size:.95rem;
-    }
-   
-    .trust-item img{
-  max-height:40px;
-  max-width:100%;
+  min-height:100px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  text-align:center;
+  padding:18px;
+  border-radius:16px;
+  border:1px solid var(--border);
+  background:var(--panel);
+  color:var(--text);
+  box-shadow:var(--shadow);
+  font-size:.95rem;
+}
+
+.trust-item img{
+  max-height:64px;
+  max-width:160px;
   width:auto;
   height:auto;
-  opacity:0.9;
+  object-fit:contain;
+  opacity:0.95;
 }
 .trust-item img{
   max-height:42px;
