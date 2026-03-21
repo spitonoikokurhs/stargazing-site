@@ -421,6 +421,12 @@
 .about-photo{
   height:100%;
 }
+  .about-photo img{
+  max-height:620px;
+}
+ .about-photo img{
+  object-position:center 70%;
+}
     .meta-list{
       display:grid;
       grid-template-columns:repeat(2,1fr);
@@ -581,7 +587,9 @@
         grid-template-columns:1fr;
       }
     }
-
+.about-grid{
+  align-items:center;
+}
     @media (max-width: 700px){
       .nav{
         padding:14px 0;
