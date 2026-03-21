@@ -23,6 +23,9 @@
       --shadow:0 12px 30px rgba(0,0,0,.25);
     }
 
+    html{
+  scroll-behavior:smooth;
+}
     *{box-sizing:border-box}
     html,body{
       margin:0;
@@ -466,13 +469,13 @@ blockquote::before{
     }
   </style>
 </head>
-<body>
+<body id="top">
   <header>
     <div class="container nav">
-      <div class="brand">
-        <span class="brand-dot"></span>
-        <span>Michalis Reisis</span>
-      </div>
+     <a href="#top" class="brand">
+  <span class="brand-dot"></span>
+  <span>Michalis Reisis</span>
+</a>
       <nav>
         <a href="#gallery">Gallery</a>
         <a href="#partnerships">Partnerships</a>
