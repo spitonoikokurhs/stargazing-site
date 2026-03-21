@@ -226,22 +226,19 @@
     }
 
 .hero h1{
-  display:inline-block;
   font-size:clamp(1.65rem,3.2vw,2.55rem);
   line-height:1.12;
   color:#f1f5f9;
   text-shadow:0 2px 12px rgba(0,0,0,.4);
+}
+
+.hero h1 span{
+  display:inline-block;
   transition:transform .28s ease, text-shadow .28s ease, color .28s ease;
   transform-origin:left center;
 }
 
-.hero p.lead{
-  max-width:760px;
-  font-size:0.93rem;
-  text-shadow:0 2px 12px rgba(0,0,0,.4);
-}
-
-.hero h1:hover{
+.hero h1:hover span{
   transform:scale(1.2);
   color:#ffffff;
   text-shadow:0 6px 22px rgba(0,0,0,.5);
@@ -677,7 +674,7 @@
 
       <div class="container hero-inner">
         <span class="kicker">Stargazing Events • Astrophotography</span>
-        <h1>Premium Stargazing Experiences for Hotels, Weddings & Luxury Venues</h1>
+        <h1><span>Premium Stargazing Experiences for Hotels, Weddings & Luxury Venues</span></h1>
         <p class="lead">
           I design and host premium stargazing events and create high-quality astrophotography experiences for hotels, resorts, luxury weddings, bars and wineries.
           Based on Kos Island and working across nearby islands, Greece and Bodrum, I bring telescopes, laser sky tours and storytelling under the stars for unforgettable guest experiences.
