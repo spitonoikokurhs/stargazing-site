@@ -959,45 +959,40 @@
       </p>
 
       <form action="https://formspree.io/f/mgonbldz" method="POST" class="feedback-form">
-        <input type="hidden" name="_subject" value="New Stargazing Events testimonial submission" />
+  <input type="hidden" name="_subject" value="New Stargazing Events testimonial submission" />
 
-        <div class="form-grid">
-          <div class="form-group">
-            <label for="guest-name">Your name</label>
-            <input type="text" id="guest-name" name="name" required />
-          </div>
+  <div class="form-grid">
+    <div class="form-group">
+      <label for="guest-name">Your name</label>
+      <input type="text" id="guest-name" name="name" required />
+    </div>
 
-          <div class="form-group">
-            <label for="guest-hotel">Hotel / Venue</label>
-            <input type="text" id="guest-hotel" name="hotel" required />
-          </div>
-        </div>
+    <div class="form-group">
+      <label for="guest-hotel">Hotel / Venue</label>
+      <input type="text" id="guest-hotel" name="hotel" required />
+    </div>
+  </div>
 
-        <div class="form-group">
-          <label for="event-location">Date or location of the event</label>
-          <input type="text" id="event-location" name="event_location" />
-        </div>
+  <div class="form-group">
+    <label for="guest-feedback-text">Your feedback</label>
+    <textarea
+      id="guest-feedback-text"
+      name="feedback"
+      rows="6"
+      required
+      placeholder="Tell me a few words about your stargazing experience..."
+    ></textarea>
+  </div>
 
-        <div class="form-group">
-          <label for="guest-feedback-text">Your feedback</label>
-          <textarea
-            id="guest-feedback-text"
-            name="feedback"
-            rows="6"
-            required
-            placeholder="Tell me a few words about your stargazing experience..."
-          ></textarea>
-        </div>
+  <div class="form-group checkbox-group">
+    <label>
+      <input type="checkbox" name="permission" value="yes" required />
+      I give permission for my feedback, first name, and hotel / venue name to be displayed publicly as a testimonial.
+    </label>
+  </div>
 
-        <div class="form-group checkbox-group">
-          <label>
-            <input type="checkbox" name="permission" value="yes" required />
-            I give permission for my feedback, first name, and hotel / venue name to be displayed publicly as a testimonial.
-          </label>
-        </div>
-
-        <button type="submit" class="btn primary">Submit feedback</button>
-      </form>
+  <button type="submit" class="btn primary">Submit feedback</button>
+</form>
     </div>
   </div>
 </section>
