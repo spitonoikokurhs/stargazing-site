@@ -570,47 +570,96 @@
     }
 
     /* ====================================================
-       IMAGE GALLERY
+       IMAGE GALLERY — identical to English homepage
     ==================================================== */
-    .gallery-grid {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 12px;
-      margin-top: 24px;
+    .gallery-filters {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin: 18px 0;
     }
 
-    .gallery-card {
+    .gallery-filters button {
+      cursor: pointer;
+      color: var(--text);
+      background: var(--panel);
+      border: 1px solid var(--border);
+      padding: 9px 14px;
+      border-radius: 999px;
+      font: inherit;
+    }
+
+    .gallery-filters button.active {
+      outline: 2px solid var(--accent);
+    }
+
+    .gallery-grid-3col {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+
+    .gallery-card-3col {
       margin: 0;
       overflow: hidden;
       position: relative;
-      border-radius: 14px;
+      border-radius: 16px;
       border: 1px solid var(--border);
       background: #070a0e;
       box-shadow: var(--shadow);
+      cursor: pointer;
     }
 
-    .gallery-card.wide {
-      grid-column: span 2;
-    }
-
-    .gallery-card img {
+    .gallery-card-3col img {
       width: 100%;
-      height: 220px;
+      height: 250px;
       object-fit: cover;
-      transition: transform .3s ease;
+      transition: transform .25s ease;
     }
 
-    .gallery-card.wide img { height: 220px; }
+    .gallery-card-3col:hover img {
+      transform: scale(1.03);
+    }
 
-    .gallery-card:hover img { transform: scale(1.04); }
-
-    .gallery-card figcaption {
+    .gallery-card-3col figcaption {
       position: absolute;
       left: 0; right: 0; bottom: 0;
-      padding: 10px 12px;
+      padding: 12px;
       background: linear-gradient(180deg, transparent, rgba(0,0,0,.78));
-      font-size: .82rem;
-      color: var(--muted);
+      font-size: .92rem;
+    }
+
+    .lightbox {
+      position: fixed;
+      inset: 0;
+      z-index: 100;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0,0,0,.9);
+      padding: 20px;
+    }
+
+    .lightbox.open { display: flex; }
+
+    .lightbox-inner {
+      max-width: min(1200px, 100%);
+      text-align: center;
+    }
+
+    .lightbox img {
+      max-width: 100%;
+      max-height: 82vh;
+      width: auto;
+      height: auto;
+      border-radius: 18px;
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow);
+    }
+
+    .lightbox-caption {
+      margin-top: 12px;
+      color: #d5dde7;
     }
 
     /* ====================================================
@@ -748,8 +797,7 @@
     @media (max-width: 980px) {
       .grid-3, .proof-stats { grid-template-columns: repeat(2, 1fr); }
       .trust-grid { grid-template-columns: repeat(3, 1fr); }
-      .gallery-grid { grid-template-columns: repeat(2, 1fr); }
-      .gallery-card.wide { grid-column: span 1; }
+      .gallery-grid-3col { grid-template-columns: repeat(2, 1fr); }
       .req-grid { grid-template-columns: repeat(2, 1fr); }
       .faq-grid { grid-template-columns: 1fr; }
       .about-grid { grid-template-columns: 1fr; }
@@ -758,8 +806,7 @@
     @media (max-width: 700px) {
       .nav { padding: 14px 0; flex-wrap: wrap; }
       .grid-3, .grid-2, .proof-stats, .trust-grid,
-      .req-grid, .gallery-grid { grid-template-columns: 1fr; }
-      .gallery-card.wide { grid-column: span 1; }
+      .req-grid, .gallery-grid-3col { grid-template-columns: 1fr; }
       .hero-inner { padding: 96px 0 64px; }
       .btn-group { flex-direction: column; align-items: flex-start; }
     }
@@ -833,7 +880,7 @@
 
           <a
             class="btn"
-            href="/Stargazing%20Events%20PDF%20Brochure%20comp.pdf?utm_source=bodrum_landing&utm_medium=website&utm_campaign=hotel_b2b_bodrum"
+            href="/images/Stargazing%20Events%20PDF%20Brochure%20comp.pdf?utm_source=bodrum_landing&utm_medium=website&utm_campaign=hotel_b2b_bodrum"
             target="_blank"
             rel="noopener"
             onclick="trackCTA('bodrum_brochure_click')"
@@ -1127,79 +1174,73 @@
     </section>
 
     <!-- ==================================================
-         7. IMAGE GALLERY
-         Order: event/guest photos first, then astrophotography
+         7. IMAGE GALLERY — identical layout to English homepage
     =================================================== -->
     <section class="section" id="gorsel">
       <div class="container">
-        <h2>Gerçek Deneyimden Görseller</h2>
-        <p class="lead">Etkinlik fotoğrafları ve orijinal astrofotoğrafçılık çalışmaları.</p>
+        <h2>Astrofotoğrafçılık Çalışmalarım</h2>
+        <p class="lead">Çıplak gözle görülemeyen detayları ve yapıları yakalayan astrofotoğrafçılık ve gece gökyüzü çalışmalarımdan bir seçki. Bu görseller, Stargazing deneyimi sırasında birlikte keşfettiğimiz konuların daha derin bir görsel perspektifini sunar. Büyütmek için herhangi bir görsele tıklayın.</p>
 
-        <div class="gallery-grid">
-          <!-- EVENT / GUEST EXPERIENCE PHOTOS FIRST -->
-          <figure class="gallery-card wide">
-            <img
-              loading="lazy"
-              src="images/wide-01.jpg"
-              alt="Milky Way core above Kos Island — Bodrum ve Kos'ta yıldız gözlem deneyimi"
-            />
-            <figcaption>Samanyolu — Kos Adası kıyısından</figcaption>
+        <div class="gallery-filters" aria-label="Galeri filtreleri">
+          <button class="active" data-filter="all">Tümü</button>
+          <button data-filter="deep-sky">Derin Uzay</button>
+          <button data-filter="wide-field">Geniş Alan</button>
+          <button data-filter="featured">Öne Çıkanlar</button>
+        </div>
+
+        <div class="gallery-grid-3col" id="galleryGrid">
+          <figure class="gallery-card-3col" data-category="deep-sky featured">
+            <img loading="lazy" src="images/astro-01.jpg" alt="Üçgen Galaksisi (M33) — yıldız oluşum bölgelerine ev sahipliği yapan yakın bir sarmal galaksi" />
+            <figcaption>Üçgen Galaksisi (M33) — yıldız oluşum bölgelerine ev sahipliği yapan yakın bir sarmal galaksi</figcaption>
           </figure>
 
-          <figure class="gallery-card">
-            <img
-              loading="lazy"
-              src="images/wide-04.jpg"
-              alt="Milky Way over ancient ruins in Kos — premium stargazing experience"
-            />
-            <figcaption>Antik kalıntılar ve Samanyolu — Kos</figcaption>
+          <figure class="gallery-card-3col" data-category="deep-sky featured">
+            <img loading="lazy" src="images/astro-02.jpg" alt="Orion Bulutsusu (M42) — yeni yıldızların doğduğu geniş bir yıldız fabrikası" />
+            <figcaption>Orion Bulutsusu (M42) — yeni yıldızların doğduğu geniş bir yıldız fabrikası</figcaption>
           </figure>
 
-          <!-- CELESTIAL / ASTROPHOTOGRAPHY -->
-          <figure class="gallery-card">
-            <img
-              loading="lazy"
-              src="images/astro-02.jpg"
-              alt="Orion Nebula astrophotography — Avcı takımyıldızı bulutsular, teleskop gözlemi"
-            />
-            <figcaption>Orion Bulutsusu — teleskop gözlemi sırasında gösterilen astrofotoğraf</figcaption>
+          <figure class="gallery-card-3col" data-category="deep-sky">
+            <img loading="lazy" src="images/astro-03.jpg" alt="Havai Fişek Galaksisi (NGC 6946) ve açık yıldız kümesi NGC 6939" />
+            <figcaption>Havai Fişek Galaksisi (NGC 6946) ve açık yıldız kümesi NGC 6939</figcaption>
           </figure>
 
-          <figure class="gallery-card">
-            <img
-              loading="lazy"
-              src="images/astro-01.jpg"
-              alt="Triangulum Galaxy astrophotography — derin uzay gözlemi Bodrum otel etkinliği"
-            />
-            <figcaption>Üçgen Galaksisi — derin uzay astrofotoğrafçılık</figcaption>
+          <figure class="gallery-card-3col" data-category="deep-sky">
+            <img loading="lazy" src="images/astro-04.jpg" alt="NGC 2403 — aktif yıldız oluşum bölgelerine sahip parlak sarmal galaksi" />
+            <figcaption>NGC 2403 — aktif yıldız oluşum bölgelerine sahip parlak sarmal galaksi</figcaption>
           </figure>
 
-          <figure class="gallery-card">
-            <img
-              loading="lazy"
-              src="images/astro-07.jpg"
-              alt="Trifid Nebula astrophotography — premium stargazing Bodrum luxury hotel"
-            />
-            <figcaption>Trifid Bulutsusu — emisyon, yansıma ve karanlık bulutsu</figcaption>
+          <figure class="gallery-card-3col" data-category="deep-sky">
+            <img loading="lazy" src="images/astro-05.jpg" alt="IC 342 — yıldızlararası toz tarafından kısmen örtülmüş yüzey-on sarmal galaksi" />
+            <figcaption>IC 342 — yıldızlararası toz tarafından kısmen örtülmüş sarmal galaksi</figcaption>
           </figure>
 
-          <figure class="gallery-card wide">
-            <img
-              loading="lazy"
-              src="images/astro-06.jpg"
-              alt="Milky Way dust clouds — Samanyolu toz bulutları, Bodrum yıldız gözlem deneyimi"
-            />
-            <figcaption>Samanyolu toz bulutları — galaksimizin yapısı</figcaption>
+          <figure class="gallery-card-3col" data-category="deep-sky">
+            <img loading="lazy" src="images/astro-06.jpg" alt="Galaksimizin yapısını şekillendiren yoğun Samanyolu toz bulutları" />
+            <figcaption>Galaksimizin yapısını şekillendiren yoğun Samanyolu toz bulutları</figcaption>
           </figure>
 
-          <figure class="gallery-card">
-            <img
-              loading="lazy"
-              src="images/astro-03.jpg"
-              alt="Fireworks Galaxy astrophotography — NGC 6946 derin uzay Bodrum otel aktivitesi"
-            />
-            <figcaption>Havai Fişek Galaksisi — NGC 6946 astrofotoğrafçılık</figcaption>
+          <figure class="gallery-card-3col" data-category="deep-sky">
+            <img loading="lazy" src="images/astro-07.jpg" alt="Trifid Bulutsusu (M20) — emisyon, yansıma ve karanlık bulutsuların nadir birleşimi" />
+            <figcaption>Trifid Bulutsusu (M20) — emisyon, yansıma ve karanlık bulutsuların nadir birleşimi</figcaption>
           </figure>
+
+          <figure class="gallery-card-3col" data-category="wide-field featured">
+            <img loading="lazy" src="images/wide-01.jpg" alt="Kos üzerinde yükselen Samanyolu çekirdeği, uzakta Türkiye kıyısı görünüyor" />
+            <figcaption>Kos üzerinde yükselen Samanyolu — uzakta Türkiye kıyısı</figcaption>
+          </figure>
+
+          <figure class="gallery-card-3col" data-category="wide-field featured">
+            <img loading="lazy" src="images/wide-04.jpg" alt="Agios Stefanos Bazilikası, Kefalos — Samanyolu'nun altında antik kalıntılar" />
+            <figcaption>Agios Stefanos Bazilikası, Kefalos — Samanyolu altında antik kalıntılar</figcaption>
+          </figure>
+        </div>
+      </div>
+
+      <!-- LIGHTBOX — identical to English homepage -->
+      <div class="lightbox" id="lightbox" aria-modal="true" role="dialog" aria-label="Görsel görüntüleyici">
+        <div class="lightbox-inner">
+          <img id="lightboxImg" alt="" />
+          <div class="lightbox-caption" id="lightboxCaption"></div>
         </div>
       </div>
     </section>
@@ -1372,7 +1413,7 @@
 
             <a
               class="btn"
-              href="/Stargazing%20Events%20PDF%20Brochure%20comp.pdf?utm_source=bodrum_landing&utm_medium=website&utm_campaign=hotel_b2b_bodrum"
+              href="/images/Stargazing%20Events%20PDF%20Brochure%20comp.pdf?utm_source=bodrum_landing&utm_medium=website&utm_campaign=hotel_b2b_bodrum"
               target="_blank"
               rel="noopener"
               onclick="trackCTA('bodrum_brochure_click')"
@@ -1436,6 +1477,43 @@
 
   <script>
     document.getElementById('year').textContent = new Date().getFullYear();
+
+    // Gallery filters
+    const filterButtons = document.querySelectorAll('.gallery-filters button');
+    const galleryItems = document.querySelectorAll('#galleryGrid .gallery-card-3col');
+
+    filterButtons.forEach(button => {
+      button.addEventListener('click', () => {
+        filterButtons.forEach(b => b.classList.remove('active'));
+        button.classList.add('active');
+        const filter = button.dataset.filter;
+        galleryItems.forEach(item => {
+          const categories = item.dataset.category.split(' ');
+          item.style.display = (filter === 'all' || categories.includes(filter)) ? '' : 'none';
+        });
+      });
+    });
+
+    // Lightbox
+    const lightbox = document.getElementById('lightbox');
+    const lightboxImg = document.getElementById('lightboxImg');
+    const lightboxCaption = document.getElementById('lightboxCaption');
+
+    document.getElementById('galleryGrid').addEventListener('click', (event) => {
+      const card = event.target.closest('.gallery-card-3col');
+      if (!card) return;
+      const img = card.querySelector('img');
+      const caption = card.querySelector('figcaption');
+      lightboxImg.src = img.src;
+      lightboxImg.alt = img.alt;
+      lightboxCaption.textContent = caption ? caption.textContent : '';
+      lightbox.classList.add('open');
+    });
+
+    lightbox.addEventListener('click', () => lightbox.classList.remove('open'));
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') lightbox.classList.remove('open');
+    });
   </script>
 
 </body>
