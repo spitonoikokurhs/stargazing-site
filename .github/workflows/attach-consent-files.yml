@@ -1,0 +1,53 @@
+name: Attach consent files
+
+on:
+  push:
+    paths:
+      - .github/workflows/attach-consent-files.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  attach:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Add local consent file references
+        shell: python
+        run: |
+          from pathlib import Path
+
+          for filename in ("index.html", "bodrum-hotelleri.html", "privacy.html"):
+              path = Path(filename)
+              text = path.read_text(encoding="utf-8")
+
+              if '/cookie-consent.css' not in text:
+                  text = text.replace(
+                      '</head>',
+                      '  <link rel="stylesheet" href="/cookie-consent.css">\n</head>',
+                      1
+                  )
+
+              if '/cookie-consent.js' not in text:
+                  text = text.replace(
+                      '</body>',
+                      '  <script defer src="/cookie-consent.js"></script>\n</body>',
+                      1
+                  )
+
+              path.write_text(text, encoding="utf-8")
+
+      - name: Commit updates
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html bodrum-hotelleri.html privacy.html
+          if git diff --cached --quiet; then
+            echo "No changes needed"
+          else
+            git commit -m "Enable consent banner across website"
+            git push
+          fi
