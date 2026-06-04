@@ -188,7 +188,24 @@
     footerTarget.appendChild(button);
   }
 
-  // Existing Bodrum buttons call this function.
+  function sendAnalyticsEvent(eventName, extraParameters) {
+    if (
+      getSavedChoice() !== "accepted" ||
+      typeof window.gtag !== "function"
+    ) {
+      return;
+    }
+
+    window.gtag("event", eventName, {
+      event_category: "website_cta",
+      page_location: window.location.href,
+      page_path: window.location.pathname,
+      transport_type: "beacon",
+      ...(extraParameters || {})
+    });
+  }
+
+  // Existing Bodrum buttons call this function directly.
   window.trackCTA = function (eventName) {
     if (window.va) {
       window.va("event", {
@@ -196,17 +213,50 @@
       });
     }
 
-    if (
-      getSavedChoice() === "accepted" &&
-      typeof window.gtag === "function"
-    ) {
-      window.gtag("event", eventName, {
-        event_category: "website_cta",
-        page_location: window.location.href,
-        page_path: window.location.pathname
+    sendAnalyticsEvent(eventName);
+  };
+
+  function detectLinkType(anchor) {
+    const href = (anchor.getAttribute("href") || "").trim().toLowerCase();
+
+    if (href.startsWith("mailto:")) return "email";
+    if (href.includes("wa.me/") || href.includes("whatsapp.com")) return "whatsapp";
+    if (href.includes("instagram.com")) return "instagram";
+    if (href.includes("facebook.com") || href.includes("fb.com")) return "facebook";
+    if (href.includes("brochure") || href.endsWith(".pdf")) return "brochure";
+
+    return null;
+  }
+
+  // Automatically name homepage/social/contact clicks that do not already
+  // have an explicit trackCTA(...) handler in the HTML.
+  document.addEventListener("click", function (event) {
+    const anchor = event.target.closest("a[href]");
+    if (!anchor) return;
+
+    const inlineHandler = anchor.getAttribute("onclick") || "";
+    if (inlineHandler.includes("trackCTA")) return;
+
+    const linkType = detectLinkType(anchor);
+    if (!linkType) return;
+
+    const pagePrefix = window.location.pathname.includes("bodrum-hotelleri")
+      ? "bodrum"
+      : "homepage";
+
+    const eventName = `${pagePrefix}_${linkType}_click`;
+
+    if (window.va) {
+      window.va("event", {
+        name: eventName
       });
     }
-  };
+
+    sendAnalyticsEvent(eventName, {
+      link_type: linkType,
+      link_text: (anchor.textContent || "").trim().slice(0, 100)
+    });
+  });
 
   document.addEventListener("DOMContentLoaded", function () {
     const savedChoice = getSavedChoice();
