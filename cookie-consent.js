@@ -1,87 +1,234 @@
 (function () {
-  'use strict';
+  "use strict";
 
-  const CONSENT_KEY = 'stargazing_cookie_consent';
+  const GA_ID = "G-C5WYY0F0Z1";
+  const STORAGE_KEY = "stargazing_cookie_consent_v1";
 
-  function updateGoogleConsent(status) {
-    if (typeof window.gtag !== 'function') return;
+  window.dataLayer = window.dataLayer || [];
 
-    const granted = status === 'accepted' ? 'granted' : 'denied';
-    window.gtag('consent', 'update', {
-      analytics_storage: granted,
-      ad_storage: granted,
-      ad_user_data: granted,
-      ad_personalization: granted
+  window.gtag =
+    window.gtag ||
+    function () {
+      window.dataLayer.push(arguments);
+    };
+
+  // Consent Mode v2: deny everything before any Google tag loads.
+  window.gtag("consent", "default", {
+    analytics_storage: "denied",
+    ad_storage: "denied",
+    ad_user_data: "denied",
+    ad_personalization: "denied",
+    wait_for_update: 500
+  });
+
+  window.gtag("set", "ads_data_redaction", true);
+
+  function getSavedChoice() {
+    try {
+      return localStorage.getItem(STORAGE_KEY);
+    } catch (error) {
+      return null;
+    }
+  }
+
+  function saveChoice(choice) {
+    try {
+      localStorage.setItem(STORAGE_KEY, choice);
+    } catch (error) {
+      console.warn("Could not save cookie preference.", error);
+    }
+  }
+
+  function loadGoogleAnalytics() {
+    if (document.getElementById("stargazing-ga4-script")) {
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.id = "stargazing-ga4-script";
+    script.async = true;
+    script.src =
+      "https://www.googletagmanager.com/gtag/js?id=" +
+      encodeURIComponent(GA_ID);
+
+    document.head.appendChild(script);
+
+    window.gtag("js", new Date());
+
+    window.gtag("config", GA_ID, {
+      send_page_view: true
     });
   }
 
-  function saveConsent(status) {
-    try {
-      localStorage.setItem(CONSENT_KEY, status);
-    } catch (error) {
-      // Continue without persistence if storage is unavailable.
+  function grantConsent() {
+    window.gtag("consent", "update", {
+      analytics_storage: "granted",
+      ad_storage: "granted",
+      ad_user_data: "granted",
+      ad_personalization: "granted"
+    });
+
+    saveChoice("accepted");
+    loadGoogleAnalytics();
+    removeBanner();
+  }
+
+  function rejectConsent() {
+    window.gtag("consent", "update", {
+      analytics_storage: "denied",
+      ad_storage: "denied",
+      ad_user_data: "denied",
+      ad_personalization: "denied"
+    });
+
+    saveChoice("rejected");
+    removeBanner();
+  }
+
+  function removeBanner() {
+    const banner = document.getElementById("cookie-consent-banner");
+
+    if (banner) {
+      banner.remove();
     }
-    updateGoogleConsent(status);
   }
 
-  function closeBanner() {
-    const banner = document.getElementById('cookie-consent-banner');
-    if (banner) banner.remove();
-  }
+  function showBanner() {
+    removeBanner();
 
-  function createBanner() {
-    const banner = document.createElement('div');
-    banner.id = 'cookie-consent-banner';
-    banner.className = 'cookie-consent-banner';
-    banner.setAttribute('role', 'dialog');
-    banner.setAttribute('aria-label', 'Cookie preferences');
+    const isTurkish = document.documentElement.lang
+      .toLowerCase()
+      .startsWith("tr");
+
+    const text = isTurkish
+      ? {
+          title: "Gizlilik tercihleri",
+          message:
+            "Web sitesi ziyaretlerini anlamak ve deneyimi geliştirmek için analiz araçları kullanıyoruz. Analiz yalnızca onayınızdan sonra etkinleştirilir.",
+          policy: "Gizlilik Politikası",
+          reject: "Gerekli olmayanları reddet",
+          accept: "Tümünü kabul et"
+        }
+      : {
+          title: "Privacy preferences",
+          message:
+            "We use analytics to understand website visits and improve the experience. Analytics is activated only after you consent.",
+          policy: "Privacy Policy",
+          reject: "Reject non-essential",
+          accept: "Accept all"
+        };
+
+    const banner = document.createElement("div");
+    banner.id = "cookie-consent-banner";
+    banner.className = "cookie-consent-banner";
+    banner.setAttribute("role", "dialog");
+    banner.setAttribute("aria-label", text.title);
+
     banner.innerHTML = `
       <div class="cookie-consent-copy">
-        <strong>Privacy preferences</strong>
-        <p>We use analytics to understand website visits and improve Stargazing Events. Advertising measurement will only be used after consent.</p>
-        <a href="/privacy.html">Privacy Policy</a>
+        <strong>${text.title}</strong>
+        <p>${text.message}</p>
+        <a href="/privacy.html">${text.policy}</a>
       </div>
+
       <div class="cookie-consent-actions">
-        <button type="button" class="cookie-btn cookie-btn-secondary" data-cookie-choice="rejected">Reject non-essential</button>
-        <button type="button" class="cookie-btn cookie-btn-primary" data-cookie-choice="accepted">Accept all</button>
+        <button
+          type="button"
+          class="cookie-btn cookie-btn-secondary"
+          id="cookie-reject"
+        >
+          ${text.reject}
+        </button>
+
+        <button
+          type="button"
+          class="cookie-btn cookie-btn-primary"
+          id="cookie-accept"
+        >
+          ${text.accept}
+        </button>
       </div>
     `;
 
-    banner.addEventListener('click', function (event) {
-      const button = event.target.closest('[data-cookie-choice]');
-      if (!button) return;
-      saveConsent(button.dataset.cookieChoice);
-      closeBanner();
-    });
-
     document.body.appendChild(banner);
+
+    document
+      .getElementById("cookie-reject")
+      .addEventListener("click", rejectConsent);
+
+    document
+      .getElementById("cookie-accept")
+      .addEventListener("click", grantConsent);
   }
 
+  function addPrivacySettingsButton() {
+    if (document.getElementById("privacy-settings-button")) {
+      return;
+    }
+
+    const isTurkish = document.documentElement.lang
+      .toLowerCase()
+      .startsWith("tr");
+
+    const button = document.createElement("button");
+    button.type = "button";
+    button.id = "privacy-settings-button";
+    button.className = "privacy-settings-button";
+    button.textContent = isTurkish
+      ? "Gizlilik tercihleri"
+      : "Privacy settings";
+
+    button.addEventListener("click", showBanner);
+
+    const footerTarget =
+      document.querySelector("footer .container") ||
+      document.querySelector(".footer") ||
+      document.body;
+
+    footerTarget.appendChild(button);
+  }
+
+  // Existing Bodrum buttons call this function.
   window.trackCTA = function (eventName) {
     if (window.va) {
-      window.va('event', { name: eventName });
+      window.va("event", {
+        name: eventName
+      });
     }
-    if (typeof window.gtag === 'function') {
-      window.gtag('event', eventName, {
-        event_category: 'website_cta',
-        page_location: window.location.href
+
+    if (
+      getSavedChoice() === "accepted" &&
+      typeof window.gtag === "function"
+    ) {
+      window.gtag("event", eventName, {
+        event_category: "website_cta",
+        page_location: window.location.href,
+        page_path: window.location.pathname
       });
     }
   };
 
-  document.addEventListener('DOMContentLoaded', function () {
-    let savedConsent = null;
-    try {
-      savedConsent = localStorage.getItem(CONSENT_KEY);
-    } catch (error) {
-      savedConsent = null;
-    }
+  document.addEventListener("DOMContentLoaded", function () {
+    const savedChoice = getSavedChoice();
 
-    if (savedConsent === 'accepted' || savedConsent === 'rejected') {
-      updateGoogleConsent(savedConsent);
+    addPrivacySettingsButton();
+
+    if (savedChoice === "accepted") {
+      window.gtag("consent", "update", {
+        analytics_storage: "granted",
+        ad_storage: "granted",
+        ad_user_data: "granted",
+        ad_personalization: "granted"
+      });
+
+      loadGoogleAnalytics();
       return;
     }
 
-    createBanner();
+    if (savedChoice === "rejected") {
+      return;
+    }
+
+    showBanner();
   });
 })();
