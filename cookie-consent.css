@@ -45,18 +45,18 @@
 .cookie-consent-actions {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   justify-content: flex-end;
   gap: 10px;
 }
 
 .cookie-btn {
   cursor: pointer;
-  padding: 10px 14px;
   border: 1px solid #1f2a37;
   border-radius: 10px;
   font: inherit;
   font-weight: 700;
-  transition: transform 0.2s ease, opacity 0.2s ease;
+  transition: transform 0.2s ease, opacity 0.2s ease, box-shadow 0.2s ease;
 }
 
 .cookie-btn:hover {
@@ -64,14 +64,27 @@
 }
 
 .cookie-btn-secondary {
+  padding: 8px 11px;
+  background: transparent;
+  color: #c0c9d4;
+  font-size: 0.84rem;
+  font-weight: 600;
+  box-shadow: none;
+}
+
+.cookie-btn-secondary:hover {
+  color: #ffffff;
   background: #10161f;
-  color: #e8ecf1;
 }
 
 .cookie-btn-primary {
+  min-width: 128px;
+  padding: 12px 19px;
   border-color: transparent;
   background: linear-gradient(180deg, #7dc6ff, #53adf7);
   color: #001726;
+  font-size: 0.98rem;
+  box-shadow: 0 8px 22px rgba(83, 173, 247, 0.2);
 }
 
 .privacy-settings-button {
@@ -105,7 +118,11 @@
     margin-top: 14px;
   }
 
-  .cookie-btn {
-    flex: 1;
+  .cookie-btn-primary {
+    flex: 1 1 58%;
+  }
+
+  .cookie-btn-secondary {
+    flex: 0 1 auto;
   }
 }
