@@ -222,6 +222,7 @@
     if (href.startsWith("mailto:")) return "email";
     if (href.includes("wa.me/") || href.includes("whatsapp.com")) return "whatsapp";
     if (href.includes("instagram.com")) return "instagram";
+    if (href.includes("linkedin.com")) return "linkedin";
     if (href.includes("facebook.com") || href.includes("fb.com")) return "facebook";
     if (href.includes("brochure") || href.endsWith(".pdf")) return "brochure";
 
