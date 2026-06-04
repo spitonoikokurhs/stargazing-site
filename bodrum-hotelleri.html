@@ -160,8 +160,8 @@
     .btn-group{display:flex;flex-wrap:wrap;gap:12px;margin-top:24px}
 
     .hero{position:relative;min-height:86vh;display:grid;align-items:end;overflow:hidden;border-top:none}
-    .hero::before{content:"";position:absolute;inset:0;background:url("images/michalis-reisis-stargazing-host.jpg") center center / cover no-repeat;filter:blur(30px) brightness(.5);z-index:0}
-    .hero-media{position:absolute;inset:0;background:linear-gradient(180deg,rgba(5,8,12,.22),rgba(5,8,12,.48) 45%,rgba(5,8,12,.84)),url("images/michalis-reisis-stargazing-host.jpg") center center / cover no-repeat;animation:heroDrift 12s ease-in-out infinite alternate}
+    .hero::before{content:"";position:absolute;inset:0;background:url("images/michalis-reisis-stargazing-host.jpg") center 62% / cover no-repeat;filter:blur(30px) brightness(.5);z-index:0}
+    .hero-media{position:absolute;inset:0;background:linear-gradient(180deg,rgba(5,8,12,.22),rgba(5,8,12,.48) 45%,rgba(5,8,12,.84)),url("images/michalis-reisis-stargazing-host.jpg") center 62% / cover no-repeat;animation:heroDrift 12s ease-in-out infinite alternate}
     @keyframes heroDrift{0%{transform:scale(1) translateX(0) translateY(0)}100%{transform:scale(1.03) translateX(-8px) translateY(-2px)}}
     .hero::after{content:"";position:absolute;inset:0;background:radial-gradient(900px 500px at 20% 15%,rgba(125,198,255,.06),transparent),radial-gradient(800px 500px at 80% 20%,rgba(180,156,255,.04),transparent);pointer-events:none}
     .hero-inner{position:relative;z-index:2;max-width:760px;padding:120px 0 72px}
