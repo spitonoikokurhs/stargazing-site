@@ -25,43 +25,30 @@ jobs:
           index = Path("index.html")
           text = index.read_text(encoding="utf-8")
 
-          text = text.replace(
-              '      "https://www.facebook.com/nextdoorphotographer"\n',
-              '      "https://www.facebook.com/nextdoorphotographer",\n'
-              f'      "{linkedin}"\n',
-              1,
-          )
-
-          old_socials = '''            <a href="https://fb.com/nextdoorphotographer" target="_blank" rel="noopener noreferrer">Facebook Page</a>
-            <a href="https://wa.me/306947772928" target="_blank" rel="noopener noreferrer">WhatsApp</a>'''
-          new_socials = f'''            <a href="https://fb.com/nextdoorphotographer" target="_blank" rel="noopener noreferrer">Facebook Page</a>
-            <a href="{linkedin}" target="_blank" rel="noopener noreferrer">LinkedIn</a>
-            <a href="https://wa.me/306947772928" target="_blank" rel="noopener noreferrer">WhatsApp</a>'''
-          text = text.replace(old_socials, new_socials, 1)
+          facebook_line = '<a href="https://fb.com/nextdoorphotographer" target="_blank" rel="noopener noreferrer">Facebook Page</a>'
+          linkedin_line = f'<a href="{linkedin}" target="_blank" rel="noopener noreferrer">LinkedIn</a>'
+          if linkedin_line not in text:
+              text = text.replace(facebook_line, facebook_line + '\n            ' + linkedin_line, 1)
           index.write_text(text, encoding="utf-8")
 
           bodrum = Path("bodrum-hotelleri.html")
           text = bodrum.read_text(encoding="utf-8")
 
-          text = text.replace(
-              '"https://www.instagram.com/mixalre","https://www.stargazing.events/"',
-              f'"https://www.instagram.com/mixalre","{linkedin}","https://www.stargazing.events/"',
-              1,
-          )
-
           instagram_button = '<a class="btn" href="https://instagram.com/mixalre?utm_source=bodrum_landing&utm_medium=website&utm_campaign=hotel_b2b_bodrum" target="_blank" rel="noopener noreferrer" onclick="trackCTA(\'bodrum_instagram_click\')">Instagram</a>'
           linkedin_button = f'<a class="btn" href="{linkedin}?utm_source=bodrum_landing&utm_medium=website&utm_campaign=hotel_b2b_bodrum" target="_blank" rel="noopener noreferrer" onclick="trackCTA(\'bodrum_linkedin_click\')">LinkedIn</a>'
-          text = text.replace(instagram_button, instagram_button + linkedin_button, 1)
+          if linkedin_button not in text:
+              text = text.replace(instagram_button, instagram_button + linkedin_button, 1)
           bodrum.write_text(text, encoding="utf-8")
 
           consent = Path("cookie-consent.js")
           text = consent.read_text(encoding="utf-8")
-          text = text.replace(
-              '    if (href.includes("instagram.com")) return "instagram";\n',
-              '    if (href.includes("instagram.com")) return "instagram";\n'
-              '    if (href.includes("linkedin.com")) return "linkedin";\n',
-              1,
-          )
+          if 'href.includes("linkedin.com")' not in text:
+              text = text.replace(
+                  '    if (href.includes("instagram.com")) return "instagram";\n',
+                  '    if (href.includes("instagram.com")) return "instagram";\n'
+                  '    if (href.includes("linkedin.com")) return "linkedin";\n',
+                  1,
+              )
           consent.write_text(text, encoding="utf-8")
 
       - name: Commit changes
