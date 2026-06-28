@@ -174,6 +174,7 @@
     button.type = "button";
     button.id = "privacy-settings-button";
     button.className = "privacy-settings-button";
+    button.style.marginLeft = "1em";
     button.textContent = isTurkish
       ? "Gizlilik tercihleri"
       : "Privacy settings";
