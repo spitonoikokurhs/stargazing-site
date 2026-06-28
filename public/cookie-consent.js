@@ -128,7 +128,7 @@
       <div class="cookie-consent-copy">
         <strong>${text.title}</strong>
         <p>${text.message}</p>
-        <a href="/privacy.html">${text.policy}</a>
+        <a href="/privacy">${text.policy}</a>
       </div>
 
       <div class="cookie-consent-actions">
