@@ -259,7 +259,15 @@
     });
   });
 
-  document.addEventListener("DOMContentLoaded", function () {
+  function onReady(callback) {
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", callback);
+    } else {
+      callback();
+    }
+  }
+
+  onReady(function () {
     const savedChoice = getSavedChoice();
 
     addPrivacySettingsButton();
