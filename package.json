@@ -9,16 +9,18 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@vercel/analytics": "^1",
+    "@vercel/speed-insights": "^1",
     "next": "^14.2.0",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "@vercel/analytics": "^1",
-    "@vercel/speed-insights": "^1"
+    "react-dom": "^18.3.1"
   },
   "devDependencies": {
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",
+    "eslint": "^8.57.1",
+    "eslint-config-next": "14.2.x",
     "typescript": "^5"
   }
 }
