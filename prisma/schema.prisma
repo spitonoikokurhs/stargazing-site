@@ -1,0 +1,87 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// Neon serves a pooled connection (PgBouncer) for runtime and a direct connection for DDL.
+// Runtime queries use `url` (pooled); migrations automatically use `directUrl`.
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("POSTGRES_URL_NON_POOLING")
+}
+
+// One row per event night.
+// status: "active" | "cancelled" | "completed" (validated in application code, not an enum).
+// A cancelled night is a row created in advance with status "cancelled",
+// which the /live page reads naturally.
+model Session {
+  id                 String        @id @default(cuid())
+  date               String // local Europe/Athens calendar date of the event night, format "YYYY-MM-DD" — avoids UTC/local off-by-one bugs around midnight; unambiguous and sortable
+  hotelId            String // slug, e.g. "caravia-beach", "oku-kos" — plain String so private venues need no schema change
+  status             String        @default("active")
+  cancellationReason String? // e.g. "weather"
+  startedAt          DateTime? // when the first frame arrived; null for cancelled nights created in advance
+  endedAt            DateTime? // set after 5 min of no frames
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+  observations       Observation[]
+
+  @@unique([date, hotelId]) // business rule: one session per hotel per night; blocks duplicate rows from retries/admin actions. Also serves date-only lookups (date is the leading column).
+  @@index([status, date]) // /live page's "is tonight cancelled?" check
+  @@index([hotelId, date]) // hotel-history browsing
+}
+
+// One row per object viewed within a session.
+// source: "pegasus" | "seestar" (plain String — keeps migrations simple if devices are added).
+model Observation {
+  id            String    @id @default(cuid())
+  sessionId     String
+  session       Session   @relation(fields: [sessionId], references: [id])
+  objectName    String // pretty display name, e.g. "M31 — Andromeda Galaxy"
+  rawTargetName String? // exact unprocessed target string as reported by the device; new-object detection compares raw strings
+  objectType    String? // e.g. "Galaxy", "Nebula", "Planet" — drives the object-type badge
+  source        String // "pegasus" | "seestar"
+  startedAt     DateTime // first frame of this object
+  endedAt       DateTime? // set when object changes or session ends
+  metadata      Json? // device-reported target data (RA/Dec, magnitude, constellation, ...)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  frames        Frame[]
+
+  @@index([sessionId, startedAt]) // serves both the FK lookup and time-ordered browsing
+  @@index([source, startedAt])
+}
+
+// One row per ingested image.
+// source is denormalized from Observation for query convenience —
+// we often query frames by source directly without joining.
+model Frame {
+  id             String      @id @default(cuid())
+  observationId  String
+  observation    Observation @relation(fields: [observationId], references: [id])
+  source         String // "pegasus" | "seestar"
+  blobUrl        String // Vercel Blob URL of the stored full-size image (display)
+  blobPath       String // Vercel Blob pathname — needed for deletion/cleanup operations
+  thumbnailUrl   String? // populated when thumbnail generation lands at ingest (display)
+  thumbnailPath  String? // Vercel Blob pathname of the thumbnail — for deletion/cleanup; populated together with thumbnailUrl
+  stackMilestone Int? // 0 | 60 | 180 | 300 for stacking-progression milestones; null for regular frames
+  capturedAt     DateTime // device timestamp if known, else relay fetch time
+  ingestedAt     DateTime    @default(now()) // when our server received the frame (distinct from capturedAt)
+  sizeBytes      Int?
+  width          Int?
+  height         Int?
+  sha256         String // content hash for dedup — computed server-side by /api/ingest from received bytes, never trusted from the client
+  metadata       Json? // device-reported frame data (exposure count, integration time, gain, ...)
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  @@unique([source, sha256]) // hard DB-level dedup, guaranteed now that sha256 is required
+  @@index([observationId])
+  @@index([source, capturedAt]) // the money index: /api/status "most recent frame per source" every 10s
+}
