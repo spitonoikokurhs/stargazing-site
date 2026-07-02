@@ -27,7 +27,7 @@ export default function PrivacyPage() {
       <main>
         <div className="container">
           <article className="card">
-            <div className="updated">Last updated: June 2026</div>
+            <div className="updated">Last updated: July 2026</div>
             <h1>Privacy Policy</h1>
             <p>This Privacy Policy explains how Stargazing Events, operated by Michalis Reisis, handles information when you visit this website or contact us.</p>
 
@@ -50,6 +50,23 @@ export default function PrivacyPage() {
 
             <h2>Cookies and similar technologies</h2>
             <p>Analytics and advertising tools may use cookies or similar technologies to measure visits, understand campaign performance and improve future advertising. You can control or block cookies through your browser settings.</p>
+
+            <h2>Email subscribers</h2>
+            <p>If you sign up through the subscription form on our live view page, we collect the email address you provide. We use it only to send you a notification shortly before a live stargazing session begins, and a short summary the morning after a session describing what was observed. Signing up is a clear opt-in — we only send emails if you actively submit the form.</p>
+            <p>Subscriber email addresses are stored in our database (Neon Postgres, hosted in the EU / Frankfurt region). Emails are delivered through Resend, our email delivery provider.</p>
+            <p>Every email we send includes a one-click unsubscribe link that works without logging in. When you unsubscribe, we stop sending emails immediately and delete your subscription record within 30 days. We keep your email address only until you unsubscribe.</p>
+
+            <h2>Anonymous viewer counts</h2>
+            <p>While you watch the live view, your browser sends a brief &ldquo;still here&rdquo; signal roughly every 30 seconds so we can show an accurate count of how many people are watching at the same time. Displaying that count is the only thing this signal is used for.</p>
+            <p>This does not identify you. There is no account, no login, and no persistent identifier. The signal uses only a short-lived random token generated in your browser for the duration of your visit. The token is held in memory only — it is not a cookie and is not stored on your device, and it disappears when you close the tab.</p>
+            <p>These counts are held in temporary storage (Upstash Redis, hosted in the EU / Frankfurt region) and the tokens expire automatically after five minutes of inactivity.</p>
+
+            <h2>Live session records</h2>
+            <p>For each live stargazing session, we record details of the astronomical observation itself: the name of the object viewed (for example, &ldquo;M31 Andromeda Galaxy&rdquo;), the date and time, which telescope produced the image (Pegasus or Seestar), and the stacked images captured during the session.</p>
+            <p>These records describe the sky, not visitors — no personal or visitor information is linked to them. Images are stored in Vercel Blob, and the accompanying details in our database (Neon Postgres), both hosted in the EU / Frankfurt region. We keep these records indefinitely as a historical archive of our observations, and selected images may appear in the site&rsquo;s public astrophotography gallery.</p>
+
+            <h2>Where your data is stored</h2>
+            <p>All of the data described above is stored within the European Union (Frankfurt region): image files in Vercel Blob, short-lived state such as viewer counts in Upstash Redis, and subscriber, session and observation records in Neon Postgres. This matters under the GDPR: your data does not leave the EU.</p>
 
             <h2>How information is used</h2>
             <ul>
