@@ -136,8 +136,8 @@
   border-radius: 999px;
   opacity: 0;
   transform: rotate(var(--star-angle));
-  background: linear-gradient(90deg, transparent 0%, rgba(237, 234, 227, 0.25) 35%, rgba(255, 255, 255, 0.95) 100%);
-  filter: drop-shadow(0 0 5px rgba(237, 234, 227, 0.5));
+  background: linear-gradient(90deg, transparent 0%, var(--star-tail) 35%, var(--star-head) 100%);
+  filter: drop-shadow(0 0 5px var(--star-glow));
   animation: shooting-star var(--star-duration) linear infinite;
   animation-delay: var(--star-delay);
 }
@@ -150,7 +150,7 @@
   width: 4px;
   height: 4px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.9);
+  background: var(--star-head);
   transform: translateY(-50%);
 }
 
@@ -159,6 +159,9 @@
   --star-length: min(32vw, 220px);
   --star-angle: 14deg;
   --star-travel-y: 34vh;
+  --star-tail: rgba(237, 234, 227, 0.25);
+  --star-head: rgba(255, 255, 255, 0.95);
+  --star-glow: rgba(237, 234, 227, 0.5);
   --star-duration: 8.5s;
   --star-delay: 1.2s;
 }
@@ -168,6 +171,9 @@
   --star-length: min(26vw, 180px);
   --star-angle: 11deg;
   --star-travel-y: 26vh;
+  --star-tail: rgba(255, 189, 107, 0.22);
+  --star-head: rgba(255, 219, 151, 0.95);
+  --star-glow: rgba(255, 170, 80, 0.42);
   --star-duration: 11s;
   --star-delay: 5.8s;
 }
@@ -177,6 +183,9 @@
   --star-length: min(30vw, 200px);
   --star-angle: 16deg;
   --star-travel-y: 40vh;
+  --star-tail: rgba(111, 255, 218, 0.22);
+  --star-head: rgba(177, 255, 232, 0.95);
+  --star-glow: rgba(96, 255, 213, 0.42);
   --star-duration: 13s;
   --star-delay: 9.5s;
 }
