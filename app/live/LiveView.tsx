@@ -45,28 +45,92 @@ type StatusOffline = {
 type StatusDegraded = { live: false; degraded: true; tonight?: OfflinePayload['tonight']; next?: OfflinePayload['next'] }
 type StatusResponse = StatusLive | StatusOffline | StatusDegraded
 
+function isObject(v: unknown): v is Record<string, unknown> {
+  return typeof v === 'object' && v !== null
+}
+
+function isString(v: unknown): v is string {
+  return typeof v === 'string'
+}
+
+function isSource(v: unknown): v is StatusLive['source'] {
+  return v === 'pegasus' || v === 'seestar'
+}
+
+function isTonightInfo(v: unknown): v is OfflinePayload['tonight'] {
+  if (v === null) return true
+  if (!isObject(v)) return false
+  const cancellationReason = v.cancellationReason
+  return (
+    isString(v.hotelId) &&
+    isString(v.start) &&
+    isString(v.end) &&
+    typeof v.cancelled === 'boolean' &&
+    (cancellationReason === undefined || isString(cancellationReason))
+  )
+}
+
+function isNextInfo(v: unknown): v is OfflinePayload['next'] {
+  if (v === null) return true
+  return isObject(v) && isString(v.date) && isString(v.hotelId) && isString(v.start) && isString(v.end)
+}
+
+function isLiveStatus(v: Record<string, unknown>): v is StatusLive {
+  if (v.live !== true || !isSource(v.source) || !isObject(v.frame) || !isObject(v.observation)) return false
+  return (
+    isString(v.frame.frameId) &&
+    isString(v.frame.blobUrl) &&
+    isString(v.frame.capturedAt) &&
+    isString(v.frame.ingestedAt) &&
+    isString(v.observation.observationId) &&
+    isString(v.observation.objectName) &&
+    isString(v.sessionId)
+  )
+}
+
+function isOfflineStatus(v: Record<string, unknown>): v is StatusOffline {
+  return v.live === false && v.degraded !== true && isTonightInfo(v.tonight) && isNextInfo(v.next)
+}
+
 function isStatusResponse(v: unknown): v is StatusResponse {
-  return typeof v === 'object' && v !== null && 'live' in v
+  if (!isObject(v)) return false
+  if (v.live === false && v.degraded === true) return true
+  return isLiveStatus(v) || isOfflineStatus(v)
 }
 
 // Preload an image; resolve only once it has actually loaded (never resolve
 // on a half-fetched or errored image). 10s timeout treated as failure.
-function preloadImage(src: string): Promise<void> {
+function preloadImage(src: string, signal?: AbortSignal): Promise<void> {
   return new Promise((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(new Error('image preload aborted'))
+      return
+    }
     const img = new Image()
-    const timer = setTimeout(() => {
+    const cleanup = () => {
+      clearTimeout(timer)
+      signal?.removeEventListener('abort', abort)
       img.onload = null
       img.onerror = null
+    }
+    const abort = () => {
+      cleanup()
+      img.src = ''
+      reject(new Error('image preload aborted'))
+    }
+    const timer = setTimeout(() => {
+      cleanup()
       reject(new Error('image preload timed out'))
     }, IMAGE_PRELOAD_TIMEOUT_MS)
     img.onload = () => {
-      clearTimeout(timer)
+      cleanup()
       resolve()
     }
     img.onerror = () => {
-      clearTimeout(timer)
+      cleanup()
       reject(new Error('image preload failed'))
     }
+    signal?.addEventListener('abort', abort, { once: true })
     img.src = src
   })
 }
@@ -103,6 +167,8 @@ export default function LiveView() {
   const inFlightRef = useRef(false)
   const stoppedRef = useRef(false) // true while document.hidden
   const activeControllerRef = useRef<AbortController | null>(null)
+  const activeImageControllerRef = useRef<AbortController | null>(null)
+  const pollGenerationRef = useRef(0)
 
   // "updated Xs ago" ticks on its own timer, independent of polling.
   const [, forceTick] = useState(0)
@@ -113,6 +179,7 @@ export default function LiveView() {
     async function pollOnce() {
       if (inFlightRef.current) return
       inFlightRef.current = true
+      const pollGeneration = ++pollGenerationRef.current
 
       const controller = new AbortController()
       activeControllerRef.current = controller
@@ -155,8 +222,10 @@ export default function LiveView() {
               loadedAt: current.lastLiveFrame.loadedAt,
             })
           } else {
+            const imageController = new AbortController()
+            activeImageControllerRef.current = imageController
             try {
-              await preloadImage(body.frame.blobUrl)
+              await preloadImage(body.frame.blobUrl, imageController.signal)
               if (cancelled) return
               dispatch({
                 type: 'POLL_LIVE_IMAGE_LOADED',
@@ -170,6 +239,8 @@ export default function LiveView() {
               })
             } catch {
               if (!cancelled) dispatch({ type: 'POLL_LIVE_IMAGE_FAILED' })
+            } finally {
+              if (activeImageControllerRef.current === imageController) activeImageControllerRef.current = null
             }
           }
         }
@@ -177,9 +248,11 @@ export default function LiveView() {
         clearTimeout(fetchTimeout)
         if (!cancelled) dispatch({ type: 'POLL_FAILED' })
       } finally {
-        if (activeControllerRef.current === controller) activeControllerRef.current = null
-        inFlightRef.current = false
-        if (!cancelled) scheduleNext()
+        if (pollGenerationRef.current === pollGeneration) {
+          if (activeControllerRef.current === controller) activeControllerRef.current = null
+          inFlightRef.current = false
+          if (!cancelled) scheduleNext()
+        }
       }
     }
 
@@ -210,8 +283,11 @@ export default function LiveView() {
 
     return () => {
       cancelled = true
+      pollGenerationRef.current += 1
       activeControllerRef.current?.abort()
       activeControllerRef.current = null
+      activeImageControllerRef.current?.abort()
+      activeImageControllerRef.current = null
       inFlightRef.current = false
       document.removeEventListener('visibilitychange', onVisibilityChange)
       window.removeEventListener('focus', onFocus)
@@ -231,11 +307,14 @@ export default function LiveView() {
     return () => clearInterval(id)
   }, [state.uiState])
 
+  const lastLiveLoadedAt = state.lastLiveFrame?.loadedAt
+
   // Tick every second so "updated Xs ago" stays live without waiting on a poll.
   useEffect(() => {
+    if ((state.uiState !== 'live' && state.uiState !== 'reconnecting') || lastLiveLoadedAt === undefined) return
     const id = setInterval(() => forceTick((n) => n + 1), 1000)
     return () => clearInterval(id)
-  }, [])
+  }, [state.uiState, lastLiveLoadedAt])
 
   return <LiveViewPresentation state={state} />
 }
