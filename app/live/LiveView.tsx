@@ -45,28 +45,92 @@ type StatusOffline = {
 type StatusDegraded = { live: false; degraded: true; tonight?: OfflinePayload['tonight']; next?: OfflinePayload['next'] }
 type StatusResponse = StatusLive | StatusOffline | StatusDegraded
 
+function isObject(v: unknown): v is Record<string, unknown> {
+  return typeof v === 'object' && v !== null
+}
+
+function isString(v: unknown): v is string {
+  return typeof v === 'string'
+}
+
+function isSource(v: unknown): v is StatusLive['source'] {
+  return v === 'pegasus' || v === 'seestar'
+}
+
+function isTonightInfo(v: unknown): v is OfflinePayload['tonight'] {
+  if (v === null) return true
+  if (!isObject(v)) return false
+  const cancellationReason = v.cancellationReason
+  return (
+    isString(v.hotelId) &&
+    isString(v.start) &&
+    isString(v.end) &&
+    typeof v.cancelled === 'boolean' &&
+    (cancellationReason === undefined || isString(cancellationReason))
+  )
+}
+
+function isNextInfo(v: unknown): v is OfflinePayload['next'] {
+  if (v === null) return true
+  return isObject(v) && isString(v.date) && isString(v.hotelId) && isString(v.start) && isString(v.end)
+}
+
+function isLiveStatus(v: Record<string, unknown>): v is StatusLive {
+  if (v.live !== true || !isSource(v.source) || !isObject(v.frame) || !isObject(v.observation)) return false
+  return (
+    isString(v.frame.frameId) &&
+    isString(v.frame.blobUrl) &&
+    isString(v.frame.capturedAt) &&
+    isString(v.frame.ingestedAt) &&
+    isString(v.observation.observationId) &&
+    isString(v.observation.objectName) &&
+    isString(v.sessionId)
+  )
+}
+
+function isOfflineStatus(v: Record<string, unknown>): v is StatusOffline {
+  return v.live === false && v.degraded !== true && isTonightInfo(v.tonight) && isNextInfo(v.next)
+}
+
 function isStatusResponse(v: unknown): v is StatusResponse {
-  return typeof v === 'object' && v !== null && 'live' in v
+  if (!isObject(v)) return false
+  if (v.live === false && v.degraded === true) return true
+  return isLiveStatus(v) || isOfflineStatus(v)
 }
 
 // Preload an image; resolve only once it has actually loaded (never resolve
 // on a half-fetched or errored image). 10s timeout treated as failure.
-function preloadImage(src: string): Promise<void> {
+function preloadImage(src: string, signal?: AbortSignal): Promise<void> {
   return new Promise((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(new Error('image preload aborted'))
+      return
+    }
     const img = new Image()
-    const timer = setTimeout(() => {
+    const cleanup = () => {
+      clearTimeout(timer)
+      signal?.removeEventListener('abort', abort)
       img.onload = null
       img.onerror = null
+    }
+    const abort = () => {
+      cleanup()
+      img.src = ''
+      reject(new Error('image preload aborted'))
+    }
+    const timer = setTimeout(() => {
+      cleanup()
       reject(new Error('image preload timed out'))
     }, IMAGE_PRELOAD_TIMEOUT_MS)
     img.onload = () => {
-      clearTimeout(timer)
+      cleanup()
       resolve()
     }
     img.onerror = () => {
-      clearTimeout(timer)
+      cleanup()
       reject(new Error('image preload failed'))
     }
+    signal?.addEventListener('abort', abort, { once: true })
     img.src = src
   })
 }
@@ -102,6 +166,9 @@ export default function LiveView() {
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const inFlightRef = useRef(false)
   const stoppedRef = useRef(false) // true while document.hidden
+  const activeControllerRef = useRef<AbortController | null>(null)
+  const activeImageControllerRef = useRef<AbortController | null>(null)
+  const pollGenerationRef = useRef(0)
 
   // "updated Xs ago" ticks on its own timer, independent of polling.
   const [, forceTick] = useState(0)
@@ -112,8 +179,10 @@ export default function LiveView() {
     async function pollOnce() {
       if (inFlightRef.current) return
       inFlightRef.current = true
+      const pollGeneration = ++pollGenerationRef.current
 
       const controller = new AbortController()
+      activeControllerRef.current = controller
       const fetchTimeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS)
 
       try {
@@ -153,8 +222,10 @@ export default function LiveView() {
               loadedAt: current.lastLiveFrame.loadedAt,
             })
           } else {
+            const imageController = new AbortController()
+            activeImageControllerRef.current = imageController
             try {
-              await preloadImage(body.frame.blobUrl)
+              await preloadImage(body.frame.blobUrl, imageController.signal)
               if (cancelled) return
               dispatch({
                 type: 'POLL_LIVE_IMAGE_LOADED',
@@ -168,6 +239,8 @@ export default function LiveView() {
               })
             } catch {
               if (!cancelled) dispatch({ type: 'POLL_LIVE_IMAGE_FAILED' })
+            } finally {
+              if (activeImageControllerRef.current === imageController) activeImageControllerRef.current = null
             }
           }
         }
@@ -175,8 +248,11 @@ export default function LiveView() {
         clearTimeout(fetchTimeout)
         if (!cancelled) dispatch({ type: 'POLL_FAILED' })
       } finally {
-        inFlightRef.current = false
-        if (!cancelled) scheduleNext()
+        if (pollGenerationRef.current === pollGeneration) {
+          if (activeControllerRef.current === controller) activeControllerRef.current = null
+          inFlightRef.current = false
+          if (!cancelled) scheduleNext()
+        }
       }
     }
 
@@ -207,9 +283,18 @@ export default function LiveView() {
 
     return () => {
       cancelled = true
+      pollGenerationRef.current += 1
+      activeControllerRef.current?.abort()
+      activeControllerRef.current = null
+      activeImageControllerRef.current?.abort()
+      activeImageControllerRef.current = null
+      inFlightRef.current = false
       document.removeEventListener('visibilitychange', onVisibilityChange)
       window.removeEventListener('focus', onFocus)
-      if (timeoutRef.current) clearTimeout(timeoutRef.current)
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current)
+        timeoutRef.current = null
+      }
     }
   }, [])
 
@@ -222,11 +307,14 @@ export default function LiveView() {
     return () => clearInterval(id)
   }, [state.uiState])
 
+  const lastLiveLoadedAt = state.lastLiveFrame?.loadedAt
+
   // Tick every second so "updated Xs ago" stays live without waiting on a poll.
   useEffect(() => {
+    if ((state.uiState !== 'live' && state.uiState !== 'reconnecting') || lastLiveLoadedAt === undefined) return
     const id = setInterval(() => forceTick((n) => n + 1), 1000)
     return () => clearInterval(id)
-  }, [])
+  }, [state.uiState, lastLiveLoadedAt])
 
   return <LiveViewPresentation state={state} />
 }
@@ -250,37 +338,37 @@ function offlineCopy(state: LiveStatusState): { heading: string; sub?: string; l
   // suppress it as a sub-line to avoid showing the same session twice.
   const today = athensTodayDate()
   const distinctNext = next && next.date !== today ? next : null
+  const distinctNextLine = distinctNext ? `Next session: ${distinctNext.date}, ${distinctNext.start}` : null
 
   if (tonight?.cancelled) {
     return {
       heading: 'Tonight’s session is cancelled',
-      sub: tonight.cancellationReason
-        ? tonight.cancellationReason
-        : distinctNext
-          ? `Next session: ${distinctNext.date}, ${distinctNext.start}`
-          : undefined,
+      sub: tonight.cancellationReason ?? distinctNextLine ?? undefined,
       loader: false,
     }
   }
 
   if (tonight) {
+    // Hotel name leads (heading) — content order requested: hotel -> time ->
+    // pun. The time-based line (start time / waiting-for-feed / ended) is the
+    // sub; a genuinely distinct upcoming session, when present, stacks below
+    // that same sub line rather than replacing the hotel name, so the hotel
+    // is never dropped from the screen the way it was before this reorder.
     const now = athensNowHHMM()
-    const hotel = hotelDisplayName(tonight.hotelId)
-    let heading: string
+    const heading = hotelDisplayName(tonight.hotelId)
+    let timeLine: string
     let loader: boolean
     if (now < tonight.start) {
-      heading = `Tonight at ${tonight.start}`
+      timeLine = `Tonight at ${tonight.start}`
       loader = true
     } else if (now < tonight.end) {
-      heading = 'Waiting for the telescope feed'
+      timeLine = 'Waiting for the telescope feed'
       loader = true
     } else {
-      heading = 'Tonight’s session has ended'
+      timeLine = 'Tonight’s session has ended'
       loader = false
     }
-    // Keep the hotel name visible; a genuinely distinct upcoming session takes
-    // the sub-line instead when there is one.
-    const sub = distinctNext ? `Next session: ${distinctNext.date}, ${distinctNext.start}` : hotel
+    const sub = distinctNextLine ? `${timeLine} · ${distinctNextLine}` : timeLine
     return { heading, sub, loader }
   }
 
@@ -305,12 +393,14 @@ function LiveViewPresentation({ state }: { state: LiveStatusState }) {
     // able to obscure that the session is off. No loader — nothing is coming.
     const { heading, sub } = offlineCopy(state)
     const logoSrc = tonightLogoSrc(state)
+    const hotelId = state.lastOfflinePayload?.tonight?.hotelId
     return (
       <StatusScreen
         heading={heading}
         sub={sub}
         tone="cancelled"
         logoSrc={logoSrc}
+        logoAlt={hotelId ? hotelDisplayName(hotelId) : undefined}
         flavorContext={buildFlavorContext(state)}
       />
     )
@@ -423,7 +513,7 @@ function FlavorLine({ context, secondary }: { context: FlavorContext; secondary?
     // would never actually rotate. pickFlavor reads the live clock internally,
     // so a captured context still crosses time tiers correctly between changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [context.subState, context.tonight?.hotelId, context.tonight?.start])
+  }, [context.subState, context.tonight?.hotelId, context.tonight?.start, context.tonight?.end])
 
   if (!line) return null
   const sentences = splitIntoSentences(line)
@@ -498,6 +588,7 @@ function StatusScreen({
   tone,
   loader,
   logoSrc,
+  logoAlt,
   flavorContext,
 }: {
   heading: string
@@ -505,19 +596,26 @@ function StatusScreen({
   tone?: 'cancelled'
   loader?: boolean
   logoSrc?: string | null
+  logoAlt?: string
   flavorContext?: FlavorContext
 }) {
   const cancelled = tone === 'cancelled'
   return (
     <div className={`status-root${cancelled ? ' status-root--cancelled' : ''}`}>
-      {/* Row 1 (steady): logo/heading/sub never move when the flavor line
-          below changes length or sentence-count — see .status-steady in
-          styles.css for why this needs its own grid row rather than sharing
-          a centered flex column with the flavor line. */}
+      <div className="shooting-stars" aria-hidden="true">
+        <span className="shooting-star shooting-star--one" />
+        <span className="shooting-star shooting-star--two" />
+        <span className="shooting-star shooting-star--three" />
+      </div>
+      {/* Steady facts: logo/heading/sub. The flavor line below reserves its
+          own min-height (see .status-flavor-slot in styles.css) so its
+          length/sentence-count changing never shifts this block — that's
+          what keeps this safe to render in the same centered flex column
+          rather than needing a separate layout region. */}
       <div className="status-steady">
         {logoSrc ? (
           // eslint-disable-next-line @next/next/no-img-element -- local /public asset, fixed-height badge, no next/image sizing needed for v1
-          <img src={logoSrc} alt="" className="status-hotel-logo" />
+          <img src={logoSrc} alt={logoAlt ?? ''} className="status-hotel-logo" />
         ) : null}
         <div className="status-heading-row">
           <p className={`status-heading${cancelled ? ' status-heading--cancelled' : ''}`}>{heading}</p>
@@ -525,7 +623,6 @@ function StatusScreen({
         </div>
         {sub ? <p className={`status-sub${cancelled ? ' status-sub--cancelled' : ''}`}>{sub}</p> : null}
       </div>
-      {/* Row 2: the only part allowed to change size independently. */}
       {flavorContext ? <FlavorLine context={flavorContext} secondary={cancelled} /> : null}
     </div>
   )

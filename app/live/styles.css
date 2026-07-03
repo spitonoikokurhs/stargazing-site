@@ -1,23 +1,6 @@
 /* v1: function over form. Dark background, stable-aspect image container so
    there's no layout shift, readable centered text for non-live states. */
 
-/* /live is a full-screen night-mode takeover. Kill the default body margin
-   (the white frame) and paint the whole page near-black, edge to edge. These
-   html/body rules ship only with this route's CSS, so the homepage is
-   untouched. Deliberately NOT overflow:hidden here (unlike .live-root /
-   .status-root below): mobile browsers trigger pull-to-refresh by detecting
-   that the page itself can scroll and you're dragging past its top edge —
-   overflow:hidden at this level kills that native gesture along with the bug.
-   The actual fix for the scroll-reveals-other-page-content bug lives on the
-   inner containers, which is enough on its own since they already fill the
-   full viewport height. */
-html,
-body {
-  margin: 0;
-  height: 100%;
-  background: #0a0a0f;
-}
-
 .live-root {
   /* height declared twice on purpose: 100vh first as a fallback for browsers
      that don't understand 100dvh (an unsupported value is ignored, so the
@@ -94,44 +77,166 @@ body {
      actually prevents the page from scrolling, and why 100vh is declared
      first as a fallback before 100dvh overrides it where supported.
 
-     Grid with two fixed rows instead of a single centered flex column: the
-     "steady" block (logo/heading/sub — row 1) must NOT move when the flavor
-     line below it (row 2) changes length or sentence-count. A flex column
-     with justify-content:center re-centers the ENTIRE stack on every render,
-     so a longer/shorter pun line would shift the logo+heading+sub up or down
-     with it. Grid rows are independently sized: row 1 centers itself within
-     its own row, row 2 is a separate area below that can grow/shrink without
-     ever touching row 1's position. */
+     Single centered flex column: logo, heading, sub, and the flavor line all
+     read as one grouped block (no gap between the "steady" facts and the
+     pun). The flavor line's own RESERVED min-height (see
+     .status-flavor-slot) is what stops the steady content above it from
+     visibly shifting when the pun's length/sentence-count changes — the slot
+     always claims the same vertical space whether the picked line is short
+     or long, so justify-content:center on this single column never has to
+     re-settle around a moving target. (An earlier version of this used
+     separate grid rows to solve the same shift problem, which also forced a
+     big gap between the facts and the pun — the reserved min-height alone is
+     enough, without that separation.) */
   height: 100vh;
   height: 100dvh;
   overflow: hidden;
   background: #0a0a0f;
   color: #eee;
-  display: grid;
-  grid-template-rows: 1fr auto;
-  align-items: center; /* centers row 1's content vertically within row 1 */
-  justify-items: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   text-align: center;
   padding: 16px;
   box-sizing: border-box;
   font-family: system-ui, sans-serif;
+  position: relative;
+  isolation: isolate;
+  /* Faint fixed starfield — on a large monitor the v1 clamp() ceilings below
+     were sized for "readable on a phone," which left a big, flat, empty black
+     expanse around a small centered block. Static radial gradients are cheap
+     (no animation cost) and subtle enough to stay night-mode-dark. */
+  background-image:
+    radial-gradient(1.5px 1.5px at 15% 20%, rgba(255, 255, 255, 0.5), transparent),
+    radial-gradient(1px 1px at 35% 65%, rgba(255, 255, 255, 0.35), transparent),
+    radial-gradient(1.5px 1.5px at 60% 15%, rgba(255, 255, 255, 0.4), transparent),
+    radial-gradient(1px 1px at 80% 55%, rgba(255, 255, 255, 0.3), transparent),
+    radial-gradient(1.5px 1.5px at 25% 85%, rgba(255, 255, 255, 0.35), transparent),
+    radial-gradient(1px 1px at 70% 80%, rgba(255, 255, 255, 0.3), transparent),
+    radial-gradient(1.5px 1.5px at 90% 30%, rgba(255, 255, 255, 0.4), transparent),
+    radial-gradient(1px 1px at 45% 40%, rgba(255, 255, 255, 0.25), transparent);
+  background-repeat: no-repeat;
 }
 
-/* Row 1: everything that must stay put — logo, heading, loader, sub-line. */
+.shooting-stars {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.shooting-star {
+  position: absolute;
+  top: var(--star-top);
+  left: var(--star-left);
+  width: var(--star-length);
+  height: 10px;
+  border-radius: 999px;
+  transform: rotate(var(--star-angle));
+  filter: drop-shadow(0 0 5px var(--star-glow));
+  animation: shooting-star-move var(--star-duration) linear infinite;
+  animation-delay: var(--star-delay);
+}
+
+.shooting-star::before,
+.shooting-star::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+}
+
+.shooting-star::before {
+  right: 0;
+  width: 100%;
+  height: 1px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, transparent 0%, var(--star-tail) 66%, var(--star-head) 100%);
+  transform: translateY(-50%) scaleX(0);
+  transform-origin: right center;
+  animation: shooting-star-tail var(--star-duration) linear infinite;
+  animation-delay: var(--star-delay);
+}
+
+.shooting-star::after {
+  right: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  opacity: 0;
+  background: var(--star-head);
+  box-shadow:
+    0 0 8px var(--star-glow),
+    0 0 16px var(--star-glow);
+  transform: translate(45%, -50%);
+  animation: shooting-star-core var(--star-duration) linear infinite;
+  animation-delay: var(--star-delay);
+}
+
+.shooting-star--one {
+  --star-top: 12%;
+  --star-left: -10vw;
+  --star-length: min(32vw, 220px);
+  --star-angle: 14deg;
+  --star-travel: 48vw;
+  --star-tail: rgba(237, 234, 227, 0.25);
+  --star-head: rgba(255, 255, 255, 0.95);
+  --star-glow: rgba(237, 234, 227, 0.5);
+  --star-duration: 6s;
+  --star-delay: 1.2s;
+}
+
+.shooting-star--two {
+  --star-top: 24%;
+  --star-left: 62vw;
+  --star-length: min(26vw, 180px);
+  --star-angle: 11deg;
+  --star-travel: 42vw;
+  --star-tail: rgba(255, 189, 107, 0.22);
+  --star-head: rgba(255, 219, 151, 0.95);
+  --star-glow: rgba(255, 170, 80, 0.42);
+  --star-duration: 11s;
+  --star-delay: 6.6s;
+}
+
+.shooting-star--three {
+  --star-top: 76%;
+  --star-left: -12vw;
+  --star-length: min(30vw, 200px);
+  --star-angle: 16deg;
+  --star-travel: 46vw;
+  --star-tail: rgba(111, 255, 218, 0.22);
+  --star-head: rgba(177, 255, 232, 0.95);
+  --star-glow: rgba(96, 255, 213, 0.42);
+  --star-duration: 16s;
+  --star-delay: 12.4s;
+}
+
+/* Groups the "steady" facts (logo, heading, loader, sub-line) so they can be
+   styled/measured as one unit if needed — no longer a separate grid row (see
+   .status-root), just a plain wrapper in the single centered column. */
 .status-steady {
   display: flex;
   flex-direction: column;
   align-items: center;
+  position: relative;
+  z-index: 1;
 }
 
 /* Hotel logo badge, shown above the heading in the waiting states when
    tonight has a specific scheduled hotel. Source images have wildly
    inconsistent aspect ratios (see lib/live-copy.ts) — fixed height + auto
    width keeps every logo readable at the same visual scale without distorting
-   any of them. Height capped with min(.... 12svh) so it shrinks on a short
-   viewport instead of ever forcing the page to scroll. */
+   any of them. clamp() (not a bare min()) so there's an actual FLOOR: an
+   earlier version of this used min(4.5vmin, 80px, 12svh) with no floor at
+   all, which on a narrow phone (vmin = its width, much smaller than desktop's)
+   shrank the logo to ~18px — nearly invisible, and worse than the old flat
+   80px it replaced. clamp(64px, 4.5vmin, 80px) grows on a large monitor while
+   guaranteeing a legible minimum on a phone; the outer min(...,12svh) still
+   shrinks it on a short viewport so it can never force the page to scroll. */
 .status-hotel-logo {
-  height: min(80px, 12svh);
+  height: min(clamp(64px, 4.5vmin, 80px), 12svh);
   width: auto;
   max-width: 70vw; /* a very wide logo (e.g. caravia at 630x355) still can't overflow a narrow phone */
   margin-bottom: 14px;
@@ -139,11 +244,17 @@ body {
 }
 
 .status-heading {
-  /* Bumped up a step from v1 (was 18-20px) — this is the waiting screen, so
-     the hotel name / heading is the thing to linger on; clamp()'s vw term
-     still scales it down automatically on short/narrow viewports so it can
-     never be the reason the page needs to scroll. */
-  font-size: clamp(20px, 5.5vw, 26px);
+  /* clamp()'s middle term uses vmin (the smaller of viewport width/height),
+     not vw: on a wide desktop monitor vw alone hits its ceiling almost
+     immediately (5.5vw of 3800px is enormous), which is why v1 looked small
+     and lonely on a big screen despite the clamp() "working as designed."
+     vmin scales with whichever dimension is actually tightest, and the
+     ceiling is raised so a large screen can genuinely use the space.
+     Floor raised from v1's 20px to 24px: on a narrow phone (e.g. 390px wide)
+     vmin is smaller than the vw this replaced, so a floor still pinned at the
+     OLD vw-based minimum would have made phones smaller than before — checked
+     against a 390px-wide viewport before shipping this. */
+  font-size: clamp(24px, 3.4vmin, 40px);
   margin: 0 0 10px;
   max-width: 24ch;
   overflow-wrap: break-word;
@@ -151,7 +262,8 @@ body {
 }
 
 .status-sub {
-  font-size: clamp(14px, 4.2vw, 17px); /* bumped from v1's 13-14px */
+  /* Floor raised to 16px for the same reason as .status-heading above. */
+  font-size: clamp(16px, 2.4vmin, 24px);
   color: #999;
   margin: 0;
   max-width: 34ch;
@@ -163,16 +275,24 @@ body {
    a short/cramped viewport instead of forcing the page to scroll — that's the
    difference between "no layout shift" and "no scroll," and we need both. */
 .status-flavor-slot {
+  --flavor-size: clamp(15px, 2vmin, 22px);
   margin-top: 16px;
+  /* font-size set explicitly to match .status-flavor's clamp() (same value,
+     kept in sync manually — there's no CSS var in this stylesheet yet) so the
+     min-height below, expressed in em, actually scales with the real rendered
+     text size instead of silently inheriting a fixed 16px default and being
+     too short once .status-flavor grew larger on desktop via vmin. */
+  font-size: var(--flavor-size);
   /* ~6 visual lines reserved: some flavor lines are 2-3 sentences, each now on
      its own line (see .status-flavor-sentence), and a sentence itself can wrap
-     once on a narrow phone — 4.6em (~3 lines) was sized for the old
-     single-paragraph rendering and was too tight for a stacked 3-sentence
-     line. Never more than 24% of the real visible height either way. */
+     once on a narrow phone. Never more than 24% of the real visible height
+     either way. */
   min-height: min(8.2em, 24svh);
   display: flex;
   align-items: flex-start;
   justify-content: center;
+  position: relative;
+  z-index: 1;
 }
 
 .status-flavor-slot--secondary {
@@ -181,12 +301,12 @@ body {
 }
 
 .status-flavor {
-  font-size: clamp(14px, 4.4vw, 16px); /* bumped from v1's 13-14px */
+  font-size: var(--flavor-size);
   line-height: 1.4;
   color: #a8a6a0; /* warm neutral grey */
   font-style: italic;
   margin: 0;
-  max-width: min(40ch, 90vw); /* never wider than the phone viewport */
+  max-width: min(48ch, 90vw); /* never wider than the phone viewport */
   overflow-wrap: break-word;
   opacity: 0;
   transition: opacity 300ms ease;
@@ -250,26 +370,31 @@ body {
 }
 
 .scope-loader {
+  /* --scope-size drives every dependent value below via calc()/em, so the
+     whole widget scales as one unit on a large screen instead of the ring/
+     orbit-body math drifting out of sync with the box (as happened when v1's
+     34px->40px bump only updated some of these by hand). clamp() here uses
+     vmin for the same reason .status-heading does — see its comment. */
+  --scope-size: clamp(40px, 4vmin, 64px);
   position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 40px; /* bumped alongside the larger heading it sits next to */
-  height: 40px;
+  width: var(--scope-size);
+  height: var(--scope-size);
   flex: none;
 }
 
 .scope-loader__icon {
-  font-size: 18px; /* telescope, scaled with the loader box above */
+  font-size: calc(var(--scope-size) * 0.45); /* telescope, ~18px at the 40px floor */
   line-height: 1;
 }
 
 /* Faint static orbit path around the telescope. The negative inset pushes the
-   orbit radius ~10% further from center than the loader box (kept as the same
-   ~5% of box-width ratio as v1's 34px box: -1.7px -> -2px at 40px). */
+   orbit radius ~5% of the box further out than the loader box itself. */
 .scope-loader__ring {
   position: absolute;
-  inset: -2px;
+  inset: calc(var(--scope-size) * -0.05);
   border-radius: 50%;
   border: 1px solid rgba(168, 166, 160, 0.15);
 }
@@ -278,39 +403,40 @@ body {
    (matching negative inset so the body rides the enlarged ring). */
 .scope-loader__orbit {
   position: absolute;
-  inset: -2px;
+  inset: calc(var(--scope-size) * -0.05);
   animation: scope-orbit 3s linear infinite;
 }
 
 /* ...while the body counter-spins at the same rate, so it travels the circle
    but never rotates/tumbles on itself (a moon stays upright, saturn's rings
-   stay level). */
+   stay level). Sized as ~35% of the box, matching v1's 14px-of-40px ratio. */
 .scope-loader__body {
   position: absolute;
-  top: -7px;
+  top: calc(var(--scope-size) * -0.175);
   left: 50%;
-  width: 14px;
-  height: 14px;
-  margin-left: -7px;
+  width: calc(var(--scope-size) * 0.35);
+  height: calc(var(--scope-size) * 0.35);
+  margin-left: calc(var(--scope-size) * -0.175);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 12px;
+  font-size: calc(var(--scope-size) * 0.3);
   line-height: 1;
   filter: drop-shadow(0 0 3px rgba(237, 234, 227, 0.45));
   animation: scope-orbit-counter 3s linear infinite;
 }
 
 /* The CSS "Newtonian" 4-point star gets the warm-white tint + glow; the emoji
-   bodies bring their own color. */
+   bodies bring their own color. Sized relative to --scope-size (v1's 13px was
+   ~0.325 of the 40px box) so it stays in proportion at any loader size. */
 .scope-loader__body--star {
   color: #f2efe8;
-  font-size: 13px;
+  font-size: calc(var(--scope-size) * 0.325);
 }
 
-/* Moon drawn 15% smaller. */
+/* Moon drawn 15% smaller than the base body size. */
 .scope-loader__body--moon {
-  font-size: 10.2px;
+  font-size: calc(var(--scope-size) * 0.3 * 0.85);
 }
 
 /* The UFO is allowed to rotate on itself: dropping the counter-rotation lets it
@@ -331,7 +457,66 @@ body {
   }
 }
 
+@keyframes shooting-star-move {
+  0%,
+  44% {
+    transform: rotate(var(--star-angle)) translate3d(0, 0, 0);
+  }
+
+  51% {
+    transform: rotate(var(--star-angle)) translate3d(var(--star-travel), 0, 0);
+  }
+
+  100% {
+    transform: rotate(var(--star-angle)) translate3d(var(--star-travel), 0, 0);
+  }
+}
+
+@keyframes shooting-star-core {
+  0%,
+  44% {
+    opacity: 0;
+  }
+
+  47% {
+    opacity: 0.92;
+  }
+
+  51%,
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes shooting-star-tail {
+  0%,
+  44% {
+    opacity: 0;
+    transform: translateY(-50%) scaleX(0.15);
+  }
+
+  46% {
+    opacity: 0.55;
+    transform: translateY(-50%) scaleX(1);
+  }
+
+  49% {
+    opacity: 0.28;
+    transform: translateY(-50%) scaleX(0.7);
+  }
+
+  53%,
+  100% {
+    opacity: 0;
+    transform: translateY(-50%) scaleX(0.2);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .shooting-stars {
+    display: none;
+  }
+
   .scope-loader__orbit,
   .scope-loader__body {
     animation: none;
