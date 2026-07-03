@@ -130,7 +130,7 @@
 .shooting-star {
   position: absolute;
   top: var(--star-top);
-  left: -18vw;
+  left: var(--star-left);
   width: var(--star-length);
   height: 2px;
   border-radius: 999px;
@@ -164,39 +164,45 @@
 }
 
 .shooting-star--one {
-  --star-top: 16%;
+  --star-top: 12%;
+  --star-left: -10vw;
   --star-length: min(32vw, 220px);
   --star-angle: 14deg;
-  --star-travel-y: 34vh;
+  --star-travel-x: 46vw;
+  --star-travel-y: 12vh;
   --star-tail: rgba(237, 234, 227, 0.25);
   --star-head: rgba(255, 255, 255, 0.95);
   --star-glow: rgba(237, 234, 227, 0.5);
-  --star-duration: 8.5s;
+  --star-duration: 6s;
   --star-delay: 1.2s;
 }
 
 .shooting-star--two {
-  --star-top: 38%;
+  --star-top: 24%;
+  --star-left: 62vw;
   --star-length: min(26vw, 180px);
   --star-angle: 11deg;
-  --star-travel-y: 26vh;
+  --star-travel-x: 42vw;
+  --star-travel-y: 8vh;
   --star-tail: rgba(255, 189, 107, 0.22);
   --star-head: rgba(255, 219, 151, 0.95);
   --star-glow: rgba(255, 170, 80, 0.42);
   --star-duration: 11s;
-  --star-delay: 5.8s;
+  --star-delay: 6.6s;
 }
 
 .shooting-star--three {
-  --star-top: 68%;
+  --star-top: 76%;
+  --star-left: -12vw;
   --star-length: min(30vw, 200px);
   --star-angle: 16deg;
-  --star-travel-y: 40vh;
+  --star-travel-x: 44vw;
+  --star-travel-y: 11vh;
   --star-tail: rgba(111, 255, 218, 0.22);
   --star-head: rgba(177, 255, 232, 0.95);
   --star-glow: rgba(96, 255, 213, 0.42);
-  --star-duration: 13s;
-  --star-delay: 9.5s;
+  --star-duration: 16s;
+  --star-delay: 12.4s;
 }
 
 /* Groups the "steady" facts (logo, heading, loader, sub-line) so they can be
@@ -445,23 +451,23 @@
 
 @keyframes shooting-star {
   0%,
-  42% {
+  44% {
     opacity: 0;
     transform: translate3d(0, 0, 0) rotate(var(--star-angle));
   }
 
-  48% {
+  47% {
     opacity: 0.85;
   }
 
-  62% {
+  51% {
     opacity: 0;
-    transform: translate3d(135vw, var(--star-travel-y), 0) rotate(var(--star-angle));
+    transform: translate3d(var(--star-travel-x), var(--star-travel-y), 0) rotate(var(--star-angle));
   }
 
   100% {
     opacity: 0;
-    transform: translate3d(135vw, var(--star-travel-y), 0) rotate(var(--star-angle));
+    transform: translate3d(var(--star-travel-x), var(--star-travel-y), 0) rotate(var(--star-angle));
   }
 }
 
