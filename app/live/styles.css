@@ -135,8 +135,8 @@
   height: 1px;
   border-radius: 999px;
   opacity: 0;
-  transform: rotate(-18deg);
-  background: linear-gradient(90deg, transparent, rgba(237, 234, 227, 0.9), transparent);
+  transform: rotate(var(--star-angle));
+  background: linear-gradient(90deg, transparent 0%, rgba(237, 234, 227, 0.25) 35%, rgba(255, 255, 255, 0.95) 100%);
   filter: drop-shadow(0 0 5px rgba(237, 234, 227, 0.5));
   animation: shooting-star var(--star-duration) linear infinite;
   animation-delay: var(--star-delay);
@@ -157,6 +157,8 @@
 .shooting-star--one {
   --star-top: 16%;
   --star-length: min(32vw, 220px);
+  --star-angle: 14deg;
+  --star-travel-y: 34vh;
   --star-duration: 8.5s;
   --star-delay: 1.2s;
 }
@@ -164,6 +166,8 @@
 .shooting-star--two {
   --star-top: 38%;
   --star-length: min(26vw, 180px);
+  --star-angle: 11deg;
+  --star-travel-y: 26vh;
   --star-duration: 11s;
   --star-delay: 5.8s;
 }
@@ -171,6 +175,8 @@
 .shooting-star--three {
   --star-top: 68%;
   --star-length: min(30vw, 200px);
+  --star-angle: 16deg;
+  --star-travel-y: 40vh;
   --star-duration: 13s;
   --star-delay: 9.5s;
 }
@@ -423,7 +429,7 @@
   0%,
   42% {
     opacity: 0;
-    transform: translate3d(0, 0, 0) rotate(-18deg);
+    transform: translate3d(0, 0, 0) rotate(var(--star-angle));
   }
 
   48% {
@@ -432,12 +438,12 @@
 
   62% {
     opacity: 0;
-    transform: translate3d(135vw, 34vh, 0) rotate(-18deg);
+    transform: translate3d(135vw, var(--star-travel-y), 0) rotate(var(--star-angle));
   }
 
   100% {
     opacity: 0;
-    transform: translate3d(135vw, 34vh, 0) rotate(-18deg);
+    transform: translate3d(135vw, var(--star-travel-y), 0) rotate(var(--star-angle));
   }
 }
 
