@@ -102,6 +102,7 @@ export default function LiveView() {
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const inFlightRef = useRef(false)
   const stoppedRef = useRef(false) // true while document.hidden
+  const activeControllerRef = useRef<AbortController | null>(null)
 
   // "updated Xs ago" ticks on its own timer, independent of polling.
   const [, forceTick] = useState(0)
@@ -114,6 +115,7 @@ export default function LiveView() {
       inFlightRef.current = true
 
       const controller = new AbortController()
+      activeControllerRef.current = controller
       const fetchTimeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS)
 
       try {
@@ -175,6 +177,7 @@ export default function LiveView() {
         clearTimeout(fetchTimeout)
         if (!cancelled) dispatch({ type: 'POLL_FAILED' })
       } finally {
+        if (activeControllerRef.current === controller) activeControllerRef.current = null
         inFlightRef.current = false
         if (!cancelled) scheduleNext()
       }
@@ -207,9 +210,15 @@ export default function LiveView() {
 
     return () => {
       cancelled = true
+      activeControllerRef.current?.abort()
+      activeControllerRef.current = null
+      inFlightRef.current = false
       document.removeEventListener('visibilitychange', onVisibilityChange)
       window.removeEventListener('focus', onFocus)
-      if (timeoutRef.current) clearTimeout(timeoutRef.current)
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current)
+        timeoutRef.current = null
+      }
     }
   }, [])
 
@@ -250,37 +259,37 @@ function offlineCopy(state: LiveStatusState): { heading: string; sub?: string; l
   // suppress it as a sub-line to avoid showing the same session twice.
   const today = athensTodayDate()
   const distinctNext = next && next.date !== today ? next : null
+  const distinctNextLine = distinctNext ? `Next session: ${distinctNext.date}, ${distinctNext.start}` : null
 
   if (tonight?.cancelled) {
     return {
       heading: 'Tonight’s session is cancelled',
-      sub: tonight.cancellationReason
-        ? tonight.cancellationReason
-        : distinctNext
-          ? `Next session: ${distinctNext.date}, ${distinctNext.start}`
-          : undefined,
+      sub: tonight.cancellationReason ?? distinctNextLine ?? undefined,
       loader: false,
     }
   }
 
   if (tonight) {
+    // Hotel name leads (heading) — content order requested: hotel -> time ->
+    // pun. The time-based line (start time / waiting-for-feed / ended) is the
+    // sub; a genuinely distinct upcoming session, when present, stacks below
+    // that same sub line rather than replacing the hotel name, so the hotel
+    // is never dropped from the screen the way it was before this reorder.
     const now = athensNowHHMM()
-    const hotel = hotelDisplayName(tonight.hotelId)
-    let heading: string
+    const heading = hotelDisplayName(tonight.hotelId)
+    let timeLine: string
     let loader: boolean
     if (now < tonight.start) {
-      heading = `Tonight at ${tonight.start}`
+      timeLine = `Tonight at ${tonight.start}`
       loader = true
     } else if (now < tonight.end) {
-      heading = 'Waiting for the telescope feed'
+      timeLine = 'Waiting for the telescope feed'
       loader = true
     } else {
-      heading = 'Tonight’s session has ended'
+      timeLine = 'Tonight’s session has ended'
       loader = false
     }
-    // Keep the hotel name visible; a genuinely distinct upcoming session takes
-    // the sub-line instead when there is one.
-    const sub = distinctNext ? `Next session: ${distinctNext.date}, ${distinctNext.start}` : hotel
+    const sub = distinctNextLine ? `${timeLine} · ${distinctNextLine}` : timeLine
     return { heading, sub, loader }
   }
 
@@ -305,12 +314,14 @@ function LiveViewPresentation({ state }: { state: LiveStatusState }) {
     // able to obscure that the session is off. No loader — nothing is coming.
     const { heading, sub } = offlineCopy(state)
     const logoSrc = tonightLogoSrc(state)
+    const hotelId = state.lastOfflinePayload?.tonight?.hotelId
     return (
       <StatusScreen
         heading={heading}
         sub={sub}
         tone="cancelled"
         logoSrc={logoSrc}
+        logoAlt={hotelId ? hotelDisplayName(hotelId) : undefined}
         flavorContext={buildFlavorContext(state)}
       />
     )
@@ -423,7 +434,7 @@ function FlavorLine({ context, secondary }: { context: FlavorContext; secondary?
     // would never actually rotate. pickFlavor reads the live clock internally,
     // so a captured context still crosses time tiers correctly between changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [context.subState, context.tonight?.hotelId, context.tonight?.start])
+  }, [context.subState, context.tonight?.hotelId, context.tonight?.start, context.tonight?.end])
 
   if (!line) return null
   const sentences = splitIntoSentences(line)
@@ -498,6 +509,7 @@ function StatusScreen({
   tone,
   loader,
   logoSrc,
+  logoAlt,
   flavorContext,
 }: {
   heading: string
@@ -505,19 +517,21 @@ function StatusScreen({
   tone?: 'cancelled'
   loader?: boolean
   logoSrc?: string | null
+  logoAlt?: string
   flavorContext?: FlavorContext
 }) {
   const cancelled = tone === 'cancelled'
   return (
     <div className={`status-root${cancelled ? ' status-root--cancelled' : ''}`}>
-      {/* Row 1 (steady): logo/heading/sub never move when the flavor line
-          below changes length or sentence-count — see .status-steady in
-          styles.css for why this needs its own grid row rather than sharing
-          a centered flex column with the flavor line. */}
+      {/* Steady facts: logo/heading/sub. The flavor line below reserves its
+          own min-height (see .status-flavor-slot in styles.css) so its
+          length/sentence-count changing never shifts this block — that's
+          what keeps this safe to render in the same centered flex column
+          rather than needing a separate layout region. */}
       <div className="status-steady">
         {logoSrc ? (
           // eslint-disable-next-line @next/next/no-img-element -- local /public asset, fixed-height badge, no next/image sizing needed for v1
-          <img src={logoSrc} alt="" className="status-hotel-logo" />
+          <img src={logoSrc} alt={logoAlt ?? ''} className="status-hotel-logo" />
         ) : null}
         <div className="status-heading-row">
           <p className={`status-heading${cancelled ? ' status-heading--cancelled' : ''}`}>{heading}</p>
@@ -525,7 +539,6 @@ function StatusScreen({
         </div>
         {sub ? <p className={`status-sub${cancelled ? ' status-sub--cancelled' : ''}`}>{sub}</p> : null}
       </div>
-      {/* Row 2: the only part allowed to change size independently. */}
       {flavorContext ? <FlavorLine context={flavorContext} secondary={cancelled} /> : null}
     </div>
   )
