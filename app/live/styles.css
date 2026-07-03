@@ -4,15 +4,17 @@
 /* /live is a full-screen night-mode takeover. Kill the default body margin
    (the white frame) and paint the whole page near-black, edge to edge. These
    html/body rules ship only with this route's CSS, so the homepage is
-   untouched. `height` (not just background) + overflow:hidden here is what
-   actually prevents the page from scrolling — a page that scrolls reveals
-   blank space below the fold on desktop and lets the browser chrome eat into
-   a maximized/kiosk window. */
+   untouched. Deliberately NOT overflow:hidden here (unlike .live-root /
+   .status-root below): mobile browsers trigger pull-to-refresh by detecting
+   that the page itself can scroll and you're dragging past its top edge —
+   overflow:hidden at this level kills that native gesture along with the bug.
+   The actual fix for the scroll-reveals-other-page-content bug lives on the
+   inner containers, which is enough on its own since they already fill the
+   full viewport height. */
 html,
 body {
   margin: 0;
   height: 100%;
-  overflow: hidden;
   background: #0a0a0f;
 }
 
@@ -23,7 +25,11 @@ body {
      100dvh is needed because on phones 100vh is measured against the LARGEST
      possible viewport (browser chrome hidden), so content sized to 100vh can
      overflow once the address bar is showing — 100dvh tracks the actual
-     visible height and prevents that scroll. */
+     visible height and prevents that scroll. overflow:hidden HERE (not on
+     html/body) is what stops this container's own content from ever pushing
+     other page sections into view, while leaving the page-level scroll
+     container free enough for the browser's native pull-to-refresh gesture.
+  */
   height: 100vh;
   height: 100dvh;
   overflow: hidden;
