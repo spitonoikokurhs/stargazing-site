@@ -602,6 +602,11 @@ function StatusScreen({
   const cancelled = tone === 'cancelled'
   return (
     <div className={`status-root${cancelled ? ' status-root--cancelled' : ''}`}>
+      <div className="shooting-stars" aria-hidden="true">
+        <span className="shooting-star shooting-star--one" />
+        <span className="shooting-star shooting-star--two" />
+        <span className="shooting-star shooting-star--three" />
+      </div>
       {/* Steady facts: logo/heading/sub. The flavor line below reserves its
           own min-height (see .status-flavor-slot in styles.css) so its
           length/sentence-count changing never shifts this block — that's
