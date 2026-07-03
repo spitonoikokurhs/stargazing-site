@@ -1,0 +1,83 @@
+/* v1: function over form. Dark background, stable-aspect image container so
+   there's no layout shift, readable centered text for non-live states. */
+
+.live-root {
+  min-height: 100vh;
+  background: #000;
+  color: #eee;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  box-sizing: border-box;
+  font-family: system-ui, sans-serif;
+}
+
+.live-image-frame {
+  width: 100%;
+  max-width: 960px;
+  aspect-ratio: 16 / 9;
+  background: #111;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.live-image {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.live-meta {
+  margin-top: 12px;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  font-size: 14px;
+}
+
+.live-indicator {
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: #ff3b3b;
+}
+
+.live-indicator.reconnecting {
+  color: #f5a623;
+}
+
+.live-object {
+  color: #eee;
+}
+
+.live-updated {
+  color: #888;
+}
+
+.status-root {
+  min-height: 100vh;
+  background: #000;
+  color: #eee;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 16px;
+  box-sizing: border-box;
+  font-family: system-ui, sans-serif;
+}
+
+.status-heading {
+  font-size: 20px;
+  margin: 0 0 8px;
+}
+
+.status-sub {
+  font-size: 14px;
+  color: #999;
+  margin: 0;
+}
