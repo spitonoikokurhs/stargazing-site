@@ -132,11 +132,17 @@
   top: var(--star-top);
   left: -18vw;
   width: var(--star-length);
-  height: 1px;
+  height: 2px;
   border-radius: 999px;
   opacity: 0;
   transform: rotate(var(--star-angle));
-  background: linear-gradient(90deg, transparent 0%, var(--star-tail) 35%, var(--star-head) 100%);
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--star-tail) 52%,
+    var(--star-head) 92%,
+    var(--star-head) 100%
+  );
   filter: drop-shadow(0 0 5px var(--star-glow));
   animation: shooting-star var(--star-duration) linear infinite;
   animation-delay: var(--star-delay);
@@ -145,13 +151,16 @@
 .shooting-star::after {
   content: "";
   position: absolute;
-  right: 8%;
+  right: 0;
   top: 50%;
-  width: 4px;
-  height: 4px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
   background: var(--star-head);
-  transform: translateY(-50%);
+  box-shadow:
+    0 0 8px var(--star-glow),
+    0 0 16px var(--star-glow);
+  transform: translate(45%, -50%);
 }
 
 .shooting-star--one {
