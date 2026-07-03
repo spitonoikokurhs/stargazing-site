@@ -4,15 +4,29 @@
 /* /live is a full-screen night-mode takeover. Kill the default body margin
    (the white frame) and paint the whole page near-black, edge to edge. These
    html/body rules ship only with this route's CSS, so the homepage is
-   untouched. */
+   untouched. `height` (not just background) + overflow:hidden here is what
+   actually prevents the page from scrolling — a page that scrolls reveals
+   blank space below the fold on desktop and lets the browser chrome eat into
+   a maximized/kiosk window. */
 html,
 body {
   margin: 0;
+  height: 100%;
+  overflow: hidden;
   background: #0a0a0f;
 }
 
 .live-root {
-  min-height: 100vh;
+  /* height declared twice on purpose: 100vh first as a fallback for browsers
+     that don't understand 100dvh (an unsupported value is ignored, so the
+     last VALID declaration wins) — then 100dvh overrides it where supported.
+     100dvh is needed because on phones 100vh is measured against the LARGEST
+     possible viewport (browser chrome hidden), so content sized to 100vh can
+     overflow once the address bar is showing — 100dvh tracks the actual
+     visible height and prevents that scroll. */
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
   background: #0a0a0f;
   color: #eee;
   display: flex;
@@ -70,7 +84,12 @@ body {
 }
 
 .status-root {
-  min-height: 100vh;
+  /* See .live-root above for why height+overflow (not min-height) is what
+     actually prevents the page from scrolling, and why 100vh is declared
+     first as a fallback before 100dvh overrides it where supported. */
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
   background: #0a0a0f;
   color: #eee;
   display: flex;
@@ -84,27 +103,32 @@ body {
 }
 
 .status-heading {
-  font-size: clamp(18px, 5vw, 20px); /* scales down on small phones */
-  margin: 0 0 8px;
-  max-width: 22ch;
+  /* Bumped up a step from v1 (was 18-20px) — this is the waiting screen, so
+     the hotel name / heading is the thing to linger on; clamp()'s vw term
+     still scales it down automatically on short/narrow viewports so it can
+     never be the reason the page needs to scroll. */
+  font-size: clamp(20px, 5.5vw, 26px);
+  margin: 0 0 10px;
+  max-width: 24ch;
   overflow-wrap: break-word;
   color: #edeae3; /* brighter warm-white */
 }
 
 .status-sub {
-  font-size: clamp(13px, 4vw, 14px);
+  font-size: clamp(14px, 4.2vw, 17px); /* bumped from v1's 13-14px */
   color: #999;
   margin: 0;
   max-width: 34ch;
   overflow-wrap: break-word;
 }
 
-/* Rotating flavor line. The slot reserves a fixed height so a longer line never
-   reflows the layout (which would make the heading jump as the flex column
-   re-centers); the line itself crossfades on each swap. */
+/* Rotating flavor line. The slot reserves height (in svh, not a fixed em
+   value) so a longer line never reflows the layout, while still shrinking on
+   a short/cramped viewport instead of forcing the page to scroll — that's the
+   difference between "no layout shift" and "no scroll," and we need both. */
 .status-flavor-slot {
-  margin-top: 14px;
-  min-height: 4.4em; /* ~3 lines reserved so length changes don't shift layout */
+  margin-top: 16px;
+  min-height: min(4.6em, 16svh); /* ~3 lines reserved, but never more than 16% of the real visible height */
   display: flex;
   align-items: flex-start;
   justify-content: center;
@@ -112,11 +136,11 @@ body {
 
 .status-flavor-slot--secondary {
   margin-top: 20px;
-  min-height: 3.2em;
+  min-height: min(3.2em, 12svh);
 }
 
 .status-flavor {
-  font-size: clamp(13px, 4vw, 14px);
+  font-size: clamp(14px, 4.4vw, 16px); /* bumped from v1's 13-14px */
   line-height: 1.4;
   color: #a8a6a0; /* warm neutral grey */
   font-style: italic;
@@ -177,21 +201,22 @@ body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 34px;
-  height: 34px;
+  width: 40px; /* bumped alongside the larger heading it sits next to */
+  height: 40px;
   flex: none;
 }
 
 .scope-loader__icon {
-  font-size: 15.3px; /* telescope 10% smaller */
+  font-size: 18px; /* telescope, scaled with the loader box above */
   line-height: 1;
 }
 
 /* Faint static orbit path around the telescope. The negative inset pushes the
-   orbit radius ~10% further from center than the loader box. */
+   orbit radius ~10% further from center than the loader box (kept as the same
+   ~5% of box-width ratio as v1's 34px box: -1.7px -> -2px at 40px). */
 .scope-loader__ring {
   position: absolute;
-  inset: -1.7px;
+  inset: -2px;
   border-radius: 50%;
   border: 1px solid rgba(168, 166, 160, 0.15);
 }
@@ -200,7 +225,7 @@ body {
    (matching negative inset so the body rides the enlarged ring). */
 .scope-loader__orbit {
   position: absolute;
-  inset: -1.7px;
+  inset: -2px;
   animation: scope-orbit 3s linear infinite;
 }
 
