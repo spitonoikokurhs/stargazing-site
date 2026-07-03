@@ -10,6 +10,7 @@ import {
 import {
   pickFlavor,
   hotelDisplayName,
+  hotelLogoSrc,
   FLAVOR_ROTATE_MS,
   FLAVOR_NO_REPEAT_WINDOW,
   type FlavorContext,
@@ -303,12 +304,33 @@ function LiveViewPresentation({ state }: { state: LiveStatusState }) {
     // message; the flavor line rotates small and secondary beneath, never
     // able to obscure that the session is off. No loader — nothing is coming.
     const { heading, sub } = offlineCopy(state)
-    return <StatusScreen heading={heading} sub={sub} tone="cancelled" flavorContext={buildFlavorContext(state)} />
+    const logoSrc = tonightLogoSrc(state)
+    return (
+      <StatusScreen
+        heading={heading}
+        sub={sub}
+        tone="cancelled"
+        logoSrc={logoSrc}
+        flavorContext={buildFlavorContext(state)}
+      />
+    )
   }
 
   if (uiState === 'offline-event-tonight' || uiState === 'offline-nothing') {
     const { heading, sub, loader } = offlineCopy(state)
-    return <StatusScreen heading={heading} sub={sub} loader={loader} flavorContext={buildFlavorContext(state)} />
+    // offline-nothing has no specific hotel for tonight, so tonightLogoSrc
+    // (which reads state.lastOfflinePayload.tonight) naturally returns null
+    // there — no separate branch needed.
+    const logoSrc = tonightLogoSrc(state)
+    return (
+      <StatusScreen
+        heading={heading}
+        sub={sub}
+        loader={loader}
+        logoSrc={logoSrc}
+        flavorContext={buildFlavorContext(state)}
+      />
+    )
   }
 
   // live or reconnecting — both render the last known frame; reconnecting
@@ -349,6 +371,13 @@ function buildFlavorContext(state: LiveStatusState): FlavorContext {
     subState,
     tonight: tonight ? { hotelId: tonight.hotelId, start: tonight.start, end: tonight.end } : null,
   }
+}
+
+// Logo for tonight's hotel, or null when there's no specific hotel (e.g.
+// offline-nothing) or no logo asset mapped for that hotelId.
+function tonightLogoSrc(state: LiveStatusState): string | null {
+  const hotelId = state.lastOfflinePayload?.tonight?.hotelId
+  return hotelId ? hotelLogoSrc(hotelId) : null
 }
 
 // Rotating flavor line — purely additive, sits under the factual heading and
@@ -397,15 +426,33 @@ function FlavorLine({ context, secondary }: { context: FlavorContext; secondary?
   }, [context.subState, context.tonight?.hotelId, context.tonight?.start])
 
   if (!line) return null
+  const sentences = splitIntoSentences(line)
   return (
     <div className={`status-flavor-slot${secondary ? ' status-flavor-slot--secondary' : ''}`}>
       <p
         className={`status-flavor${secondary ? ' status-flavor--secondary' : ''}${visible ? ' is-visible' : ''}`}
       >
-        {line}
+        {sentences.map((sentence, i) => (
+          <span key={i} className="status-flavor-sentence">
+            {sentence}
+          </span>
+        ))}
       </p>
     </div>
   )
+}
+
+// Split a flavor line into one span per sentence, each rendered on its own
+// line via display:block in CSS (see .status-flavor-sentence). Splits on ". "
+// (period + space) or a trailing "." at the very end — NOT on every "." —
+// so a decimal like "13.8 billion years" is never mistaken for a sentence
+// break (no space follows that period). Single-sentence lines (the vast
+// majority of the pool) produce exactly one span, unchanged from before.
+function splitIntoSentences(line: string): string[] {
+  return line
+    .split(/(?<=\.)(?:\s+|$)/)
+    .map((s) => s.trim())
+    .filter(Boolean)
 }
 
 // Bodies that can orbit the telescope. One is picked at random each time the
@@ -450,22 +497,35 @@ function StatusScreen({
   sub,
   tone,
   loader,
+  logoSrc,
   flavorContext,
 }: {
   heading: string
   sub?: string
   tone?: 'cancelled'
   loader?: boolean
+  logoSrc?: string | null
   flavorContext?: FlavorContext
 }) {
   const cancelled = tone === 'cancelled'
   return (
     <div className={`status-root${cancelled ? ' status-root--cancelled' : ''}`}>
-      <div className="status-heading-row">
-        <p className={`status-heading${cancelled ? ' status-heading--cancelled' : ''}`}>{heading}</p>
-        {loader ? <TelescopeLoader /> : null}
+      {/* Row 1 (steady): logo/heading/sub never move when the flavor line
+          below changes length or sentence-count — see .status-steady in
+          styles.css for why this needs its own grid row rather than sharing
+          a centered flex column with the flavor line. */}
+      <div className="status-steady">
+        {logoSrc ? (
+          // eslint-disable-next-line @next/next/no-img-element -- local /public asset, fixed-height badge, no next/image sizing needed for v1
+          <img src={logoSrc} alt="" className="status-hotel-logo" />
+        ) : null}
+        <div className="status-heading-row">
+          <p className={`status-heading${cancelled ? ' status-heading--cancelled' : ''}`}>{heading}</p>
+          {loader ? <TelescopeLoader /> : null}
+        </div>
+        {sub ? <p className={`status-sub${cancelled ? ' status-sub--cancelled' : ''}`}>{sub}</p> : null}
       </div>
-      {sub ? <p className={`status-sub${cancelled ? ' status-sub--cancelled' : ''}`}>{sub}</p> : null}
+      {/* Row 2: the only part allowed to change size independently. */}
       {flavorContext ? <FlavorLine context={flavorContext} secondary={cancelled} /> : null}
     </div>
   )

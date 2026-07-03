@@ -35,6 +35,25 @@ export function hotelDisplayName(id: string): string {
     .join(' ')
 }
 
+// hotelId -> logo asset under /public/images/logos. SVG preferred where one
+// exists (scales cleanly at any display size, no raster blur); PNG otherwise.
+// Source images have wildly inconsistent aspect ratios (near-square to
+// tall-narrow to wide-short) — LiveView renders this at a fixed HEIGHT with
+// auto width so that variance never distorts the logo.
+const HOTEL_LOGOS: Record<string, string> = {
+  'astir-odysseus': '/images/logos/astirlogo.png',
+  'oku-kos': '/images/logos/okukoslogo.png',
+  'paralos-kyma-dunes': '/images/logos/paralos-kyma-dunes.svg',
+  'caravia-beach': '/images/logos/caravialogo.png',
+}
+
+// Logo path for a hotel slug, or null if this hotel has no logo asset (e.g. an
+// "adhoc" hotelId, or a hotel not yet added to HOTEL_LOGOS) — callers render
+// nothing rather than a broken image.
+export function hotelLogoSrc(id: string): string | null {
+  return HOTEL_LOGOS[id] ?? null
+}
+
 // ---------------------------------------------------------------------------
 // Flavor-text pools
 // ---------------------------------------------------------------------------

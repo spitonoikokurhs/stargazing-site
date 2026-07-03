@@ -92,20 +92,50 @@ body {
 .status-root {
   /* See .live-root above for why height+overflow (not min-height) is what
      actually prevents the page from scrolling, and why 100vh is declared
-     first as a fallback before 100dvh overrides it where supported. */
+     first as a fallback before 100dvh overrides it where supported.
+
+     Grid with two fixed rows instead of a single centered flex column: the
+     "steady" block (logo/heading/sub — row 1) must NOT move when the flavor
+     line below it (row 2) changes length or sentence-count. A flex column
+     with justify-content:center re-centers the ENTIRE stack on every render,
+     so a longer/shorter pun line would shift the logo+heading+sub up or down
+     with it. Grid rows are independently sized: row 1 centers itself within
+     its own row, row 2 is a separate area below that can grow/shrink without
+     ever touching row 1's position. */
   height: 100vh;
   height: 100dvh;
   overflow: hidden;
   background: #0a0a0f;
   color: #eee;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
+  display: grid;
+  grid-template-rows: 1fr auto;
+  align-items: center; /* centers row 1's content vertically within row 1 */
+  justify-items: center;
   text-align: center;
   padding: 16px;
   box-sizing: border-box;
   font-family: system-ui, sans-serif;
+}
+
+/* Row 1: everything that must stay put — logo, heading, loader, sub-line. */
+.status-steady {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* Hotel logo badge, shown above the heading in the waiting states when
+   tonight has a specific scheduled hotel. Source images have wildly
+   inconsistent aspect ratios (see lib/live-copy.ts) — fixed height + auto
+   width keeps every logo readable at the same visual scale without distorting
+   any of them. Height capped with min(.... 12svh) so it shrinks on a short
+   viewport instead of ever forcing the page to scroll. */
+.status-hotel-logo {
+  height: min(80px, 12svh);
+  width: auto;
+  max-width: 70vw; /* a very wide logo (e.g. caravia at 630x355) still can't overflow a narrow phone */
+  margin-bottom: 14px;
+  object-fit: contain;
 }
 
 .status-heading {
@@ -134,7 +164,12 @@ body {
    difference between "no layout shift" and "no scroll," and we need both. */
 .status-flavor-slot {
   margin-top: 16px;
-  min-height: min(4.6em, 16svh); /* ~3 lines reserved, but never more than 16% of the real visible height */
+  /* ~6 visual lines reserved: some flavor lines are 2-3 sentences, each now on
+     its own line (see .status-flavor-sentence), and a sentence itself can wrap
+     once on a narrow phone — 4.6em (~3 lines) was sized for the old
+     single-paragraph rendering and was too tight for a stacked 3-sentence
+     line. Never more than 24% of the real visible height either way. */
+  min-height: min(8.2em, 24svh);
   display: flex;
   align-items: flex-start;
   justify-content: center;
@@ -159,6 +194,18 @@ body {
 
 .status-flavor.is-visible {
   opacity: 1;
+}
+
+/* Each sentence of a flavor line gets its own line (e.g. a 3-sentence line
+   renders as 3 stacked lines instead of one run-on paragraph). A
+   single-sentence line (the vast majority of the pool) is just one block —
+   visually identical to before. */
+.status-flavor-sentence {
+  display: block;
+}
+
+.status-flavor-sentence + .status-flavor-sentence {
+  margin-top: 0.15em;
 }
 
 @media (prefers-reduced-motion: reduce) {
