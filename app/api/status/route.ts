@@ -11,7 +11,9 @@ import {
 } from '@/lib/redis'
 import { athensToday, eventFor, nextEvent } from '@/lib/schedule'
 
-// Node runtime for Prisma on the offline path. The live path is Redis-only.
+// Node runtime for the single Prisma read on the offline path (cancellation
+// status). The live path is Redis-only. Neither path writes to Postgres —
+// session closing lives in /api/cron/close-sessions (lib/sessions.ts).
 export const runtime = 'nodejs'
 
 const LIVE_WINDOW_MS = 5 * 60 * 1000 // a source is "fresh" if heard from within 5 min
@@ -113,44 +115,41 @@ export async function GET() {
       })
     }
 
-    // 4. OFFLINE. All DB work degrades (never 500s) via the inner catch.
+    // 4. OFFLINE. The only remaining DB access is the single cancellation
+    //    read below — session closing moved to the /api/cron/close-sessions
+    //    cron (see lib/sessions.ts) so this endpoint is never on the hot path
+    //    for a Postgres write. That read is individually guarded (see b)
+    //    rather than relying on the outer catch, so a DB hiccup there can't
+    //    take down the whole offline response.
     try {
-      // a. Lazy session close: any still-"active" session with no endedAt is
-      //    over (we're offline). We don't have the true last-frame time cheaply
-      //    here, so `now` is acceptable. Idempotent. Racing with ingest
-      //    reactivation is accepted — ingest reactivates any non-active session.
-      //    The updatedAt guard prevents the close/reopen flap where we read
-      //    Redis as stale, ingest lands a frame and reactivates the session, and
-      //    this update then closes what ingest just reopened: sessions touched
-      //    within the liveness window are skipped, only genuinely quiet ones close.
-      await prisma.session.updateMany({
-        where: {
-          status: 'active',
-          endedAt: null,
-          updatedAt: { lt: new Date(Date.now() - LIVE_WINDOW_MS) },
-        },
-        data: { status: 'completed', endedAt: new Date() },
-      })
-
-      // b. Tonight: is there an event today, and was it cancelled?
+      // a. Tonight: is there a scheduled event today?
       const today = athensToday()
       const tonightEvent = eventFor(today)
       let tonight:
         | { hotelId: string; start: string; end: string; cancelled: boolean; cancellationReason?: string }
         | null = null
       if (tonightEvent) {
-        const session = await prisma.session.findUnique({
-          where: { date_hotelId: { date: today, hotelId: tonightEvent.hotelId } },
-        })
-        const cancelled = session?.status === 'cancelled'
+        // b. Was it cancelled? A missing weather-cancellation banner is
+        //    cosmetic; the page staying up matters more — so this read
+        //    degrades to cancelled:false on failure instead of bubbling to
+        //    the outer catch and losing `next` along with it.
+        let cancelled = false
+        let cancellationReason: string | undefined
+        try {
+          const session = await prisma.session.findUnique({
+            where: { date_hotelId: { date: today, hotelId: tonightEvent.hotelId } },
+          })
+          cancelled = session?.status === 'cancelled'
+          cancellationReason = cancelled ? (session?.cancellationReason ?? undefined) : undefined
+        } catch (e) {
+          console.error('/api/status: cancellation read failed, defaulting to not-cancelled', e)
+        }
         tonight = {
           hotelId: tonightEvent.hotelId,
           start: tonightEvent.start,
           end: tonightEvent.end,
           cancelled,
-          ...(cancelled && session?.cancellationReason
-            ? { cancellationReason: session.cancellationReason }
-            : {}),
+          ...(cancellationReason ? { cancellationReason } : {}),
         }
       }
 
@@ -163,8 +162,9 @@ export async function GET() {
 
       return json({ live: false, tonight, next })
     } catch (e) {
-      // d. DB path failed: degrade rather than 500 — the offline copy is
-      //    non-essential next to the endpoint always answering.
+      // d. Anything else unexpected on the offline path: degrade rather than
+      //    500 — the offline copy is non-essential next to the endpoint
+      //    always answering.
       console.error('/api/status offline path failed', e)
       return json({ live: false, tonight: null, next: null, degraded: true })
     }
