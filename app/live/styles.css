@@ -1,9 +1,19 @@
 /* v1: function over form. Dark background, stable-aspect image container so
    there's no layout shift, readable centered text for non-live states. */
 
+/* /live is a full-screen night-mode takeover. Kill the default body margin
+   (the white frame) and paint the whole page near-black, edge to edge. These
+   html/body rules ship only with this route's CSS, so the homepage is
+   untouched. */
+html,
+body {
+  margin: 0;
+  background: #0a0a0f;
+}
+
 .live-root {
   min-height: 100vh;
-  background: #000;
+  background: #0a0a0f;
   color: #eee;
   display: flex;
   flex-direction: column;
@@ -34,7 +44,9 @@
 .live-meta {
   margin-top: 12px;
   display: flex;
-  gap: 12px;
+  flex-wrap: wrap; /* on narrow phones the three items stack instead of overflowing */
+  justify-content: center;
+  gap: 8px 12px;
   align-items: center;
   font-size: 14px;
 }
@@ -50,16 +62,16 @@
 }
 
 .live-object {
-  color: #eee;
+  color: #6e6c66;
 }
 
 .live-updated {
-  color: #888;
+  color: #6e6c66;
 }
 
 .status-root {
   min-height: 100vh;
-  background: #000;
+  background: #0a0a0f;
   color: #eee;
   display: flex;
   flex-direction: column;
@@ -72,12 +84,178 @@
 }
 
 .status-heading {
-  font-size: 20px;
+  font-size: clamp(18px, 5vw, 20px); /* scales down on small phones */
   margin: 0 0 8px;
+  max-width: 22ch;
+  overflow-wrap: break-word;
+  color: #edeae3; /* brighter warm-white */
 }
 
 .status-sub {
-  font-size: 14px;
+  font-size: clamp(13px, 4vw, 14px);
   color: #999;
   margin: 0;
+  max-width: 34ch;
+  overflow-wrap: break-word;
+}
+
+/* Rotating flavor line. The slot reserves a fixed height so a longer line never
+   reflows the layout (which would make the heading jump as the flex column
+   re-centers); the line itself crossfades on each swap. */
+.status-flavor-slot {
+  margin-top: 14px;
+  min-height: 4.4em; /* ~3 lines reserved so length changes don't shift layout */
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+}
+
+.status-flavor-slot--secondary {
+  margin-top: 20px;
+  min-height: 3.2em;
+}
+
+.status-flavor {
+  font-size: clamp(13px, 4vw, 14px);
+  line-height: 1.4;
+  color: #a8a6a0; /* warm neutral grey */
+  font-style: italic;
+  margin: 0;
+  max-width: min(40ch, 90vw); /* never wider than the phone viewport */
+  overflow-wrap: break-word;
+  opacity: 0;
+  transition: opacity 300ms ease;
+}
+
+.status-flavor.is-visible {
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .status-flavor {
+    transition: none;
+  }
+}
+
+/* Cancelled state: the cancellation notice must dominate. The heading reads as
+   an unmissable alert and the reason is prominent; the flavor line is demoted. */
+.status-heading--cancelled {
+  font-size: clamp(21px, 6.5vw, 26px); /* stays prominent but fits narrow phones */
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #ff6b6b;
+  margin-bottom: 12px;
+  max-width: 18ch;
+  overflow-wrap: break-word;
+}
+
+.status-sub--cancelled {
+  font-size: 17px;
+  color: #ddd;
+}
+
+/* Demoted flavor line for the cancelled state — small and dim so it can never
+   read as the primary message. */
+.status-flavor--secondary {
+  font-size: 12px;
+  color: #6e6c66;
+}
+
+/* Telescope "getting ready" loader — a calm slow orbit (not a spinner). Only
+   rendered in the waiting states, never when live. */
+.status-heading-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.scope-loader {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  flex: none;
+}
+
+.scope-loader__icon {
+  font-size: 15.3px; /* telescope 10% smaller */
+  line-height: 1;
+}
+
+/* Faint static orbit path around the telescope. The negative inset pushes the
+   orbit radius ~10% further from center than the loader box. */
+.scope-loader__ring {
+  position: absolute;
+  inset: -1.7px;
+  border-radius: 50%;
+  border: 1px solid rgba(168, 166, 160, 0.15);
+}
+
+/* The orbit wrapper spins to carry the body around the ring once every 3s...
+   (matching negative inset so the body rides the enlarged ring). */
+.scope-loader__orbit {
+  position: absolute;
+  inset: -1.7px;
+  animation: scope-orbit 3s linear infinite;
+}
+
+/* ...while the body counter-spins at the same rate, so it travels the circle
+   but never rotates/tumbles on itself (a moon stays upright, saturn's rings
+   stay level). */
+.scope-loader__body {
+  position: absolute;
+  top: -7px;
+  left: 50%;
+  width: 14px;
+  height: 14px;
+  margin-left: -7px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  line-height: 1;
+  filter: drop-shadow(0 0 3px rgba(237, 234, 227, 0.45));
+  animation: scope-orbit-counter 3s linear infinite;
+}
+
+/* The CSS "Newtonian" 4-point star gets the warm-white tint + glow; the emoji
+   bodies bring their own color. */
+.scope-loader__body--star {
+  color: #f2efe8;
+  font-size: 13px;
+}
+
+/* Moon drawn 15% smaller. */
+.scope-loader__body--moon {
+  font-size: 10.2px;
+}
+
+/* The UFO is allowed to rotate on itself: dropping the counter-rotation lets it
+   turn with the orbit wrapper (one calm rotation per lap). */
+.scope-loader__body--spin {
+  animation: none;
+}
+
+@keyframes scope-orbit {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes scope-orbit-counter {
+  to {
+    transform: rotate(-360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scope-loader__orbit,
+  .scope-loader__body {
+    animation: none;
+  }
 }

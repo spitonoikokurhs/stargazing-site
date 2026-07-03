@@ -7,6 +7,18 @@ import {
   type LiveStatusState,
   type OfflinePayload,
 } from '@/lib/live-status'
+import {
+  pickFlavor,
+  hotelDisplayName,
+  FLAVOR_ROTATE_MS,
+  FLAVOR_NO_REPEAT_WINDOW,
+  type FlavorContext,
+  type OfflineSubState,
+} from '@/lib/live-copy'
+
+// Crossfade duration for a flavor-line swap; must match the opacity transition
+// in styles.css (.status-flavor).
+const FLAVOR_FADE_MS = 300
 
 const POLL_INTERVAL_MS = 10 * 1000
 const FETCH_TIMEOUT_MS = 8 * 1000
@@ -222,9 +234,12 @@ function secondsAgo(ms: number): number {
   return Math.max(0, Math.round((Date.now() - ms) / 1000))
 }
 
-function offlineCopy(state: LiveStatusState): { heading: string; sub?: string } {
+// `loader` gates the telescope "getting ready" orbit — true only in the states
+// where a session is actually coming/imminent (checking, before start, waiting
+// for the feed), never once it's ended/cancelled/nothing.
+function offlineCopy(state: LiveStatusState): { heading: string; sub?: string; loader: boolean } {
   const payload = state.lastOfflinePayload
-  if (!payload) return { heading: 'Checking tonight’s schedule…' }
+  if (!payload) return { heading: 'Checking tonight’s schedule…', loader: true }
 
   const { tonight, next } = payload
 
@@ -243,36 +258,57 @@ function offlineCopy(state: LiveStatusState): { heading: string; sub?: string } 
         : distinctNext
           ? `Next session: ${distinctNext.date}, ${distinctNext.start}`
           : undefined,
+      loader: false,
     }
   }
 
   if (tonight) {
     const now = athensNowHHMM()
+    const hotel = hotelDisplayName(tonight.hotelId)
     let heading: string
-    if (now < tonight.start) heading = `Tonight starts at ${tonight.start}`
-    else if (now < tonight.end) heading = 'Scheduled now, waiting for the telescope feed'
-    else heading = 'Tonight’s session has ended'
-    return { heading, sub: distinctNext ? `Next session: ${distinctNext.date}, ${distinctNext.start}` : undefined }
+    let loader: boolean
+    if (now < tonight.start) {
+      heading = `Tonight at ${tonight.start}`
+      loader = true
+    } else if (now < tonight.end) {
+      heading = 'Waiting for the telescope feed'
+      loader = true
+    } else {
+      heading = 'Tonight’s session has ended'
+      loader = false
+    }
+    // Keep the hotel name visible; a genuinely distinct upcoming session takes
+    // the sub-line instead when there is one.
+    const sub = distinctNext ? `Next session: ${distinctNext.date}, ${distinctNext.start}` : hotel
+    return { heading, sub, loader }
   }
 
-  if (next) return { heading: `Next session: ${next.date}, ${next.start}` }
-  return { heading: 'No upcoming sessions scheduled' }
+  if (next) return { heading: `Next session: ${next.date}, ${next.start}`, loader: false }
+  return { heading: 'No upcoming sessions scheduled', loader: false }
 }
 
 function LiveViewPresentation({ state }: { state: LiveStatusState }) {
   const { uiState, lastLiveFrame } = state
 
   if (uiState === 'checking') {
-    return <StatusScreen heading="Checking…" />
+    return <StatusScreen heading="Checking…" loader />
   }
 
   if (uiState === 'degraded') {
     return <StatusScreen heading="Temporarily unavailable" sub="Retrying…" />
   }
 
-  if (uiState === 'offline-cancelled' || uiState === 'offline-event-tonight' || uiState === 'offline-nothing') {
+  if (uiState === 'offline-cancelled') {
+    // Cancellation must dominate: the heading + reason are the unmissable
+    // message; the flavor line rotates small and secondary beneath, never
+    // able to obscure that the session is off. No loader — nothing is coming.
     const { heading, sub } = offlineCopy(state)
-    return <StatusScreen heading={heading} sub={sub} />
+    return <StatusScreen heading={heading} sub={sub} tone="cancelled" flavorContext={buildFlavorContext(state)} />
+  }
+
+  if (uiState === 'offline-event-tonight' || uiState === 'offline-nothing') {
+    const { heading, sub, loader } = offlineCopy(state)
+    return <StatusScreen heading={heading} sub={sub} loader={loader} flavorContext={buildFlavorContext(state)} />
   }
 
   // live or reconnecting — both render the last known frame; reconnecting
@@ -300,11 +336,137 @@ function LiveViewPresentation({ state }: { state: LiveStatusState }) {
   )
 }
 
-function StatusScreen({ heading, sub }: { heading: string; sub?: string }) {
+// Build the flavor-text context from the current (offline) state. Purely
+// derived — reads the same lastOfflinePayload the factual copy uses, adds
+// nothing to the state machine.
+function buildFlavorContext(state: LiveStatusState): FlavorContext {
+  const tonight = state.lastOfflinePayload?.tonight ?? null
+  let subState: OfflineSubState | null = null
+  if (state.uiState === 'offline-cancelled') subState = 'cancelled'
+  else if (state.uiState === 'offline-event-tonight') subState = 'event-tonight'
+  else if (state.uiState === 'offline-nothing') subState = 'nothing'
+  return {
+    subState,
+    tonight: tonight ? { hotelId: tonight.hotelId, start: tonight.start, end: tonight.end } : null,
+  }
+}
+
+// Rotating flavor line — purely additive, sits under the factual heading and
+// never replaces it. Re-picks a random line every FLAVOR_ROTATE_MS. When
+// `secondary` is set (cancelled state) it renders smaller and dimmer so it can
+// never compete with the cancellation notice above it.
+function FlavorLine({ context, secondary }: { context: FlavorContext; secondary?: boolean }) {
+  const [line, setLine] = useState('')
+  const [visible, setVisible] = useState(false) // drives the opacity crossfade
+  // Recently-shown lines, so a pick never repeats one still inside the
+  // no-repeat window. Kept in a ref (not state) so updating it never triggers a
+  // render, and it survives the 1s "updated Xs ago" re-renders untouched.
+  const recentRef = useRef<string[]>([])
+  const fadeRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => {
+    function nextLine() {
+      const next = pickFlavor(context, recentRef.current)
+      if (next) recentRef.current = [...recentRef.current, next].slice(-FLAVOR_NO_REPEAT_WINDOW)
+      return next
+    }
+
+    // Show the first line immediately.
+    setLine(nextLine())
+    setVisible(true)
+
+    const id = setInterval(() => {
+      // Crossfade: fade the current line out, then swap the text and fade in.
+      setVisible(false)
+      fadeRef.current = setTimeout(() => {
+        setLine(nextLine())
+        setVisible(true)
+      }, FLAVOR_FADE_MS)
+    }, FLAVOR_ROTATE_MS)
+
+    return () => {
+      clearInterval(id)
+      if (fadeRef.current) clearTimeout(fadeRef.current)
+    }
+    // Depend on the primitive situation inputs, NOT the context object: the
+    // object is rebuilt every render (including the 1s "updated Xs ago" tick),
+    // so depending on it would reset the 8s timer every second and the line
+    // would never actually rotate. pickFlavor reads the live clock internally,
+    // so a captured context still crosses time tiers correctly between changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [context.subState, context.tonight?.hotelId, context.tonight?.start])
+
+  if (!line) return null
   return (
-    <div className="status-root">
-      <p className="status-heading">{heading}</p>
-      {sub ? <p className="status-sub">{sub}</p> : null}
+    <div className={`status-flavor-slot${secondary ? ' status-flavor-slot--secondary' : ''}`}>
+      <p
+        className={`status-flavor${secondary ? ' status-flavor--secondary' : ''}${visible ? ' is-visible' : ''}`}
+      >
+        {line}
+      </p>
+    </div>
+  )
+}
+
+// Bodies that can orbit the telescope. One is picked at random each time the
+// loader mounts. `modifier` tweaks per-body styling: the '✦' is a CSS-tinted
+// Newtonian 4-point star, the UFO spins on itself (no counter-rotation), the
+// moon is drawn smaller. To add more, just extend this list.
+const ORBIT_BODIES = [
+  { glyph: '🌙', modifier: 'scope-loader__body--moon' },
+  { glyph: '🛰️', modifier: '' },
+  { glyph: '🪐', modifier: '' },
+  { glyph: '✦', modifier: 'scope-loader__body--star' },
+  { glyph: '🛸', modifier: 'scope-loader__body--spin' },
+] as const
+
+// Slow calm orbit around a telescope — a "getting ready" cue, deliberately not
+// a fast spinner. Bodies travel the ring without spinning on themselves (see
+// the counter-rotation in styles.css); the UFO is the exception. Decorative
+// only, so hidden from assistive tech.
+function TelescopeLoader() {
+  // Start deterministic (index 0) so the server-rendered and first client
+  // render match — then pick a random body after mount. Randomizing during
+  // render would desync SSR vs client and trip a hydration error.
+  const [index, setIndex] = useState(0)
+  useEffect(() => {
+    setIndex(Math.floor(Math.random() * ORBIT_BODIES.length))
+  }, [])
+
+  const chosen = ORBIT_BODIES[index]
+  return (
+    <span className="scope-loader" aria-hidden="true">
+      <span className="scope-loader__ring" />
+      <span className="scope-loader__orbit">
+        <span className={`scope-loader__body${chosen.modifier ? ` ${chosen.modifier}` : ''}`}>{chosen.glyph}</span>
+      </span>
+      <span className="scope-loader__icon">🔭</span>
+    </span>
+  )
+}
+
+function StatusScreen({
+  heading,
+  sub,
+  tone,
+  loader,
+  flavorContext,
+}: {
+  heading: string
+  sub?: string
+  tone?: 'cancelled'
+  loader?: boolean
+  flavorContext?: FlavorContext
+}) {
+  const cancelled = tone === 'cancelled'
+  return (
+    <div className={`status-root${cancelled ? ' status-root--cancelled' : ''}`}>
+      <div className="status-heading-row">
+        <p className={`status-heading${cancelled ? ' status-heading--cancelled' : ''}`}>{heading}</p>
+        {loader ? <TelescopeLoader /> : null}
+      </div>
+      {sub ? <p className={`status-sub${cancelled ? ' status-sub--cancelled' : ''}`}>{sub}</p> : null}
+      {flavorContext ? <FlavorLine context={flavorContext} secondary={cancelled} /> : null}
     </div>
   )
 }
