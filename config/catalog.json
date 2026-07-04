@@ -1,0 +1,329 @@
+{
+  "objects": [
+    {
+      "id": "M57",
+      "primaryName": "Ring Nebula",
+      "aliases": ["M57", "NGC 6720"],
+      "type": "Planetary Nebula",
+      "raDeg": 283.396,
+      "decDeg": 33.0292,
+      "displayRadiusDeg": 0.15,
+      "priority": 80,
+      "description": "A glowing smoke-ring left behind by a dying star, one of the sky's most famous tiny nebulae."
+    },
+    {
+      "id": "M27",
+      "primaryName": "Dumbbell Nebula",
+      "aliases": ["M27", "NGC 6853"],
+      "type": "Planetary Nebula",
+      "raDeg": 299.9017,
+      "decDeg": 22.7211,
+      "displayRadiusDeg": 0.2,
+      "priority": 78,
+      "description": "A puffy, apple-core-shaped cloud of gas blown off by a star nearing the end of its life."
+    },
+    {
+      "id": "M13",
+      "primaryName": "Hercules Globular Cluster",
+      "aliases": ["M13", "NGC 6205", "Great Hercules Cluster"],
+      "type": "Globular Cluster",
+      "raDeg": 250.4230,
+      "decDeg": 36.4613,
+      "displayRadiusDeg": 0.25,
+      "priority": 90,
+      "description": "A dense swarm of hundreds of thousands of ancient stars packed into a shimmering ball."
+    },
+    {
+      "id": "M31",
+      "primaryName": "Andromeda Galaxy",
+      "aliases": ["M31", "NGC 224"],
+      "type": "Galaxy",
+      "raDeg": 10.6847,
+      "decDeg": 41.2687,
+      "displayRadiusDeg": 2.5,
+      "priority": 100,
+      "description": "Our nearest large galactic neighbor, a whole other galaxy of a trillion stars you can see with your own eyes."
+    },
+    {
+      "id": "M42",
+      "primaryName": "Orion Nebula",
+      "aliases": ["M42", "NGC 1976", "Great Orion Nebula"],
+      "type": "Diffuse Nebula",
+      "raDeg": 83.8221,
+      "decDeg": -5.3911,
+      "displayRadiusDeg": 1.0,
+      "priority": 100,
+      "description": "A vast stellar nursery where new stars are being born right now, visible as a fuzzy patch below Orion's belt."
+    },
+    {
+      "id": "M8",
+      "primaryName": "Lagoon Nebula",
+      "aliases": ["M8", "NGC 6523"],
+      "type": "Diffuse Nebula",
+      "raDeg": 270.9042,
+      "decDeg": -24.3800,
+      "displayRadiusDeg": 0.7,
+      "priority": 82,
+      "description": "A bright cloud of glowing gas in Sagittarius, cradling a cluster of hot young stars."
+    },
+    {
+      "id": "M20",
+      "primaryName": "Trifid Nebula",
+      "aliases": ["M20", "NGC 6514"],
+      "type": "Diffuse Nebula",
+      "raDeg": 270.6167,
+      "decDeg": -23.0300,
+      "displayRadiusDeg": 0.35,
+      "priority": 75,
+      "description": "A three-lobed nebula split by dark dust lanes, glowing pink and blue side by side."
+    },
+    {
+      "id": "M16",
+      "primaryName": "Eagle Nebula",
+      "aliases": ["M16", "NGC 6611", "Pillars of Creation"],
+      "type": "Diffuse Nebula",
+      "raDeg": 274.7000,
+      "decDeg": -13.8067,
+      "displayRadiusDeg": 0.35,
+      "priority": 80,
+      "description": "Home to the famous Pillars of Creation, towering columns of gas where stars are forming."
+    },
+    {
+      "id": "M17",
+      "primaryName": "Omega Nebula",
+      "aliases": ["M17", "NGC 6618", "Swan Nebula", "Horseshoe Nebula"],
+      "type": "Diffuse Nebula",
+      "raDeg": 275.1958,
+      "decDeg": -16.1767,
+      "displayRadiusDeg": 0.3,
+      "priority": 72,
+      "description": "A glowing swan-shaped ribbon of gas, one of the brightest star-forming clouds in our galaxy."
+    },
+    {
+      "id": "NGC869-884",
+      "primaryName": "Double Cluster",
+      "aliases": ["NGC 869", "NGC 884", "Double Cluster", "Caldwell 14"],
+      "type": "Open Cluster",
+      "raDeg": 34.7429,
+      "decDeg": 57.1333,
+      "displayRadiusDeg": 0.6,
+      "priority": 85,
+      "description": "Two brilliant star clusters side by side, like a double handful of diamonds scattered on velvet."
+    },
+    {
+      "id": "M45",
+      "primaryName": "Pleiades",
+      "aliases": ["M45", "Seven Sisters"],
+      "type": "Open Cluster",
+      "raDeg": 56.75,
+      "decDeg": 24.1167,
+      "displayRadiusDeg": 1.5,
+      "priority": 95,
+      "description": "A sparkling cluster of young blue stars, often called the Seven Sisters, easy to spot with the naked eye."
+    },
+    {
+      "id": "NGC6960-6992",
+      "primaryName": "Veil Nebula",
+      "aliases": ["NGC 6960", "NGC 6992", "Witch's Broom Nebula", "Caldwell 34"],
+      "type": "Supernova Remnant",
+      "raDeg": 312.75,
+      "decDeg": 30.7167,
+      "displayRadiusDeg": 1.2,
+      "priority": 70,
+      "description": "The delicate, tattered remains of a star that exploded thousands of years ago, still glowing across the sky."
+    },
+    {
+      "id": "NGC7000",
+      "primaryName": "North America Nebula",
+      "aliases": ["NGC 7000", "Caldwell 20"],
+      "type": "Diffuse Nebula",
+      "raDeg": 313.7125,
+      "decDeg": 44.5333,
+      "displayRadiusDeg": 1.3,
+      "priority": 68,
+      "description": "A huge cloud of glowing gas shaped uncannily like the continent of North America."
+    },
+    {
+      "id": "M4",
+      "primaryName": "M4 Globular Cluster",
+      "aliases": ["M4", "NGC 6121"],
+      "type": "Globular Cluster",
+      "raDeg": 245.8967,
+      "decDeg": -26.5256,
+      "displayRadiusDeg": 0.3,
+      "priority": 65,
+      "description": "One of the closest globular clusters to us, a loose ball of ancient stars near the heart of Scorpius."
+    },
+    {
+      "id": "M22",
+      "primaryName": "M22 Globular Cluster",
+      "aliases": ["M22", "NGC 6656"],
+      "type": "Globular Cluster",
+      "raDeg": 279.1000,
+      "decDeg": -23.9042,
+      "displayRadiusDeg": 0.3,
+      "priority": 62,
+      "description": "A big, bright globular cluster in Sagittarius, one of the best in the sky for backyard telescopes."
+    },
+    {
+      "id": "M6",
+      "primaryName": "Butterfly Cluster",
+      "aliases": ["M6", "NGC 6405"],
+      "type": "Open Cluster",
+      "raDeg": 265.0833,
+      "decDeg": -32.2167,
+      "displayRadiusDeg": 0.4,
+      "priority": 55,
+      "description": "A cluster of stars whose pattern fans out like the wings of a butterfly."
+    },
+    {
+      "id": "M7",
+      "primaryName": "Ptolemy Cluster",
+      "aliases": ["M7", "NGC 6475"],
+      "type": "Open Cluster",
+      "raDeg": 268.4625,
+      "decDeg": -34.8192,
+      "displayRadiusDeg": 0.5,
+      "priority": 55,
+      "description": "A loose, bright scattering of stars known since antiquity, easily seen with the naked eye near the scorpion's tail."
+    },
+    {
+      "id": "M11",
+      "primaryName": "Wild Duck Cluster",
+      "aliases": ["M11", "NGC 6705"],
+      "type": "Open Cluster",
+      "raDeg": 282.7708,
+      "decDeg": -6.2717,
+      "displayRadiusDeg": 0.25,
+      "priority": 60,
+      "description": "A tightly packed swarm of stars whose fan-like shape reminded early observers of ducks in flight."
+    },
+    {
+      "id": "M15",
+      "primaryName": "M15 Globular Cluster",
+      "aliases": ["M15", "NGC 7078"],
+      "type": "Globular Cluster",
+      "raDeg": 322.4930,
+      "decDeg": 12.1670,
+      "displayRadiusDeg": 0.25,
+      "priority": 58,
+      "description": "A tightly compressed ball of ancient stars, one of the densest globular clusters known."
+    },
+    {
+      "id": "M2",
+      "primaryName": "M2 Globular Cluster",
+      "aliases": ["M2", "NGC 7089"],
+      "type": "Globular Cluster",
+      "raDeg": 323.3625,
+      "decDeg": -0.8231,
+      "displayRadiusDeg": 0.25,
+      "priority": 50,
+      "description": "A rich, symmetrical ball of stars, one of the sky's grander globular clusters."
+    },
+    {
+      "id": "M92",
+      "primaryName": "M92 Globular Cluster",
+      "aliases": ["M92", "NGC 6341"],
+      "type": "Globular Cluster",
+      "raDeg": 259.2808,
+      "decDeg": 43.1358,
+      "displayRadiusDeg": 0.2,
+      "priority": 52,
+      "description": "A brilliant, tightly packed cluster often overlooked in favor of its famous neighbor M13."
+    },
+    {
+      "id": "M56",
+      "primaryName": "M56 Globular Cluster",
+      "aliases": ["M56", "NGC 6779"],
+      "type": "Globular Cluster",
+      "raDeg": 289.1483,
+      "decDeg": 30.1836,
+      "displayRadiusDeg": 0.15,
+      "priority": 40,
+      "description": "A modest, loosely concentrated cluster of stars drifting in the summer Milky Way."
+    },
+    {
+      "id": "M71",
+      "primaryName": "M71 Globular Cluster",
+      "aliases": ["M71", "NGC 6838"],
+      "type": "Globular Cluster",
+      "raDeg": 298.4433,
+      "decDeg": 18.7792,
+      "displayRadiusDeg": 0.15,
+      "priority": 38,
+      "description": "A loose, sparse cluster of stars so relaxed it was once mistaken for a simple star field."
+    },
+    {
+      "id": "M29",
+      "primaryName": "M29 Open Cluster",
+      "aliases": ["M29", "NGC 6913"],
+      "type": "Open Cluster",
+      "raDeg": 305.9833,
+      "decDeg": 38.4867,
+      "displayRadiusDeg": 0.15,
+      "priority": 35,
+      "description": "A compact little knot of hot young stars riding the Milky Way through Cygnus."
+    },
+    {
+      "id": "M39",
+      "primaryName": "M39 Open Cluster",
+      "aliases": ["M39", "NGC 7092"],
+      "type": "Open Cluster",
+      "raDeg": 322.9000,
+      "decDeg": 48.4333,
+      "displayRadiusDeg": 0.4,
+      "priority": 35,
+      "description": "A wide, loose scattering of bright stars, best swept up with binoculars on a dark night."
+    },
+    {
+      "id": "MOON",
+      "primaryName": "The Moon",
+      "aliases": ["Moon", "Luna"],
+      "type": "Moon",
+      "requiresEphemeris": true,
+      "displayRadiusDeg": null,
+      "priority": 100,
+      "description": "Our closest neighbor in space, close enough to see craters, mountains, and seas of ancient lava with your own eyes."
+    },
+    {
+      "id": "JUPITER",
+      "primaryName": "Jupiter",
+      "aliases": ["Jupiter"],
+      "type": "Planet",
+      "requiresEphemeris": true,
+      "displayRadiusDeg": null,
+      "priority": 98,
+      "description": "The largest planet in our solar system, often showing its four biggest moons lined up alongside it."
+    },
+    {
+      "id": "SATURN",
+      "primaryName": "Saturn",
+      "aliases": ["Saturn"],
+      "type": "Planet",
+      "requiresEphemeris": true,
+      "displayRadiusDeg": null,
+      "priority": 98,
+      "description": "The ringed jewel of the solar system, and always a crowd favorite through the eyepiece."
+    },
+    {
+      "id": "VENUS",
+      "primaryName": "Venus",
+      "aliases": ["Venus"],
+      "type": "Planet",
+      "requiresEphemeris": true,
+      "displayRadiusDeg": null,
+      "priority": 90,
+      "description": "The brilliant evening or morning star, brighter than anything else in the night sky besides the Moon."
+    },
+    {
+      "id": "MARS",
+      "primaryName": "Mars",
+      "aliases": ["Mars"],
+      "type": "Planet",
+      "requiresEphemeris": true,
+      "displayRadiusDeg": null,
+      "priority": 88,
+      "description": "The rusty red planet, close enough at times to make out its polar ice cap and dark surface markings."
+    }
+  ]
+}

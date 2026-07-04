@@ -1,0 +1,263 @@
+Your instinct is right: the page should follow the telescope, not the operator. But I would be careful about making the website believe the telescope too literally. Device state and coordinates are signals, not truth. The best v1 is a small state machine that combines image freshness, SmartEye state, coordinate stability, integration time, and last-known-good target.
+Core Critique
+The automatic-from-device-state approach is good, but only if you treat it as probabilistic event detection, not a direct UI command.
+Bad version:
+SmartEye says ASTROMETRY_SOLVING -> website says changing target
+SmartEye gives RA/Dec -> website shows nearest catalog object
+Better version:
+SmartEye state + coordinate jump + integration reset + image ETag change pattern
+  -> infer target transition
+  -> hold last good image
+  -> only switch target after new stable solve/stack appears
+The page needs a “confidence layer” between telescope telemetry and guest-facing copy.
+Failure Modes
+Plate solve fails:
+SmartEye may know it is imaging, but not where.
+Do not blank the target name immediately.
+Keep showing last known object with a soft label like Reacquiring target....
+After a timeout, fall back to Live star field or Exploring the sky.
+Coordinates match no obvious catalog object:
+Very common if you frame between objects, shoot dark nebulae, wide fields, comets, planets, moon, or decorative star fields.
+Do not show a forced wrong name. A wrong “M31” is worse than no name.
+Show constellation/sky region if available: Star field in Cygnus, Near Sagittarius, Deep-sky field.
+Device sits in weird state:
+Have timeouts for every transitional state.
+ASTROMETRY_SOLVING for 8 seconds is fine. For 4 minutes, the guest page should not look broken.
+UI copy should degrade: Aligning telescope... -> Still aligning... image will update shortly.
+Short slew:
+If you nudge framing inside the same object, you probably do not want a full “changing target” transition.
+Treat small coordinate changes as same target/framing adjustment.
+Only call it a target change if coordinate movement exceeds a threshold or integration resets.
+Manual framing / mosaic:
+Coordinates may move while the intended object name is still the same.
+Do not change target name too eagerly.
+Use hysteresis: require stability for N seconds or N frames before updating the displayed object.
+Mid-slew smeared frames:
+Don’t rely only on device state. The relay/API should know whether a frame is “displayable.”
+If the SmartEye says not stacking, hold the last good image.
+If integration time resets to near zero, treat early frames cautiously.
+Coordinates To Object Name
+For v1, do a local catalog match against Messier + NGC + IC + a curated “showpiece” list.
+Do not query a live astronomy API during events if you can avoid it. Internet and rate limits are exactly where live demos get dramatic in the bad way.
+Recommended matching logic:
+Normalize RA/Dec.
+Match against catalog objects with known center coordinates and apparent size.
+Prefer objects whose angular radius/diameter contains the coordinate.
+Otherwise use nearest object within a threshold.
+Rank by curated priority, not just distance.
+Why priority matters:
+If coordinates are near M42, NGC 1976, Orion Nebula, and several tiny NGC objects, the guest-facing answer should be Orion Nebula, not some technically-nearer obscure catalog entry.
+Tolerance:
+For compact objects: maybe 0.3°-0.5°.
+For large nebulae/galaxies: use object-specific radius.
+For wide framing: 1° can be reasonable, but dangerous if blindly applied.
+Best: catalog object has display_radius_deg, e.g. M31 maybe several degrees, M57 tiny, North America Nebula large.
+Catalog entry shape:
+{
+  "primaryName": "Orion Nebula",
+  "aliases": ["M42", "NGC 1976"],
+  "type": "Emission nebula",
+  "raDeg": 83.8221,
+  "decDeg": -5.3911,
+  "displayRadiusDeg": 1.0,
+  "priority": 100
+}
+When no match:
+Show one of:
+Live star field
+Deep-sky field
+Star field in [constellation]
+Near [nearest known object]
+Exploring [constellation]
+Avoid:
+Unknown object
+No target
+blank labels
+wrong guesses
+For planets/comets:
+Catalog matching against static Messier/NGC will fail. For v1, either:
+manual override, or
+curated “tonight targets” list from operator, or
+defer planets/comets.
+Target Change Detection
+ASTROMETRY_SOLVING is useful, but not sufficient.
+It may happen when:
+initial alignment starts,
+target changes,
+tracking correction happens,
+plate solve retries after clouds,
+manual framing adjustment,
+recovery after lost tracking,
+SmartEye internal recalibration,
+image quality drops.
+Better detection should combine:
+Device state enters ASTROMETRY_SOLVING, CALIBRATING, maybe slew/moving if exposed.
+Coordinates jump more than threshold, e.g. > 0.5° or object-dependent.
+Integration time resets or drops sharply.
+New image cadence pauses.
+Image ETag changes but integration time is very low.
+Stacking state changes from running -> not running -> running.
+A robust state machine:
+DISPLAYING_TARGET
+  current target, current image visible
+
+POSSIBLE_TRANSITION
+  suspicious signal: solving/calibrating/coordinate jump/integration reset
+  hold last good image
+  wait briefly for confirmation
+
+CHANGING_TARGET
+  show transition UI
+  suppress new frames unless marked stable/displayable
+
+ACQUIRING_NEW_TARGET
+  new coordinates detected
+  find candidate object
+  wait for stable state + minimum integration/frame quality
+
+DISPLAYING_TARGET
+  switch image + label once stable
+Use hysteresis:
+Enter transition quickly: after 1-2 strong signals.
+Exit transition slowly: require stable stacking for, say, 10-20 seconds or 1-2 good frames.
+Do not rename target until coordinates are stable for several samples.
+Image Gating
+This is important: separate “latest uploaded image” from “image safe to show.”
+The API should store frames with metadata:
+{
+  "imageUrl": "...",
+  "capturedAt": "...",
+  "etag": "...",
+  "deviceState": "IMAGE_STACK_RUNNING",
+  "ra": 83.8,
+  "dec": -5.39,
+  "integrationSeconds": 2580,
+  "targetName": "Orion Nebula",
+  "displayable": true,
+  "sessionTargetId": "..."
+}
+The live page should render the latest displayable=true image, not blindly the latest uploaded image.
+During transition:
+Relay may continue uploading.
+Backend may store images.
+Public page holds last displayable image until new target is stable.
+That gives you operational safety without needing the relay to be too smart.
+Guest Experience Ideas
+Do not overdo science-dashboard UI. Hotel guests want wonder, not a control panel.
+Good elements:
+Object name: Orion Nebula
+Alias: M42
+Type: stellar nursery
+Distance: 1,344 light-years
+Live status: 43 minutes stacked
+Tiny “live” pulse or timestamp: updated 18s ago
+Transition copy: Moving to the next object...
+Educational one-liner: New stars are forming inside this cloud of gas and dust.
+For lobby TV:
+Bigger type, fewer numbers.
+High contrast.
+Avoid UI that depends on tapping.
+Show last updated time so staff know if it stalled.
+For phones:
+Let people pinch/zoom image.
+Provide “what am I seeing?” short card.
+Maybe a “Tonight’s targets” strip, but do not make it feel like a lecture.
+Operationally useful but guest-friendly:
+Signal interrupted, holding last image is better than spinning forever.
+If stale for >5 min, show Waiting for the telescope while still displaying the last good image.
+If stale for >15 min, maybe page shifts to a fallback event card.
+Manual Override
+You still need it, but keep it out of the main workflow.
+Minimum override:
+Set current target name manually.
+Mark current frame/session as displayable or hidden.
+Force “changing target” mode on/off.
+Reset live session.
+Pause public updates.
+Make this a tiny admin-only page, not part of the guest page.
+Data Model I’d Want
+At minimum:
+LiveSession
+- id
+- status: live/paused/offline
+- currentTargetId
+- currentDisplayImageId
+- transitionState
+- lastTelemetryAt
+- lastFrameAt
+
+LiveFrame
+- id
+- imageUrl
+- source
+- capturedAt
+- receivedAt
+- sha256
+- etag
+- deviceState
+- raDeg
+- decDeg
+- integrationSeconds
+- displayable
+- targetCandidateId
+- targetConfidence
+
+TargetObservation
+- id
+- name
+- aliases
+- type
+- raDeg
+- decDeg
+- startedAt
+- endedAt
+- maxIntegrationSeconds
+- detectionMethod: auto/manual
+Do not just overwrite global “current target” fields forever. You will want event history later.
+What To Build For V1
+Build:
+Relay sends SmartEye telemetry with each image: state, RA/Dec, integration time.
+Backend catalog matcher with curated Messier/NGC/IC/showpiece list.
+Transition state machine:hold last good image,
+detect solving/calibrating/integration reset,
+switch only after stable stacking.
+
+Public page shows:image,
+object name/alias,
+integration time,
+last updated,
+graceful transition/stale states.
+
+Admin override:target name override,
+pause/hide updates,
+force transition clear.
+
+Defer:
+Perfect comet/planet identification.
+Full planetarium-style sky map.
+Automatic mosaic understanding.
+AI image quality scoring.
+Complex guest interactions.
+Large catalog search beyond curated targets.
+Live annotations/overlays unless they are very polished.
+Biggest Risk
+The biggest risk is not that automation fails. It is that automation fails confidently.
+So the rule should be:
+If confidence is high, name the object.
+If confidence is medium, say "near X" or constellation.
+If confidence is low, show a beautiful generic label.
+Never invent certainty.
+That one principle will save the premium feel. A graceful Deep-sky field in Cygnus looks intentional. A wrong Ring Nebula while showing a random patch looks amateur.
+My ideal v1: reliable image, stable target state machine, curated object naming, tasteful fallback labels, and one admin override screen. That is enough to feel magical without giving the system too many ways to embarrass you live.
+
+10:58 PM
+
+
+
+
+
+
+
+
+
+Add to chatAsk in side chat
