@@ -18,6 +18,8 @@ const url = process.env.DATABASE_URL ?? process.env.POSTGRES_PRISMA_URL
 // creates exactly one client anyway.
 const globalForPrisma = globalThis as unknown as { prisma: PrismaClient | undefined }
 
-export const prisma = globalForPrisma.prisma ?? new PrismaClient({ datasources: { db: { url } } })
+const prismaOptions = url ? { datasources: { db: { url } } } : undefined
+
+export const prisma = globalForPrisma.prisma ?? new PrismaClient(prismaOptions)
 
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma

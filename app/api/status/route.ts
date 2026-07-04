@@ -15,10 +15,21 @@ import { athensToday, eventFor, nextEvent } from '@/lib/schedule'
 // status). The live path is Redis-only. Neither path writes to Postgres —
 // session closing lives in /api/cron/close-sessions (lib/sessions.ts).
 export const runtime = 'nodejs'
+// This route intentionally uses request-time data (Redis, Prisma, no-store).
+// Force dynamic rendering so next build does not try to statically evaluate it.
+export const dynamic = 'force-dynamic'
 
 const LIVE_WINDOW_MS = 5 * 60 * 1000 // a source is "fresh" if heard from within 5 min
 const HYSTERESIS_MS = 45 * 1000 // only switch away from the active source if the other leads by >45s
 const ACTIVE_SOURCE_TTL_S = 600 // 10-min TTL on the chosen-source key
+
+type OfflineStatus = {
+  tonight:
+    | { hotelId: string; start: string; end: string; cancelled: boolean; cancellationReason?: string }
+    | null
+  next: { date: string; hotelId: string; start: string; end: string } | null
+  degraded?: true
+}
 
 // Every response is uncacheable — /live polls this every 10s for current state.
 function json(body: unknown) {
@@ -43,135 +54,126 @@ function athensTomorrow(today: string): string {
   return d.toISOString().slice(0, 10)
 }
 
+async function offlineStatus(): Promise<OfflineStatus> {
+  // Static schedule first: this must work even when Redis and Postgres are down.
+  // Postgres only enriches it with the cancellation banner below.
+  const today = athensToday()
+  const tonightEvent = eventFor(today)
+  let tonight: OfflineStatus['tonight'] = null
+
+  if (tonightEvent) {
+    let cancelled = false
+    let cancellationReason: string | undefined
+    try {
+      const session = await prisma.session.findUnique({
+        where: { date_hotelId: { date: today, hotelId: tonightEvent.hotelId } },
+      })
+      cancelled = session?.status === 'cancelled'
+      cancellationReason = cancelled ? (session?.cancellationReason ?? undefined) : undefined
+    } catch (e) {
+      console.error('/api/status: cancellation read failed, defaulting to not-cancelled', e)
+    }
+
+    tonight = {
+      hotelId: tonightEvent.hotelId,
+      start: tonightEvent.start,
+      end: tonightEvent.end,
+      cancelled,
+      ...(cancellationReason ? { cancellationReason } : {}),
+    }
+  }
+
+  const next =
+    tonightEvent && athensNowHHMM() < tonightEvent.end
+      ? { date: today, ...tonightEvent }
+      : nextEvent(athensTomorrow(today))
+
+  return { tonight, next }
+}
+
 export async function GET() {
+  let offline: OfflineStatus
   try {
-    // 1. Redis reads in parallel. Malformed payloads parse to null (absent),
-    //    never a 500.
-    const [pegasusRaw, seestarRaw, activeRaw] = await Promise.all([
+    offline = await offlineStatus()
+  } catch (e) {
+    // This should only catch unexpected bugs in pure schedule derivation. Keep
+    // answering; the Redis live path below may still upgrade the response.
+    console.error('/api/status: static offline schedule derivation failed', e)
+    offline = { tonight: null, next: null, degraded: true }
+  }
+
+  // Redis is an optional live upgrade. If Redis is unavailable/stalled, guests
+  // still get tonight/next from the static schedule above instead of a bare
+  // degraded response with no useful event information.
+  let pegasusRaw: unknown
+  let seestarRaw: unknown
+  let activeRaw: unknown
+  try {
+    ;[pegasusRaw, seestarRaw, activeRaw] = await Promise.all([
       redis.get(latestFrameKey('pegasus')),
       redis.get(latestFrameKey('seestar')),
       redis.get(ACTIVE_SOURCE_KEY),
     ])
-    const frames: Record<Source, LatestFrame | null> = {
-      pegasus: parseLatestFrame(pegasusRaw),
-      seestar: parseLatestFrame(seestarRaw),
-    }
-    const activeSource: Source | null =
-      activeRaw === 'pegasus' || activeRaw === 'seestar' ? activeRaw : null
-
-    // 2. Per-source age from ingestedAt — server-receipt time, i.e. "did we hear
-    //    from a telescope recently?" (capturedAt is a device clock, display-only).
-    //    An unparseable ingestedAt collapses to null: treated as absent.
-    const now = Date.now()
-    const ageInfo = (f: LatestFrame | null): { fresh: boolean; ageSeconds: number } | null => {
-      if (!f) return null
-      const t = new Date(f.ingestedAt).getTime()
-      if (Number.isNaN(t)) return null
-      const ageMs = now - t
-      return { fresh: ageMs < LIVE_WINDOW_MS, ageSeconds: Math.max(0, Math.round(ageMs / 1000)) }
-    }
-    const sources = {
-      pegasus: ageInfo(frames.pegasus),
-      seestar: ageInfo(frames.seestar),
-    }
-    const ingestedMs = (s: Source): number => new Date(frames[s]!.ingestedAt).getTime()
-    const freshSources = SOURCES.filter((s) => sources[s]?.fresh)
-
-    // 3. LIVE if at least one source is fresh.
-    if (freshSources.length > 0) {
-      let chosen: Source
-      if (activeSource && sources[activeSource]?.fresh) {
-        // Hysteresis: stick with the active source unless the other is fresh AND
-        // meaningfully newer (>45s), so a near-tie doesn't flap the feed.
-        chosen = activeSource
-        const other: Source = activeSource === 'pegasus' ? 'seestar' : 'pegasus'
-        if (sources[other]?.fresh && ingestedMs(other) - ingestedMs(activeSource) > HYSTERESIS_MS) {
-          chosen = other
-        }
-      } else {
-        // Active source stale/absent: pick the freshest fresh source.
-        chosen = freshSources.reduce((best, s) => (ingestedMs(s) > ingestedMs(best) ? s : best))
-      }
-
-      // Persist the choice with a TTL. Concurrent polls racing this write is
-      // benign: every writer picks from the same Redis snapshot, so they write
-      // the same value (or an equally-valid one a beat later).
-      await redis.set(ACTIVE_SOURCE_KEY, chosen, { ex: ACTIVE_SOURCE_TTL_S })
-
-      const f = frames[chosen]!
-      return json({
-        live: true,
-        source: chosen,
-        frame: {
-          frameId: f.frameId,
-          blobUrl: f.blobUrl,
-          capturedAt: f.capturedAt,
-          ingestedAt: f.ingestedAt,
-        },
-        observation: { observationId: f.observationId, objectName: f.objectName },
-        sessionId: f.sessionId,
-        viewers: null, // placeholder until /api/heartbeat lands; keeps /live on the final shape
-        sources,
-      })
-    }
-
-    // 4. OFFLINE. The only remaining DB access is the single cancellation
-    //    read below — session closing moved to the /api/cron/close-sessions
-    //    cron (see lib/sessions.ts) so this endpoint is never on the hot path
-    //    for a Postgres write. That read is individually guarded (see b)
-    //    rather than relying on the outer catch, so a DB hiccup there can't
-    //    take down the whole offline response.
-    try {
-      // a. Tonight: is there a scheduled event today?
-      const today = athensToday()
-      const tonightEvent = eventFor(today)
-      let tonight:
-        | { hotelId: string; start: string; end: string; cancelled: boolean; cancellationReason?: string }
-        | null = null
-      if (tonightEvent) {
-        // b. Was it cancelled? A missing weather-cancellation banner is
-        //    cosmetic; the page staying up matters more — so this read
-        //    degrades to cancelled:false on failure instead of bubbling to
-        //    the outer catch and losing `next` along with it.
-        let cancelled = false
-        let cancellationReason: string | undefined
-        try {
-          const session = await prisma.session.findUnique({
-            where: { date_hotelId: { date: today, hotelId: tonightEvent.hotelId } },
-          })
-          cancelled = session?.status === 'cancelled'
-          cancellationReason = cancelled ? (session?.cancellationReason ?? undefined) : undefined
-        } catch (e) {
-          console.error('/api/status: cancellation read failed, defaulting to not-cancelled', e)
-        }
-        tonight = {
-          hotelId: tonightEvent.hotelId,
-          start: tonightEvent.start,
-          end: tonightEvent.end,
-          cancelled,
-          ...(cancellationReason ? { cancellationReason } : {}),
-        }
-      }
-
-      // c. Next: if today's event hasn't ended yet (Athens wall time), it IS the
-      //    next event; otherwise walk forward from tomorrow.
-      const next =
-        tonightEvent && athensNowHHMM() < tonightEvent.end
-          ? { date: today, ...tonightEvent }
-          : nextEvent(athensTomorrow(today))
-
-      return json({ live: false, tonight, next })
-    } catch (e) {
-      // d. Anything else unexpected on the offline path: degrade rather than
-      //    500 — the offline copy is non-essential next to the endpoint
-      //    always answering.
-      console.error('/api/status offline path failed', e)
-      return json({ live: false, tonight: null, next: null, degraded: true })
-    }
   } catch (e) {
-    // 5. Any unexpected throw still answers 200. Contract: this endpoint never
-    //    fails — if status goes down, /live goes down with it, gracefully.
-    console.error('/api/status unexpected error', e)
-    return json({ live: false, degraded: true })
+    console.error('/api/status: Redis read failed; returning offline schedule', e)
+    return json({ live: false, ...offline, degraded: true })
   }
+
+  const frames: Record<Source, LatestFrame | null> = {
+    pegasus: parseLatestFrame(pegasusRaw),
+    seestar: parseLatestFrame(seestarRaw),
+  }
+  const activeSource: Source | null = activeRaw === 'pegasus' || activeRaw === 'seestar' ? activeRaw : null
+
+  const now = Date.now()
+  const ageInfo = (f: LatestFrame | null): { fresh: boolean; ageSeconds: number } | null => {
+    if (!f) return null
+    const t = new Date(f.ingestedAt).getTime()
+    if (Number.isNaN(t)) return null
+    const ageMs = now - t
+    return { fresh: ageMs < LIVE_WINDOW_MS, ageSeconds: Math.max(0, Math.round(ageMs / 1000)) }
+  }
+  const sources = {
+    pegasus: ageInfo(frames.pegasus),
+    seestar: ageInfo(frames.seestar),
+  }
+  const ingestedMs = (s: Source): number => new Date(frames[s]!.ingestedAt).getTime()
+  const freshSources = SOURCES.filter((s) => sources[s]?.fresh)
+
+  if (freshSources.length === 0) {
+    return json({ live: false, ...offline })
+  }
+
+  let chosen: Source
+  if (activeSource && sources[activeSource]?.fresh) {
+    chosen = activeSource
+    const other: Source = activeSource === 'pegasus' ? 'seestar' : 'pegasus'
+    if (sources[other]?.fresh && ingestedMs(other) - ingestedMs(activeSource) > HYSTERESIS_MS) {
+      chosen = other
+    }
+  } else {
+    chosen = freshSources.reduce((best, s) => (ingestedMs(s) > ingestedMs(best) ? s : best))
+  }
+
+  try {
+    await redis.set(ACTIVE_SOURCE_KEY, chosen, { ex: ACTIVE_SOURCE_TTL_S })
+  } catch (e) {
+    console.error('/api/status: active-source Redis write failed; serving chosen live frame anyway', e)
+  }
+
+  const f = frames[chosen]!
+  return json({
+    live: true,
+    source: chosen,
+    frame: {
+      frameId: f.frameId,
+      blobUrl: f.blobUrl,
+      capturedAt: f.capturedAt,
+      ingestedAt: f.ingestedAt,
+    },
+    observation: { observationId: f.observationId, objectName: f.objectName },
+    sessionId: f.sessionId,
+    viewers: null, // placeholder until /api/heartbeat lands; keeps /live on the final shape
+    sources,
+  })
 }

@@ -22,7 +22,7 @@ export function isValidSource(value: string): value is Source {
 // capturedAt = device-side timestamp (best effort), ingestedAt = server receipt
 // time — comparing the two diagnoses stale device clocks.
 // Written with EX 600 (10-min TTL) purely as garbage collection; the 5-min
-// liveness window is computed from capturedAt in the payload, not the TTL.
+// liveness window is computed from ingestedAt in the payload, not the TTL.
 export function latestFrameKey(source: Source): string {
   return `live:latest:${source}`
 }

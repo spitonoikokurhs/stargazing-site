@@ -92,10 +92,14 @@ function isOfflineStatus(v: Record<string, unknown>): v is StatusOffline {
   return v.live === false && v.degraded !== true && isTonightInfo(v.tonight) && isNextInfo(v.next)
 }
 
+function isDegradedStatus(v: Record<string, unknown>): v is StatusDegraded {
+  if (v.live !== false || v.degraded !== true) return false
+  return (v.tonight === undefined || isTonightInfo(v.tonight)) && (v.next === undefined || isNextInfo(v.next))
+}
+
 function isStatusResponse(v: unknown): v is StatusResponse {
   if (!isObject(v)) return false
-  if (v.live === false && v.degraded === true) return true
-  return isLiveStatus(v) || isOfflineStatus(v)
+  return isLiveStatus(v) || isOfflineStatus(v) || isDegradedStatus(v)
 }
 
 // Preload an image; resolve only once it has actually loaded (never resolve
@@ -199,7 +203,15 @@ export default function LiveView() {
         if (cancelled) return
 
         if (body.live === false && body.degraded === true) {
-          dispatch({ type: 'POLL_DEGRADED' })
+          // /api/status may still include the static schedule when Redis is
+          // degraded. Prefer useful guest-facing offline copy over the generic
+          // unavailable screen; only fall back to degraded when no schedule
+          // payload was returned at all.
+          if (body.tonight !== undefined && body.next !== undefined) {
+            dispatch({ type: 'POLL_OFFLINE', payload: { tonight: body.tonight, next: body.next } })
+          } else {
+            dispatch({ type: 'POLL_DEGRADED' })
+          }
         } else if (body.live === false) {
           dispatch({ type: 'POLL_OFFLINE', payload: { tonight: body.tonight, next: body.next } })
         } else {
