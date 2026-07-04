@@ -10,6 +10,7 @@ import {
   type LatestFrame,
 } from '@/lib/redis'
 import { athensToday, eventFor, nextEvent } from '@/lib/schedule'
+import { matchCoordinates } from '@/lib/catalog'
 
 // Node runtime for the single Prisma read on the offline path (cancellation
 // status). The live path is Redis-only. Neither path writes to Postgres —
@@ -99,6 +100,25 @@ export async function GET() {
       await redis.set(ACTIVE_SOURCE_KEY, chosen, { ex: ACTIVE_SOURCE_TTL_S })
 
       const f = frames[chosen]!
+
+      // Telemetry is best-effort passthrough; object-name fields are added
+      // ONLY when astrometryState is 'solved' AND both coordinates are
+      // present — any other astrometryState (or missing telemetry entirely,
+      // e.g. Tier-1-only frames) omits them outright, not null/"Unknown", so
+      // the frontend's existing no-confident-name fallback path handles it.
+      const telemetry = f.telemetry
+      let objectMatch: { name: string; confidence: 'high' | 'medium' | 'low' | 'none' } | undefined
+      if (
+        telemetry?.astrometryState === 'solved' &&
+        typeof telemetry.raDegrees === 'number' &&
+        typeof telemetry.decDegrees === 'number'
+      ) {
+        const result = matchCoordinates(telemetry.raDegrees, telemetry.decDegrees)
+        if (result.match) {
+          objectMatch = { name: result.match.primaryName, confidence: result.confidence }
+        }
+      }
+
       return json({
         live: true,
         source: chosen,
@@ -112,6 +132,19 @@ export async function GET() {
         sessionId: f.sessionId,
         viewers: null, // placeholder until /api/heartbeat lands; keeps /live on the final shape
         sources,
+        ...(telemetry
+          ? {
+              telemetry: {
+                state: telemetry.state,
+                // "Total accumulated" per the design review — not "on this
+                // object": totalAccumulatedTime does not reset on a target
+                // change, so labeling it per-object would misrepresent it.
+                totalAccumulatedTime: telemetry.totalAccumulatedTime,
+                astrometryState: telemetry.astrometryState,
+              },
+            }
+          : {}),
+        ...(objectMatch ? { objectMatch } : {}),
       })
     }
 

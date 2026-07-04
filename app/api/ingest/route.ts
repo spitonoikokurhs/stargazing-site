@@ -286,6 +286,20 @@ export async function POST(req: NextRequest) {
     // most one frame stale.
     let redisWarning = false
     try {
+      // Telemetry subset only, not the raw metadata blob — metadata is
+      // arbitrary/untrusted device JSON up to 64KB; the live-status contract
+      // stays a narrow, known shape. Absent when Tier-1-only frames (no
+      // metadata) or a non-object metadata value.
+      const telemetry =
+        metadata !== null && typeof metadata === 'object' && !Array.isArray(metadata)
+          ? {
+              state: (metadata as Record<string, unknown>).state,
+              astrometryState: (metadata as Record<string, unknown>).astrometryState,
+              totalAccumulatedTime: (metadata as Record<string, unknown>).totalAccumulatedTime,
+              raDegrees: (metadata as Record<string, unknown>).raDegrees,
+              decDegrees: (metadata as Record<string, unknown>).decDegrees,
+            }
+          : undefined
       const payload = JSON.stringify({
         frameId: result.frameId,
         blobUrl: blob.url,
@@ -296,6 +310,7 @@ export async function POST(req: NextRequest) {
         observationId: result.observationId,
         sessionId: result.sessionId,
         objectName: result.objectName,
+        ...(telemetry ? { telemetry } : {}),
       })
       await redis.set(latestFrameKey(source), payload, { ex: 600 })
     } catch (e) {

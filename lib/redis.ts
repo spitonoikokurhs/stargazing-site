@@ -18,7 +18,10 @@ export function isValidSource(value: string): value is Source {
 //
 // live:latest:<source> holds an explicitly JSON.stringify-ed payload
 // (we own both ends of the format; /api/status JSON.parses it):
-//   { frameId, blobUrl, capturedAt, ingestedAt, observationId, sessionId, objectName }
+//   { frameId, blobUrl, capturedAt, ingestedAt, observationId, sessionId, objectName, telemetry? }
+// telemetry is an optional subset of the ingest route's device-metadata field
+// (state, astrometryState, totalAccumulatedTime, raDegrees, decDegrees) —
+// absent on Tier-1-only frames or when the device didn't report metadata.
 // capturedAt = device-side timestamp (best effort), ingestedAt = server receipt
 // time — comparing the two diagnoses stale device clocks.
 // Written with EX 600 (10-min TTL) purely as garbage collection; the 5-min
@@ -31,6 +34,18 @@ export function latestFrameKey(source: Source): string {
 // feed. Read + rewritten (with a TTL) on every live poll for source hysteresis.
 export const ACTIVE_SOURCE_KEY = 'live:active-source'
 
+// Telemetry subset carried in the Redis payload (see latestFrameKey doc
+// above). Every field is independently optional/nullable — a device can omit
+// any of them, and astrometryState governs whether ra/decDegrees are
+// meaningful at all (only 'solved' implies real coordinates).
+export type LatestFrameTelemetry = {
+  state?: string
+  astrometryState?: 'unavailable' | 'solved' | 'failed' | 'present_unknown'
+  totalAccumulatedTime?: number
+  raDegrees?: number | null
+  decDegrees?: number | null
+}
+
 // The shape of the live:latest:<source> payload — the exact object /api/ingest
 // JSON.stringify-es (see ingest route step 7). Kept in sync with that writer.
 export type LatestFrame = {
@@ -41,6 +56,7 @@ export type LatestFrame = {
   observationId: string
   sessionId: string
   objectName: string
+  telemetry?: LatestFrameTelemetry
 }
 
 // Turn a raw Redis value into a LatestFrame, or null if it's absent/malformed.
@@ -71,6 +87,26 @@ export function parseLatestFrame(raw: unknown): LatestFrame | null {
     return null
   }
 
+  // telemetry: best-effort, field-by-field — a malformed or partially-wrong
+  // telemetry object degrades to fewer fields (or none), never fails the
+  // whole frame parse. Only astrometryState values we recognize are kept.
+  let telemetry: LatestFrameTelemetry | undefined
+  if (typeof o.telemetry === 'object' && o.telemetry !== null) {
+    const t = o.telemetry as Record<string, unknown>
+    const validAstrometryStates = ['unavailable', 'solved', 'failed', 'present_unknown']
+    const parsed: LatestFrameTelemetry = {}
+    if (isStr(t.state)) parsed.state = t.state
+    if (isStr(t.astrometryState) && validAstrometryStates.includes(t.astrometryState)) {
+      parsed.astrometryState = t.astrometryState as LatestFrameTelemetry['astrometryState']
+    }
+    if (typeof t.totalAccumulatedTime === 'number' && Number.isFinite(t.totalAccumulatedTime)) {
+      parsed.totalAccumulatedTime = t.totalAccumulatedTime
+    }
+    if (typeof t.raDegrees === 'number' && Number.isFinite(t.raDegrees)) parsed.raDegrees = t.raDegrees
+    if (typeof t.decDegrees === 'number' && Number.isFinite(t.decDegrees)) parsed.decDegrees = t.decDegrees
+    if (Object.keys(parsed).length > 0) telemetry = parsed
+  }
+
   return {
     frameId: o.frameId,
     blobUrl: o.blobUrl,
@@ -79,5 +115,6 @@ export function parseLatestFrame(raw: unknown): LatestFrame | null {
     observationId: o.observationId,
     sessionId: o.sessionId,
     objectName: o.objectName,
+    ...(telemetry ? { telemetry } : {}),
   }
 }
