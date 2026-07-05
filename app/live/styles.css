@@ -1,75 +1,641 @@
-/* v1: function over form. Dark background, stable-aspect image container so
-   there's no layout shift, readable centered text for non-live states. */
+/* Guest View v4 — visual techniques lifted directly from
+   docs/stargazingeventsliveV4.html (the design mockup). Color vars, the FOV/
+   rim treatment, the red pulse, the page background glows/star-texture, and
+   the typography scale all match that file's <style> block. What's NOT
+   lifted: the mockup's static demo content (Tonight's Views rail, the
+   branded-card share concept, Facebook/Messenger/Instagram buttons) — those
+   are explicitly out of scope here (see LiveView.tsx for what's fenced off
+   and why). */
+:root {
+  --bg: #0a0a0f;
+  --text: #edeae3;
+  --muted: #a8a6a0;
+  --soft: #7b7870;
+  --gold: #c7a869;
+  --gold-soft: rgba(199, 168, 105, 0.52);
+  --line: rgba(237, 234, 227, 0.095);
+  --panel: rgba(237, 234, 227, 0.045);
+  --panel2: rgba(237, 234, 227, 0.07);
+  --red: #e25c58;
+}
 
+/* Scrollable page (deliberately NOT the earlier fixed-100dvh/overflow:hidden
+   lock) — this design has more content than one viewport comfortably holds
+   (circle, toggle, name, facts, description, share card), so /live now
+   scrolls normally like the mockup. html/body are left free for the
+   browser's native pull-to-refresh gesture; nothing here re-introduces the
+   old no-scroll containment. */
 .live-root {
-  /* height declared twice on purpose: 100vh first as a fallback for browsers
-     that don't understand 100dvh (an unsupported value is ignored, so the
-     last VALID declaration wins) — then 100dvh overrides it where supported.
-     100dvh is needed because on phones 100vh is measured against the LARGEST
-     possible viewport (browser chrome hidden), so content sized to 100vh can
-     overflow once the address bar is showing — 100dvh tracks the actual
-     visible height and prevents that scroll. overflow:hidden HERE (not on
-     html/body) is what stops this container's own content from ever pushing
-     other page sections into view, while leaving the page-level scroll
-     container free enough for the browser's native pull-to-refresh gesture.
-  */
+  min-height: 100vh;
+  min-height: 100dvh;
+  background:
+    radial-gradient(circle at 14% -4%, rgba(199, 168, 105, 0.08), transparent 34%),
+    radial-gradient(circle at 82% 14%, rgba(96, 151, 180, 0.06), transparent 24%),
+    var(--bg);
+  color: var(--text);
+  font-family: Inter, Lato, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  position: relative;
+}
+
+/* Fine white star-dot texture overlay, lifted exactly from the mockup's
+   body::before. Scoped to .live-root (not body) so it only applies on
+   /live's live-state view, not site-wide. */
+.live-root::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.42;
+  background-image:
+    radial-gradient(circle at 16% 20%, rgba(255, 255, 255, 0.42) 0 1px, transparent 1.6px),
+    radial-gradient(circle at 83% 17%, rgba(255, 255, 255, 0.28) 0 1px, transparent 1.6px),
+    radial-gradient(circle at 88% 66%, rgba(255, 255, 255, 0.22) 0 1px, transparent 1.5px),
+    radial-gradient(circle at 21% 76%, rgba(255, 255, 255, 0.2) 0 1px, transparent 1.5px);
+}
+
+.page {
+  position: relative;
+  width: min(100%, 560px);
+  margin: 0 auto;
+  padding: 18px 10px 28px;
+}
+
+/* Single element now (brand text removed — it lives on the rim instead), so
+   this centers it. min-height (not a fixed height) + no nowrap: the content
+   can wrap onto a second line rather than ever being pushed off-screen,
+   belt-and-suspenders alongside the seconds->minutes rollover in
+   formatUpdatedAgo() which is what actually prevents the overflow in
+   practice. */
+.topbar {
+  min-height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 4px 12px;
+  color: rgba(237, 234, 227, 0.72);
+  font-size: clamp(10px, 2.7vw, 13px);
+  letter-spacing: 0.19em;
+  text-transform: uppercase;
+  text-align: center;
+}
+
+.topbar__live {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  justify-content: center;
+  flex-wrap: wrap;
+  max-width: 100%;
+  color: rgba(237, 234, 227, 0.78);
+}
+
+.viewing-earlier-badge {
+  color: var(--gold);
+  letter-spacing: 0.14em;
+}
+
+/* Red pulse LIVE dot — lifted exactly (keyframes + timing) from the mockup. */
+.red-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--red);
+  box-shadow: 0 0 12px rgba(226, 92, 88, 0.65);
+  animation: redPulse 1.45s ease-in-out infinite;
+  flex: 0 0 auto;
+}
+
+.red-dot.reconnecting {
+  background: #f5a623;
+  box-shadow: 0 0 12px rgba(245, 166, 35, 0.65);
+}
+
+@keyframes redPulse {
+  0%,
+  100% {
+    opacity: 0.48;
+    transform: scale(0.86);
+    box-shadow:
+      0 0 0 0 rgba(226, 92, 88, 0.35),
+      0 0 10px rgba(226, 92, 88, 0.42);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1);
+    box-shadow:
+      0 0 0 5px rgba(226, 92, 88, 0),
+      0 0 16px rgba(226, 92, 88, 0.78);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .red-dot {
+    animation: none;
+  }
+}
+
+/* Fullscreen mode: maximum image coverage is the whole point, not the FOV
+   aesthetic — the circular framing, rim, and info block are all dropped.
+   Just the full square frame, maximized, plus a small exit affordance. This
+   still uses the OLD fixed/no-scroll treatment since it's a dedicated
+   full-viewport mode, not part of the new scrollable page. */
+.live-root--fullscreen {
   height: 100vh;
   height: 100dvh;
+  min-height: 0;
   overflow: hidden;
-  background: #0a0a0f;
-  color: #eee;
+  position: relative;
+  padding: 0;
+  background: #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.live-root--fullscreen::before {
+  content: none;
+}
+
+.fullscreen-image {
+  width: 100%;
+  height: 100%;
+  /* contain (not cover): the ENTIRE target must stay visible — this is the
+     "see everything, maximized" mode, so nothing may be cropped off the
+     edges the way the circular view's object-fit:cover intentionally does. */
+  object-fit: contain;
+}
+
+/* Base for both fullscreen-toggle buttons (the one on the default view and
+   the exit button shown while actually in fullscreen) — position/sizing
+   comes from whichever modifier class is combined with this one. */
+.fullscreen-button {
+  border: none;
+  color: #a8a6a0;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.fullscreen-button:hover,
+.fullscreen-button:focus-visible {
+  color: var(--text);
+}
+
+.fullscreen-exit-button {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  z-index: 2;
+  background: rgba(10, 10, 15, 0.55);
+  border-radius: 50%;
+  backdrop-filter: blur(4px);
+  width: 36px;
+  height: 36px;
+  font-size: 18px;
+}
+
+/* The square viewer + circular FOV inside it, lifted from the mockup's
+   .viewer/.sky-square/.fov. The mockup's .fov is a FAKE gradient nebula
+   stand-in; ours puts the REAL telescope image there via object-fit:cover,
+   but keeps the same framing: square aspect-ratio:1/1 container, circular
+   inset mask, vignette, border-radius, box-shadow depth. */
+.viewer {
+  position: relative;
+  width: min(100%, 96vw);
+  max-width: 540px;
+  aspect-ratio: 1 / 1;
+  margin: 8px auto 0;
+  border-radius: 18px;
+  background: #020204;
+  overflow: hidden;
+  box-shadow:
+    0 28px 80px rgba(0, 0, 0, 0.56),
+    0 0 0 1px rgba(199, 168, 105, 0.1);
+}
+
+.sky-square {
+  position: absolute;
+  inset: 0;
+  background: #000;
+}
+
+/* Circular FOV inset holding the REAL image (object-fit:cover). Border-radius
+   50% + overflow:hidden gives the circular mask; the inset box-shadow
+   (lifted from the mockup's .fov) adds the dark vignette around the edge of
+   the circle so it reads as an eyepiece view, not just a cropped photo. */
+.fov-image {
+  position: absolute;
+  inset: 2.05%;
+  width: 95.9%;
+  height: 95.9%;
+  border-radius: 50%;
+  object-fit: cover;
+  box-shadow: inset 0 0 52px rgba(0, 0, 0, 0.86);
+}
+
+/* Vignette overlay ON TOP of the real image (mockup's .fov::after) — darkens
+   the rim of the circle and adds a faint diagonal sheen, purely decorative,
+   pointer-events:none so it never blocks interaction with anything beneath. */
+.fov-vignette {
+  position: absolute;
+  inset: 2.05%;
+  border-radius: 50%;
+  pointer-events: none;
+  opacity: 0.48;
+  background:
+    radial-gradient(circle at 50% 50%, transparent 0 55%, rgba(0, 0, 0, 0.22) 69%, rgba(0, 0, 0, 0.76) 100%),
+    linear-gradient(122deg, transparent 0 38%, rgba(255, 255, 255, 0.038) 43%, transparent 52%);
+}
+
+/* Brass/gold rim ring + tick marks + curved brand text — lifted exactly from
+   the mockup's .rim/.rim-ring/.rim-tick/.rim-brand, including the
+   non-scaling-stroke technique (so the ring/ticks stay a constant visual
+   weight regardless of the SVG's scaled viewBox). */
+.rim {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.rim-ring {
+  fill: none;
+  /* Softened from 0.26 per design feedback — reads as faint instrument
+     texture rather than a distinct line. Ring kept, just quieter. */
+  stroke: rgba(199, 168, 105, 0.16);
+  stroke-width: 0.42;
+  vector-effect: non-scaling-stroke;
+}
+
+.rim-ring.outer {
+  stroke: rgba(237, 234, 227, 0.07);
+  stroke-width: 0.35;
+}
+
+.rim-tick {
+  stroke: rgba(199, 168, 105, 0.22);
+  stroke-width: 0.32;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.rim-brand {
+  /* ~15% more opaque than the mockup's 0.28, per design feedback — the
+     brand text was too faint to read comfortably on a phone. */
+  fill: rgba(237, 234, 227, 0.32);
+  font-family: Inter, Lato, ui-sans-serif, system-ui, sans-serif;
+  font-size: 2.85px;
+  font-weight: 500;
+  letter-spacing: 0.58px;
+  text-transform: uppercase;
+}
+
+.viewer-fullscreen-button {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 2;
+  background: rgba(10, 10, 15, 0.55);
+  border-radius: 50%;
+  backdrop-filter: blur(4px);
+  width: 32px;
+  height: 32px;
+  font-size: 16px;
+}
+
+/* Progress toggle — DEMO-MOCK ONLY (see SnapshotToggle's doc comment in
+   LiveView.tsx for why: no backend frame-history endpoint exists yet).
+   Styling lifted from the mockup's .snapshot-toggle/.snap. */
+.snapshot-toggle {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 5px;
+  margin: 13px auto 0;
+  padding: 4px;
+  width: min(100%, 540px);
+  border: 1px solid rgba(237, 234, 227, 0.08);
+  border-radius: 999px;
+  background: rgba(237, 234, 227, 0.035);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035);
+}
+
+.snap {
+  border: 0;
+  border-radius: 999px;
+  min-height: 34px;
+  padding: 0 6px;
+  background: transparent;
+  color: rgba(168, 166, 160, 0.86);
+  font: 600 clamp(10px, 2.9vw, 12px) / 1 Inter, Lato, system-ui, sans-serif;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.snap[aria-pressed="true"] {
+  color: #171005;
+  background: linear-gradient(180deg, #e7ce8a, #c39b54);
+  box-shadow: 0 6px 20px rgba(199, 168, 105, 0.12);
+}
+
+.snap:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.content {
+  text-align: center;
+  padding: 0 2px;
+}
+
+.integration {
+  margin: 14px 0 5px;
+  color: rgba(199, 168, 105, 0.92);
+  font-size: clamp(11px, 3.1vw, 13px);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+.title {
+  margin: 0 auto;
+  max-width: 96%;
+  color: #f2eee6;
+  font-family: var(--font-display), "Cormorant Garamond", Georgia, "Times New Roman", serif;
+  font-size: clamp(42px, 12vw, 68px);
+  font-weight: 520;
+  line-height: 0.92;
+  letter-spacing: 0.005em;
+  text-wrap: balance;
+}
+
+.type-line {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin: 16px auto 0;
+  text-align: center;
+}
+
+/* Color-coded pill: icon + label on a tinted rounded background. --type-color
+   is set inline per-object (see lib/type-colors.ts / ObjectTypeLine) and
+   color-mix() derives the ~13% tinted background and border from it, so
+   there's one CSS rule for all 11 types instead of a class per color. */
+.type-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px 6px 8px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--type-color) 55%, transparent);
+  background: color-mix(in srgb, var(--type-color) 13%, transparent);
+}
+
+/* Redundancy guard (e.g. name "Andromeda Galaxy" + type "Galaxy"): icon-only,
+   no repeated text label — tighter, symmetric padding since there's no label
+   to balance against. */
+.type-pill--icon-only {
+  padding: 8px;
+}
+
+.type-pill-label {
+  color: var(--type-color);
+  font-size: clamp(12px, 3.4vw, 14px);
+  font-weight: 650;
+  letter-spacing: 0.02em;
+}
+
+/* The colored jewel-illustration icons (see TypeIcon in LiveView.tsx) carry
+   their own baked-in fills/gradients — deliberately not recolored here. */
+.type-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  flex: 0 0 24px;
+  line-height: 0;
+}
+
+.type-pill-definition {
+  margin: 0;
+  color: rgba(237, 234, 227, 0.88);
+  font-size: clamp(13px, 3.6vw, 15px);
+  line-height: 1.3;
+  max-width: 42ch;
+  text-wrap: balance;
+}
+
+.facts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+  margin: 16px auto 0;
+  width: min(100%, 540px);
+}
+
+.fact {
+  min-width: 0;
+  min-height: 58px;
+  padding: 10px 7px;
+  border: 1px solid rgba(237, 234, 227, 0.085);
+  border-radius: 18px;
+  background: rgba(237, 234, 227, 0.043);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 5px;
+}
+
+.fact span {
+  color: rgba(168, 166, 160, 0.75);
+  font-size: clamp(8px, 2.35vw, 10px);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.fact strong {
+  max-width: 100%;
+  color: rgba(237, 234, 227, 0.95);
+  font-size: clamp(11px, 3.25vw, 14px);
+  line-height: 1.15;
+  font-weight: 650;
+  overflow-wrap: anywhere;
+  text-wrap: balance;
+}
+
+.description {
+  margin: 16px auto 0;
+  width: min(100%, 520px);
+  padding: 0 8px;
+}
+
+.type-description {
+  margin: 0;
+  color: rgba(237, 234, 227, 0.91);
+  font-size: clamp(16px, 4.6vw, 19px);
+  line-height: 1.36;
+  text-wrap: balance;
+}
+
+/* Our object-level description (catalog description or rotating universal
+   phrase) reuses the mockup's .object-description card treatment. */
+.live-object-desc {
+  margin: 15px auto 0;
+  padding: 14px 14px;
+  border: 1px solid rgba(199, 168, 105, 0.12);
+  border-radius: 22px;
+  background: linear-gradient(180deg, rgba(237, 234, 227, 0.052), rgba(237, 234, 227, 0.026));
+  color: rgba(237, 234, 227, 0.82);
+  font-size: clamp(13px, 3.8vw, 15px);
+  line-height: 1.42;
+  text-wrap: balance;
+}
+
+/* The rotating universal-phrase variant crossfades; the catalog-description
+   variant is static (no transition). */
+.live-object-desc--rotating {
+  opacity: 0;
+  transition: opacity 600ms ease;
+  font-style: italic;
+}
+
+.live-object-desc--rotating.is-visible {
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .live-object-desc--rotating {
+    transition: none;
+  }
+}
+
+/* Share card — lifted from the mockup's .share-card/.share-grid/.share-btn.
+   Only 4 buttons (Share/WhatsApp/X/Copy), NOT the mockup's 5-across
+   Facebook/Messenger/Instagram grid — those can't pre-fill share text. */
+.share-card {
+  margin: 18px auto 0;
+  width: min(100%, 540px);
+  padding: 14px;
+  border: 1px solid rgba(237, 234, 227, 0.08);
+  border-radius: 24px;
+  background: rgba(237, 234, 227, 0.038);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035);
+}
+
+.share-head {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 12px;
+  color: rgba(168, 166, 160, 0.78);
+  font-size: clamp(10px, 2.8vw, 12px);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.share-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.share-btn {
+  appearance: none;
+  min-width: 0;
+  min-height: 68px;
+  border: 1px solid rgba(237, 234, 227, 0.08);
+  border-radius: 18px;
+  background: rgba(10, 10, 15, 0.56);
+  color: rgba(237, 234, 227, 0.9);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 16px;
-  box-sizing: border-box;
-  font-family: system-ui, sans-serif;
-}
-
-.live-image-frame {
-  width: 100%;
-  max-width: 960px;
-  aspect-ratio: 16 / 9;
-  background: #111;
-  overflow: hidden;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.live-image {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-}
-
-.live-meta {
-  margin-top: 12px;
-  display: flex;
-  flex-wrap: wrap; /* on narrow phones the three items stack instead of overflowing */
-  justify-content: center;
-  gap: 8px 12px;
-  align-items: center;
-  font-size: 14px;
-}
-
-.live-indicator {
+  gap: 7px;
+  font-size: clamp(10px, 2.8vw, 12px);
   font-weight: 700;
-  letter-spacing: 0.05em;
-  color: #ff3b3b;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
 }
 
-.live-indicator.reconnecting {
-  color: #f5a623;
+.share-btn svg {
+  width: 24px;
+  height: 24px;
+  display: block;
+  color: rgba(217, 181, 88, 0.75); /* dim gold, monochrome (currentColor) */
 }
 
-.live-object {
-  color: #6e6c66;
+.share-btn:hover svg,
+.share-btn:focus-visible svg {
+  color: #d9b558;
 }
 
-.live-updated {
-  color: #6e6c66;
+.share-status {
+  min-height: 16px;
+  margin-top: 9px;
+  color: rgba(199, 168, 105, 0.76);
+  text-align: center;
+  font-size: 12px;
+}
+
+@media (max-width: 360px) {
+  .page {
+    padding-left: 8px;
+    padding-right: 8px;
+  }
+  .topbar {
+    letter-spacing: 0.13em;
+  }
+  .facts {
+    gap: 5px;
+  }
+  .fact {
+    border-radius: 15px;
+    padding: 8px 4px;
+    min-height: 56px;
+  }
+  .share-card {
+    padding: 11px;
+  }
+  .share-grid {
+    gap: 6px;
+  }
+  .share-btn {
+    min-height: 62px;
+    border-radius: 15px;
+  }
+  .share-btn svg {
+    width: 21px;
+    height: 21px;
+  }
+}
+
+@media (max-height: 720px) {
+  .page {
+    padding-top: 11px;
+  }
+  .topbar {
+    height: 24px;
+  }
+  .snapshot-toggle {
+    margin-top: 10px;
+  }
+  .integration {
+    margin-top: 11px;
+  }
+  .title {
+    font-size: clamp(38px, 10.8vw, 58px);
+  }
+  .facts {
+    margin-top: 13px;
+  }
+  .description {
+    margin-top: 13px;
+  }
 }
 
 .status-root {

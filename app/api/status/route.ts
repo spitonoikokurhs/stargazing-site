@@ -107,7 +107,9 @@ export async function GET() {
       // e.g. Tier-1-only frames) omits them outright, not null/"Unknown", so
       // the frontend's existing no-confident-name fallback path handles it.
       const telemetry = f.telemetry
-      let objectMatch: { name: string; confidence: 'high' | 'medium' | 'low' | 'none' } | undefined
+      let objectMatch:
+        | { name: string; confidence: 'high' | 'medium' | 'low' | 'none'; description: string; type: string }
+        | undefined
       if (
         telemetry?.astrometryState === 'solved' &&
         typeof telemetry.raDegrees === 'number' &&
@@ -115,7 +117,12 @@ export async function GET() {
       ) {
         const result = matchCoordinates(telemetry.raDegrees, telemetry.decDegrees)
         if (result.match) {
-          objectMatch = { name: result.match.primaryName, confidence: result.confidence }
+          objectMatch = {
+            name: result.match.primaryName,
+            confidence: result.confidence,
+            description: result.match.description,
+            type: result.match.type,
+          }
         }
       }
 

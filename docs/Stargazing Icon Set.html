@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Object-type Icon Set — Stargazing Live</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #0a0a0f; display: flex; align-items: center; justify-content: center; min-height: 100vh; font-family: -apple-system, BlinkMacSystemFont, sans-serif; }
+    #__bundler_loading { position: fixed; bottom: 20px; right: 20px; font: 13px/1.4 -apple-system, BlinkMacSystemFont, sans-serif; color: #666; background: #fff; padding: 8px 14px; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,0.12); z-index: 10000; }
+    #__bundler_thumbnail { position: fixed; inset: 0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: #0a0a0f; z-index: 9999; }
+    #__bundler_thumbnail svg { width: 100%; height: 100%; object-fit: contain; }
+    #__bundler_placeholder { color: #999; font-size: 14px; }
+  </style>
+  <noscript>
+    <style>#__bundler_loading { display: none; }</style>
+    <div style="position:fixed;bottom:12px;left:12px;font:13px/1.4 -apple-system,BlinkMacSystemFont,sans-serif;color:#999;background:rgba(255,255,255,0.9);padding:6px 12px;border-radius:6px;box-shadow:0 1px 4px rgba(0,0,0,0.08);z-index:10000;">
+      This page requires JavaScript to display.
+    </div>
+  </noscript>
+</head>
+<body>
+  <div id="__bundler_thumbnail">
+  <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+    <rect width="100" height="100" fill="#0a0a0f"></rect>
+    <circle cx="50" cy="50" r="18" fill="#F0A85E" opacity="0.85"></circle>
+    <circle cx="50" cy="50" r="8" fill="#FFFCF0"></circle>
+    <circle cx="20" cy="20" r="2" fill="#fff" opacity="0.8"></circle>
+    <circle cx="80" cy="30" r="1.5" fill="#fff" opacity="0.6"></circle>
+    <circle cx="30" cy="80" r="1.5" fill="#fff" opacity="0.6"></circle>
+    <circle cx="75" cy="75" r="2" fill="#fff" opacity="0.7"></circle>
+  </svg>
+</div>
+  <div id="__bundler_loading">Unpacking...</div>
+
+  <script>
+    
+document.addEventListener('DOMContentLoaded', async function() {
+  const loading = document.getElementById('__bundler_loading');
+  function setStatus(msg) { if (loading) loading.textContent = msg; }
+
+  // Error sink persists across replaceWith since it's on window, not the DOM.
+  window.addEventListener('error', function(e) {
+    var p = document.body || document.documentElement;
+    var d = document.getElementById('__bundler_err') || p.appendChild(document.createElement('div'));
+    d.id = '__bundler_err';
+    d.style.cssText = 'position:fixed;bottom:12px;left:12px;right:12px;font:12px/1.4 ui-monospace,monospace;background:#2a1215;color:#ff8a80;padding:10px 14px;border-radius:8px;border:1px solid #5c2b2e;z-index:99999;white-space:pre-wrap;max-height:40vh;overflow:auto';
+    d.textContent = (d.textContent ? d.textContent + String.fromCharCode(10) : '') +
+      '[bundle] ' + (e.message || e.type) +
+      (e.filename ? ' (' + e.filename.slice(0, 60) + ':' + e.lineno + ')' : '');
+  }, true);
+
+  try {
+    const manifestEl = document.querySelector('script[type="__bundler/manifest"]');
+    const templateEl = document.querySelector('script[type="__bundler/template"]');
+    if (!manifestEl || !templateEl) {
+      setStatus('Error: missing bundle data');
+      console.error('[bundler] Missing script tags — manifestEl:', !!manifestEl, 'templateEl:', !!templateEl);
+      return;
+    }
+
+    const manifest = JSON.parse(manifestEl.textContent);
+    let template = JSON.parse(templateEl.textContent);
+
+    const uuids = Object.keys(manifest);
+    setStatus('Unpacking ' + uuids.length + ' assets...');
+
+    const blobUrls = {};
+    await Promise.all(uuids.map(async (uuid) => {
+      const entry = manifest[uuid];
+      try {
+        const binaryStr = atob(entry.data);
+        const bytes = new Uint8Array(binaryStr.length);
+        for (let i = 0; i < binaryStr.length; i++) bytes[i] = binaryStr.charCodeAt(i);
+
+        let finalBytes = bytes;
+        if (entry.compressed) {
+          if (typeof DecompressionStream !== 'undefined') {
+            const ds = new DecompressionStream('gzip');
+            const writer = ds.writable.getWriter();
+            const reader = ds.readable.getReader();
+            writer.write(bytes);
+            writer.close();
+            const chunks = [];
+            let totalLen = 0;
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
+              chunks.push(value);
+              totalLen += value.length;
+            }
+            finalBytes = new Uint8Array(totalLen);
+            let offset = 0;
+            for (const chunk of chunks) { finalBytes.set(chunk, offset); offset += chunk.length; }
+          } else {
+            console.warn('DecompressionStream not available, asset ' + uuid + ' may not render');
+          }
+        }
+
+        blobUrls[uuid] = URL.createObjectURL(new Blob([finalBytes], { type: entry.mime }));
+      } catch (err) {
+        console.error('Failed to decode asset ' + uuid + ':', err);
+        blobUrls[uuid] = URL.createObjectURL(new Blob([], { type: entry.mime }));
+      }
+    }));
+
+    const extResEl = document.querySelector('script[type="__bundler/ext_resources"]');
+    const extResources = extResEl ? JSON.parse(extResEl.textContent) : [];
+    const resourceMap = {};
+    for (const entry of extResources) {
+      if (blobUrls[entry.uuid]) resourceMap[entry.id] = blobUrls[entry.uuid];
+    }
+
+    setStatus('Rendering...');
+    for (const uuid of uuids) template = template.split(uuid).join(blobUrls[uuid]);
+
+    // Strip integrity + crossorigin — blob URLs from a file:// document inherit
+    // a null origin, so crossorigin forces a CORS fetch that SRI then rejects.
+    // The manifest bytes are ours; SRI protects against CDN compromise, not this.
+    template = template.replace(/\s+integrity="[^"]*"/gi, '').replace(/\s+crossorigin="[^"]*"/gi, '');
+
+    const resourceScript = '<script>window.__resources = ' +
+      JSON.stringify(resourceMap).split('</' + 'script>').join('<\\/' + 'script>') +
+      ';</' + 'script>';
+    // Inject after <head> so the DOCTYPE stays first; prepending the script
+    // would push the parser into quirks mode. DOMParser always emits a <head>
+    // (synthesizing one if the source HTML omitted it) but may carry
+    // attributes through, so match the full opening tag. slice() rather than
+    // replace() keeps us clear of $-pattern substitution in resourceScript.
+    const headOpen = template.match(/<head[^>]*>/i);
+    if (headOpen) {
+      const i = headOpen.index + headOpen[0].length;
+      template = template.slice(0, i) + resourceScript + template.slice(i);
+    }
+
+    // Parse the template and swap the root element. Scripts inserted via
+    // DOMParser/replaceWith are inert per spec — re-create each with
+    // createElement so they execute, awaiting onload for src scripts to
+    // preserve ordering (React before ReactDOM before Babel before text/babel).
+    const doc = new DOMParser().parseFromString(template, 'text/html');
+    document.documentElement.replaceWith(doc.documentElement);
+    const dead = Array.from(document.scripts);
+    for (const old of dead) {
+      const s = document.createElement('script');
+      for (const a of old.attributes) s.setAttribute(a.name, a.value);
+      s.textContent = old.textContent;
+      // text/babel scripts with a src: fetch and inline. transformScriptTags
+      // does XHR against the src, but blob:null/ from a file:// origin is
+      // silently dropped. Inlining makes it a plain inline babel script,
+      // which transformScriptTags handles unconditionally.
+      if ((s.type === 'text/babel' || s.type === 'text/jsx') && s.src) {
+        const r = await fetch(s.src);
+        s.textContent = await r.text();
+        s.removeAttribute('src');
+      }
+      const p = s.src ? new Promise(function(r) { s.onload = s.onerror = r; }) : null;
+      old.replaceWith(s);
+      if (p) await p;
+    }
+    // Babel standalone auto-transforms type=text/babel on DOMContentLoaded,
+    // which fired before we swapped the document. Trigger manually if present.
+    if (window.Babel && typeof window.Babel.transformScriptTags === 'function') {
+      window.Babel.transformScriptTags();
+    }
+  } catch (err) {
+    setStatus('Error unpacking: ' + err.message);
+    console.error('Bundle unpack error:', err);
+  }
+});
+
+  </script>
+
+  <script type="__bundler/manifest">
+{}
+  </script>
+
+  <script type="__bundler/ext_resources">
+[]
+  </script>
+
+  <script type="__bundler/template">
+"<!DOCTYPE html>\n<html lang=\"en\"><head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<title>Object-type Icon Set — Stargazing Live<\u002Ftitle>\n\n\n<style>\n  body{margin:0;background:#0a0a0f;}\n<\u002Fstyle>\n\n<\u002Fhead>\n<body>\n\n<div style=\"min-height:100vh;background:#0a0a0f;padding:48px 28px 100px;font-family:system-ui,-apple-system,sans-serif;\">\n  <div style=\"max-width:720px;margin:0 auto;\">\n    <div style=\"margin-bottom:8px;font:600 11px system-ui;letter-spacing:.14em;color:#8f8d89;text-transform:uppercase;\">Final — icon-set.dc.html<\u002Fdiv>\n    <h1 style=\"font:400 30px Georgia,serif;color:#EDEAE3;margin:0 0 6px;\">Object-type icon set<\u002Fh1>\n    <p style=\"font:400 13.5px system-ui;color:#8f8d89;margin:0 0 40px;max-width:600px;\">Locked picks, one per type. Shown at real display size (32px) plus 2× for inspection. Ready to lift into the live page.<\u002Fp>\n\n    <div style=\"display:flex;flex-direction:column;gap:0;\">\n\n      <!-- Galaxy -->\n      <div style=\"display:flex;align-items:center;gap:24px;padding:18px 0;border-bottom:1px solid rgba(255,255,255,.08);\">\n        <div style=\"display:flex;align-items:center;gap:14px;width:110px;flex:none;\">\n          <svg viewBox=\"0 0 64 64\" width=\"32\" height=\"32\" style=\"display:block;\">\n            <defs>\n              <radialGradient id=\"fga2swirl\" cx=\"50%\" cy=\"50%\" r=\"65%\"><stop offset=\"0%\" stop-color=\"#FFE8B8\"><\u002Fstop><stop offset=\"28%\" stop-color=\"#F0A85E\"><\u002Fstop><stop offset=\"55%\" stop-color=\"#B784C9\"><\u002Fstop><stop offset=\"100%\" stop-color=\"#5A6FC0\" stop-opacity=\".55\"><\u002Fstop><\u002FradialGradient>\n              <radialGradient id=\"fga2core\" cx=\"50%\" cy=\"50%\" r=\"55%\"><stop offset=\"0%\" stop-color=\"#FFFCF0\"><\u002Fstop><stop offset=\"45%\" stop-color=\"#FFDFA0\" stop-opacity=\".9\"><\u002Fstop><stop offset=\"100%\" stop-color=\"#FFDFA0\" stop-opacity=\"0\"><\u002Fstop><\u002FradialGradient>\n            <\u002Fdefs>\n            <circle cx=\"32\" cy=\"32\" r=\"26\" fill=\"#0d0d14\"><\u002Fcircle>\n            <g transform=\"rotate(90 32 32)\">\n              <path d=\"M34.3,32.2 L35.5,33.1 L36.2,34.3 L36.5,35.8 L36.3,37.4 L35.6,39.0 L34.4,40.5 L32.7,41.8 L30.6,42.6 L28.3,42.9 L25.7,42.7 L23.2,41.8 L20.8,40.3 L18.7,38.3 L17.1,35.7 L16.0,32.7 L15.6,29.4 L15.9,26.0 L17.0,22.6 L18.8,19.5 L21.2,16.7 L24.3,14.4 L27.9,12.9 L31.8,12.0 L35.8,12.0 L39.8,12.8 L43.7,14.5 L39.6,13.5 L35.5,13.4 L31.8,14.2 L28.5,15.6 L25.7,17.5 L23.5,19.9 L21.9,22.5 L21.0,25.2 L20.7,27.8 L21.0,30.2 L21.7,32.4 L22.7,34.3 L24.1,35.8 L25.5,36.8 L27.1,37.5 L28.6,37.8 L30.0,37.8 L31.3,37.5 L32.4,37.0 L33.2,36.3 L33.8,35.6 L34.2,34.8 L34.4,34.0 L34.5,33.3 L34.4,32.7 Z\" fill=\"url(#fga2swirl)\" opacity=\"0.9\"><\u002Fpath>\n              <path d=\"M34.3,32.2 L35.5,33.1 L36.2,34.3 L36.5,35.8 L36.3,37.4 L35.6,39.0 L34.4,40.5 L32.7,41.8 L30.6,42.6 L28.3,42.9 L25.7,42.7 L23.2,41.8 L20.8,40.3 L18.7,38.3 L17.1,35.7 L16.0,32.7 L15.6,29.4 L15.9,26.0 L17.0,22.6 L18.8,19.5 L21.2,16.7 L24.3,14.4 L27.9,12.9 L31.8,12.0 L35.8,12.0 L39.8,12.8 L43.7,14.5 L39.6,13.5 L35.5,13.4 L31.8,14.2 L28.5,15.6 L25.7,17.5 L23.5,19.9 L21.9,22.5 L21.0,25.2 L20.7,27.8 L21.0,30.2 L21.7,32.4 L22.7,34.3 L24.1,35.8 L25.5,36.8 L27.1,37.5 L28.6,37.8 L30.0,37.8 L31.3,37.5 L32.4,37.0 L33.2,36.3 L33.8,35.6 L34.2,34.8 L34.4,34.0 L34.5,33.3 L34.4,32.7 Z\" fill=\"url(#fga2swirl)\" opacity=\"0.75\" transform=\"rotate(180 32 32)\"><\u002Fpath>\n            <\u002Fg>\n            <circle cx=\"32\" cy=\"32\" r=\"10\" fill=\"url(#fga2core)\"><\u002Fcircle>\n            <circle cx=\"32\" cy=\"32\" r=\"2.6\" fill=\"#FFFDF6\"><\u002Fcircle>\n            <circle cx=\"19\" cy=\"20\" r=\".7\" fill=\"#fff\" opacity=\".7\"><\u002Fcircle><circle cx=\"46\" cy=\"45\" r=\".7\" fill=\"#fff\" opacity=\".6\"><\u002Fcircle>\n          <\u002Fsvg>\n          <svg viewBox=\"0 0 64 64\" width=\"64\" height=\"64\" style=\"display:block;\">\n            <circle cx=\"32\" cy=\"32\" r=\"26\" fill=\"#0d0d14\"><\u002Fcircle>\n            <g transform=\"rotate(90 32 32)\">\n              <path d=\"M34.3,32.2 L35.5,33.1 L36.2,34.3 L36.5,35.8 L36.3,37.4 L35.6,39.0 L34.4,40.5 L32.7,41.8 L30.6,42.6 L28.3,42.9 L25.7,42.7 L23.2,41.8 L20.8,40.3 L18.7,38.3 L17.1,35.7 L16.0,32.7 L15.6,29.4 L15.9,26.0 L17.0,22.6 L18.8,19.5 L21.2,16.7 L24.3,14.4 L27.9,12.9 L31.8,12.0 L35.8,12.0 L39.8,12.8 L43.7,14.5 L39.6,13.5 L35.5,13.4 L31.8,14.2 L28.5,15.6 L25.7,17.5 L23.5,19.9 L21.9,22.5 L21.0,25.2 L20.7,27.8 L21.0,30.2 L21.7,32.4 L22.7,34.3 L24.1,35.8 L25.5,36.8 L27.1,37.5 L28.6,37.8 L30.0,37.8 L31.3,37.5 L32.4,37.0 L33.2,36.3 L33.8,35.6 L34.2,34.8 L34.4,34.0 L34.5,33.3 L34.4,32.7 Z\" fill=\"url(#fga2swirl)\" opacity=\"0.9\"><\u002Fpath>\n              <path d=\"M34.3,32.2 L35.5,33.1 L36.2,34.3 L36.5,35.8 L36.3,37.4 L35.6,39.0 L34.4,40.5 L32.7,41.8 L30.6,42.6 L28.3,42.9 L25.7,42.7 L23.2,41.8 L20.8,40.3 L18.7,38.3 L17.1,35.7 L16.0,32.7 L15.6,29.4 L15.9,26.0 L17.0,22.6 L18.8,19.5 L21.2,16.7 L24.3,14.4 L27.9,12.9 L31.8,12.0 L35.8,12.0 L39.8,12.8 L43.7,14.5 L39.6,13.5 L35.5,13.4 L31.8,14.2 L28.5,15.6 L25.7,17.5 L23.5,19.9 L21.9,22.5 L21.0,25.2 L20.7,27.8 L21.0,30.2 L21.7,32.4 L22.7,34.3 L24.1,35.8 L25.5,36.8 L27.1,37.5 L28.6,37.8 L30.0,37.8 L31.3,37.5 L32.4,37.0 L33.2,36.3 L33.8,35.6 L34.2,34.8 L34.4,34.0 L34.5,33.3 L34.4,32.7 Z\" fill=\"url(#fga2swirl)\" opacity=\"0.75\" transform=\"rotate(180 32 32)\"><\u002Fpath>\n            <\u002Fg>\n            <circle cx=\"32\" cy=\"32\" r=\"10\" fill=\"url(#fga2core)\"><\u002Fcircle>\n            <circle cx=\"32\" cy=\"32\" r=\"2.6\" fill=\"#FFFDF6\"><\u002Fcircle>\n            <circle cx=\"19\" cy=\"20\" r=\".7\" fill=\"#fff\" opacity=\".7\"><\u002Fcircle><circle cx=\"46\" cy=\"45\" r=\".7\" fill=\"#fff\" opacity=\".6\"><\u002Fcircle>\n          <\u002Fsvg>\n        <\u002Fdiv>\n        <div><div style=\"font:600 13px system-ui;color:#EDEAE3;\">Galaxy<\u002Fdiv><div style=\"font:400 11.5px system-ui;color:#8f8d89;\">Direction A · Variant 2 — edge-on disc<\u002Fdiv><\u002Fdiv>\n      <\u002Fdiv>\n\n      <!-- Diffuse Nebula -->\n      <div style=\"display:flex;align-items:center;gap:24px;padding:18px 0;border-bottom:1px solid rgba(255,255,255,.08);\">\n        <div style=\"display:flex;align-items:center;gap:14px;width:110px;flex:none;\">\n          <svg viewBox=\"0 0 64 64\" width=\"32\" height=\"32\" style=\"display:block;\">\n            <defs>\n              <radialGradient id=\"fneba2cloud\" cx=\"48%\" cy=\"45%\" r=\"60%\"><stop offset=\"0%\" stop-color=\"#fddce8\"><\u002Fstop><stop offset=\"22%\" stop-color=\"#e8a0c4\"><\u002Fstop><stop offset=\"50%\" stop-color=\"#c4508f\"><\u002Fstop><stop offset=\"78%\" stop-color=\"#7a2a52\"><\u002Fstop><stop offset=\"100%\" stop-color=\"#3d1428\" stop-opacity=\"0\"><\u002Fstop><\u002FradialGradient>\n              <radialGradient id=\"fneba2core\" cx=\"50%\" cy=\"50%\" r=\"50%\"><stop offset=\"0%\" stop-color=\"#fff6fa\"><\u002Fstop><stop offset=\"50%\" stop-color=\"#ffd6ea\" stop-opacity=\".8\"><\u002Fstop><stop offset=\"100%\" stop-color=\"#ffd6ea\" stop-opacity=\"0\"><\u002Fstop><\u002FradialGradient>\n            <\u002Fdefs>\n            <circle cx=\"32\" cy=\"32\" r=\"26\" fill=\"#0f0810\"><\u002Fcircle>\n            <path d=\"M32,10 C42,14 48,24 44,34 C40,44 28,50 20,44 C12,38 12,26 20,18 C24,14 28,12 32,10Z\" fill=\"url(#fneba2cloud)\" opacity=\".9\"><\u002Fpath>\n            <path d=\"M32,40 C34,44 40,44 42,38 C40,42 35,44 32,40Z\" fill=\"#2a1018\" opacity=\".4\"><\u002Fpath>\n            <circle cx=\"30\" cy=\"28\" r=\"9\" fill=\"url(#fneba2core)\"><\u002Fcircle>\n            <circle cx=\"30\" cy=\"28\" r=\"2.2\" fill=\"#fff\"><\u002Fcircle>\n            <circle cx=\"40\" cy=\"38\" r=\"1\" fill=\"#fff\"><\u002Fcircle><circle cx=\"24\" cy=\"20\" r=\"1\" fill=\"#fff\"><\u002Fcircle><circle cx=\"17\" cy=\"33\" r=\"1.2\" fill=\"#fff\" opacity=\".85\"><\u002Fcircle>\n          <\u002Fsvg>\n          <svg viewBox=\"0 0 64 64\" width=\"64\" height=\"64\" style=\"display:block;\">\n            <circle cx=\"32\" cy=\"32\" r=\"26\" fill=\"#0f0810\"><\u002Fcircle>\n            <path d=\"M32,10 C42,14 48,24 44,34 C40,44 28,50 20,44 C12,38 12,26 20,18 C24,14 28,12 32,10Z\" fill=\"url(#fneba2cloud)\" opacity=\".9\"><\u002Fpath>\n            <path d=\"M32,40 C34,44 40,44 42,38 C40,42 35,44 32,40Z\" fill=\"#2a1018\" opacity=\".4\"><\u002Fpath>\n            <circle cx=\"30\" cy=\"28\" r=\"9\" fill=\"url(#fneba2core)\"><\u002Fcircle>\n            <circle cx=\"30\" cy=\"28\" r=\"2.2\" fill=\"#fff\"><\u002Fcircle>\n            <circle cx=\"40\" cy=\"38\" r=\"1\" fill=\"#fff\"><\u002Fcircle><circle cx=\"24\" cy=\"20\" r=\"1\" fill=\"#fff\"><\u002Fcircle><circle cx=\"17\" cy=\"33\" r=\"1.2\" fill=\"#fff\" opacity=\".85\"><\u002Fcircle>\n          <\u002Fsvg>\n        <\u002Fdiv>\n        <div><div style=\"font:600 13px system-ui;color:#EDEAE3;\">Diffuse (Emission) Nebula<\u002Fdiv><div style=\"font:400 11.5px system-ui;color:#8f8d89;\">Direction A · Variant 2 — billow form<\u002Fdiv><\u002Fdiv>\n      <\u002Fdiv>\n\n      <!-- Planetary Nebula -->\n      <div style=\"display:flex;align-items:center;gap:24px;padding:18px 0;border-bottom:1px solid rgba(255,255,255,.08);\">\n        <div style=\"display:flex;align-items:center;gap:14px;width:110px;flex:none;\">\n          <svg viewBox=\"0 0 64 64\" width=\"32\" height=\"32\" style=\"display:block;\">\n            <defs><radialGradient id=\"fpa2halo\" cx=\"50%\" cy=\"50%\" r=\"55%\"><stop offset=\"0%\" stop-color=\"#e8a07a\" stop-opacity=\".4\"><\u002Fstop><stop offset=\"100%\" stop-color=\"#e8a07a\" stop-opacity=\"0\"><\u002Fstop><\u002FradialGradient><\u002Fdefs>\n            <circle cx=\"32\" cy=\"32\" r=\"26\" fill=\"#0c1614\"><\u002Fcircle>\n            <circle cx=\"32\" cy=\"32\" r=\"21\" fill=\"url(#fpa2halo)\"><\u002Fcircle>\n            <circle cx=\"32\" cy=\"32\" r=\"15\" fill=\"none\" stroke=\"#2a9d8f\" stroke-width=\"6\" opacity=\".85\"><\u002Fcircle>\n            <circle cx=\"32\" cy=\"32\" r=\"8\" fill=\"none\" stroke=\"#7fe8d4\" stroke-width=\"2.5\" opacity=\".7\"><\u002Fcircle>\n            <circle cx=\"32\" cy=\"32\" r=\"3\" fill=\"#fff\"><\u002Fcircle>\n          <\u002Fsvg>\n          <svg viewBox=\"0 0 64 64\" width=\"64\" height=\"64\" style=\"display:block;\">\n            <circle cx=\"32\" cy=\"32\" r=\"26\" fill=\"#0c1614\"><\u002Fcircle>\n            <circle cx=\"32\" cy=\"32\" r=\"21\" fill=\"url(#fpa2halo)\"><\u002Fcircle>\n            <circle cx=\"32\" cy=\"32\" r=\"15\" fill=\"none\" stroke=\"#2a9d8f\" stroke-width=\"6\" opacity=\".85\"><\u002Fcircle>\n            <circle cx=\"32\" cy=\"32\" r=\"8\" fill=\"none\" stroke=\"#7fe8d4\" stroke-width=\"2.5\" opacity=\".7\"><\u002Fcircle>\n            <circle cx=\"32\" cy=\"32\" r=\"3\" fill=\"#fff\"><\u002Fcircle>\n          <\u002Fsvg>\n        <\u002Fdiv>\n        <div><div style=\"font:600 13px system-ui;color:#EDEAE3;\">Planetary Nebula<\u002Fdiv><div style=\"font:400 11.5px system-ui;color:#8f8d89;\">Direction A · Variant 2 — double ring<\u002Fdiv><\u002Fdiv>\n      <\u002Fdiv>\n\n      <!-- Supernova Remnant -->\n      <div style=\"display:flex;align-items:center;gap:24px;padding:18px 0;border-bottom:1px solid rgba(255,255,255,.08);\">\n        <div style=\"display:flex;align-items:center;gap:14px;width:110px;flex:none;\">\n          <svg viewBox=\"0 0 64 64\" width=\"32\" height=\"32\" style=\"display:block;\">\n            <circle cx=\"32\" cy=\"32\" r=\"26\" fill=\"#150e0c\"><\u002Fcircle>\n            <circle cx=\"32\" cy=\"32\" r=\"17\" fill=\"none\" stroke=\"#ff8f6b\" stroke-width=\"3\" opacity=\".7\" stroke-dasharray=\"5 3\"><\u002Fcircle>\n            <circle cx=\"32\" cy=\"32\" r=\"10\" fill=\"none\" stroke=\"#8fc7e8\" stroke-width=\"3\" opacity=\".65\" stroke-dasharray=\"4 3\"><\u002Fcircle>\n          <\u002Fsvg>\n          <svg viewBox=\"0 0 64 64\" width=\"64\" height=\"64\" style=\"display:block;\">\n            <circle cx=\"32\" cy=\"32\" r=\"26\" fill=\"#150e0c\"><\u002Fcircle>\n            <circle cx=\"32\" cy=\"32\" r=\"17\" fill=\"none\" stroke=\"#ff8f6b\" stroke-width=\"3\" opacity=\".7\" stroke-dasharray=\"5 3\"><\u002Fcircle>\n            <circle cx=\"32\" cy=\"32\" r=\"10\" fill=\"none\" stroke=\"#8fc7e8\" stroke-width=\"3\" opacity=\".65\" stroke-dasharray=\"4 3\"><\u002Fcircle>\n          <\u002Fsvg>\n        <\u002Fdiv>\n        <div><div style=\"font:600 13px system-ui;color:#EDEAE3;\">Supernova Remnant<\u002Fdiv><div style=\"font:400 11.5px system-ui;color:#8f8d89;\">Direction A · Variant 2 — dashed shells<\u002Fdiv><\u002Fdiv>\n      <\u002Fdiv>\n\n      <!-- Globular Cluster -->\n      <div style=\"display:flex;align-items:center;gap:24px;padding:18px 0;border-bottom:1px solid rgba(255,255,255,.08);\">\n        <div style=\"display:flex;align-items:center;gap:14px;width:110px;flex:none;\">\n          <svg viewBox=\"0 0 64 64\" width=\"32\" height=\"32\" style=\"display:block;\"><circle cx=\"32\" cy=\"32\" r=\"26\" fill=\"#150f08\"><\u002Fcircle><circle cx=\"32\" cy=\"32\" r=\"16\" fill=\"#3a2e18\" opacity=\".4\"><\u002Fcircle><circle cx=\"32.0\" cy=\"32.0\" r=\"1.6\" fill=\"#f0c869\" opacity=\"0.90\"><\u002Fcircle><circle cx=\"31.7\" cy=\"34.3\" r=\"1.5\" fill=\"#f0c869\" opacity=\"0.83\"><\u002Fcircle><circle cx=\"27.6\" cy=\"30.8\" r=\"1.3\" fill=\"#f0c869\" opacity=\"0.76\"><\u002Fcircle><circle cx=\"34.6\" cy=\"25.6\" r=\"1.2\" fill=\"#f0c869\" opacity=\"0.69\"><\u002Fcircle><circle cx=\"40.0\" cy=\"36.5\" r=\"1.0\" fill=\"#f0c869\" opacity=\"0.62\"><\u002Fcircle><circle cx=\"25.1\" cy=\"41.2\" r=\"0.9\" fill=\"#f0c869\" opacity=\"0.56\"><\u002Fcircle><circle cx=\"22.1\" cy=\"22.3\" r=\"0.8\" fill=\"#f0c869\" opacity=\"0.49\"><\u002Fcircle><circle cx=\"32.9\" cy=\"31.3\" r=\"1.5\" fill=\"#f0c869\" opacity=\"0.87\"><\u002Fcircle><circle cx=\"33.7\" cy=\"34.9\" r=\"1.4\" fill=\"#f0c869\" opacity=\"0.80\"><\u002Fcircle><circle cx=\"26.8\" cy=\"34.3\" r=\"1.3\" fill=\"#f0c869\" opacity=\"0.73\"><\u002Fcircle><circle cx=\"29.8\" cy=\"24.3\" r=\"1.1\" fill=\"#f0c869\" opacity=\"0.66\"><\u002Fcircle><circle cx=\"42.2\" cy=\"30.5\" r=\"1.0\" fill=\"#f0c869\" opacity=\"0.59\"><\u002Fcircle><circle cx=\"32.2\" cy=\"44.6\" r=\"0.8\" fill=\"#f0c869\" opacity=\"0.52\"><\u002Fcircle><circle cx=\"17.2\" cy=\"30.4\" r=\"0.7\" fill=\"#f0c869\" opacity=\"0.45\"><\u002Fcircle><circle cx=\"32.5\" cy=\"29.9\" r=\"1.5\" fill=\"#f0c869\" opacity=\"0.83\"><\u002Fcircle><circle cx=\"36.2\" cy=\"33.6\" r=\"1.3\" fill=\"#f0c869\" opacity=\"0.77\"><\u002Fcircle><circle cx=\"28.8\" cy=\"38.0\" r=\"1.2\" fill=\"#f0c869\" opacity=\"0.70\"><\u002Fcircle><circle cx=\"24.6\" cy=\"26.7\" r=\"1.1\" fill=\"#f0c869\" opacity=\"0.63\"><\u002Fcircle><circle cx=\"39.8\" cy=\"23.7\" r=\"0.9\" fill=\"#f0c869\" opacity=\"0.56\"><\u002Fcircle><circle cx=\"40.7\" cy=\"42.6\" r=\"0.8\" fill=\"#f0c869\" opacity=\"0.49\"><\u002Fcircle><circle cx=\"31.2\" cy=\"32.5\" r=\"1.5\" fill=\"#f0c869\" opacity=\"0.87\"><\u002Fcircle><circle cx=\"30.6\" cy=\"29.0\" r=\"1.4\" fill=\"#f0c869\" opacity=\"0.80\"><\u002Fcircle><circle cx=\"37.4\" cy=\"30.4\" r=\"1.3\" fill=\"#f0c869\" opacity=\"0.73\"><\u002Fcircle><circle cx=\"33.3\" cy=\"39.8\" r=\"1.1\" fill=\"#f0c869\" opacity=\"0.66\"><\u002Fcircle><circle cx=\"21.8\" cy=\"32.4\" r=\"1.0\" fill=\"#f0c869\" opacity=\"0.59\"><\u002Fcircle><circle cx=\"33.1\" cy=\"19.6\" r=\"0.9\" fill=\"#f0c869\" opacity=\"0.53\"><\u002Fcircle><\u002Fsvg>\n          <svg viewBox=\"0 0 64 64\" width=\"64\" height=\"64\" style=\"display:block;\"><circle cx=\"32\" cy=\"32\" r=\"26\" fill=\"#150f08\"><\u002Fcircle><circle cx=\"32\" cy=\"32\" r=\"16\" fill=\"#3a2e18\" opacity=\".4\"><\u002Fcircle><circle cx=\"32.0\" cy=\"32.0\" r=\"1.6\" fill=\"#f0c869\" opacity=\"0.90\"><\u002Fcircle><circle cx=\"31.7\" cy=\"34.3\" r=\"1.5\" fill=\"#f0c869\" opacity=\"0.83\"><\u002Fcircle><circle cx=\"27.6\" cy=\"30.8\" r=\"1.3\" fill=\"#f0c869\" opacity=\"0.76\"><\u002Fcircle><circle cx=\"34.6\" cy=\"25.6\" r=\"1.2\" fill=\"#f0c869\" opacity=\"0.69\"><\u002Fcircle><circle cx=\"40.0\" cy=\"36.5\" r=\"1.0\" fill=\"#f0c869\" opacity=\"0.62\"><\u002Fcircle><circle cx=\"25.1\" cy=\"41.2\" r=\"0.9\" fill=\"#f0c869\" opacity=\"0.56\"><\u002Fcircle><circle cx=\"22.1\" cy=\"22.3\" r=\"0.8\" fill=\"#f0c869\" opacity=\"0.49\"><\u002Fcircle><circle cx=\"32.9\" cy=\"31.3\" r=\"1.5\" fill=\"#f0c869\" opacity=\"0.87\"><\u002Fcircle><circle cx=\"33.7\" cy=\"34.9\" r=\"1.4\" fill=\"#f0c869\" opacity=\"0.80\"><\u002Fcircle><circle cx=\"26.8\" cy=\"34.3\" r=\"1.3\" fill=\"#f0c869\" opacity=\"0.73\"><\u002Fcircle><circle cx=\"29.8\" cy=\"24.3\" r=\"1.1\" fill=\"#f0c869\" opacity=\"0.66\"><\u002Fcircle><circle cx=\"42.2\" cy=\"30.5\" r=\"1.0\" fill=\"#f0c869\" opacity=\"0.59\"><\u002Fcircle><circle cx=\"32.2\" cy=\"44.6\" r=\"0.8\" fill=\"#f0c869\" opacity=\"0.52\"><\u002Fcircle><circle cx=\"17.2\" cy=\"30.4\" r=\"0.7\" fill=\"#f0c869\" opacity=\"0.45\"><\u002Fcircle><circle cx=\"32.5\" cy=\"29.9\" r=\"1.5\" fill=\"#f0c869\" opacity=\"0.83\"><\u002Fcircle><circle cx=\"36.2\" cy=\"33.6\" r=\"1.3\" fill=\"#f0c869\" opacity=\"0.77\"><\u002Fcircle><circle cx=\"28.8\" cy=\"38.0\" r=\"1.2\" fill=\"#f0c869\" opacity=\"0.70\"><\u002Fcircle><circle cx=\"24.6\" cy=\"26.7\" r=\"1.1\" fill=\"#f0c869\" opacity=\"0.63\"><\u002Fcircle><circle cx=\"39.8\" cy=\"23.7\" r=\"0.9\" fill=\"#f0c869\" opacity=\"0.56\"><\u002Fcircle><circle cx=\"40.7\" cy=\"42.6\" r=\"0.8\" fill=\"#f0c869\" opacity=\"0.49\"><\u002Fcircle><circle cx=\"31.2\" cy=\"32.5\" r=\"1.5\" fill=\"#f0c869\" opacity=\"0.87\"><\u002Fcircle><circle cx=\"30.6\" cy=\"29.0\" r=\"1.4\" fill=\"#f0c869\" opacity=\"0.80\"><\u002Fcircle><circle cx=\"37.4\" cy=\"30.4\" r=\"1.3\" fill=\"#f0c869\" opacity=\"0.73\"><\u002Fcircle><circle cx=\"33.3\" cy=\"39.8\" r=\"1.1\" fill=\"#f0c869\" opacity=\"0.66\"><\u002Fcircle><circle cx=\"21.8\" cy=\"32.4\" r=\"1.0\" fill=\"#f0c869\" opacity=\"0.59\"><\u002Fcircle><circle cx=\"33.1\" cy=\"19.6\" r=\"0.9\" fill=\"#f0c869\" opacity=\"0.53\"><\u002Fcircle><\u002Fsvg>\n        <\u002Fdiv>\n        <div><div style=\"font:600 13px system-ui;color:#EDEAE3;\">Globular Cluster<\u002Fdiv><div style=\"font:400 11.5px system-ui;color:#8f8d89;\">Direction A · Variant 1 — scattered core<\u002Fdiv><\u002Fdiv>\n      <\u002Fdiv>\n\n      <!-- Open Cluster -->\n      <div style=\"display:flex;align-items:center;gap:24px;padding:18px 0;border-bottom:1px solid rgba(255,255,255,.08);\">\n        <div style=\"display:flex;align-items:center;gap:14px;width:110px;flex:none;\">\n          <svg viewBox=\"0 0 64 64\" width=\"32\" height=\"32\" style=\"display:block;\"><circle cx=\"32\" cy=\"32\" r=\"26\" fill=\"#0c0f16\"><\u002Fcircle>\n            <circle cx=\"24\" cy=\"24\" r=\"2\" fill=\"#eaf3ff\"><\u002Fcircle><circle cx=\"40\" cy=\"20\" r=\"1.6\" fill=\"#bcd9f5\"><\u002Fcircle>\n            <circle cx=\"44\" cy=\"36\" r=\"2.2\" fill=\"#eaf3ff\"><\u002Fcircle><circle cx=\"30\" cy=\"42\" r=\"1.6\" fill=\"#bcd9f5\"><\u002Fcircle>\n            <circle cx=\"20\" cy=\"38\" r=\"1.4\" fill=\"#bcd9f5\"><\u002Fcircle><circle cx=\"36\" cy=\"30\" r=\"1.8\" fill=\"#eaf3ff\"><\u002Fcircle><\u002Fsvg>\n          <svg viewBox=\"0 0 64 64\" width=\"64\" height=\"64\" style=\"display:block;\"><circle cx=\"32\" cy=\"32\" r=\"26\" fill=\"#0c0f16\"><\u002Fcircle>\n            <circle cx=\"24\" cy=\"24\" r=\"2\" fill=\"#eaf3ff\"><\u002Fcircle><circle cx=\"40\" cy=\"20\" r=\"1.6\" fill=\"#bcd9f5\"><\u002Fcircle>\n            <circle cx=\"44\" cy=\"36\" r=\"2.2\" fill=\"#eaf3ff\"><\u002Fcircle><circle cx=\"30\" cy=\"42\" r=\"1.6\" fill=\"#bcd9f5\"><\u002Fcircle>\n            <circle cx=\"20\" cy=\"38\" r=\"1.4\" fill=\"#bcd9f5\"><\u002Fcircle><circle cx=\"36\" cy=\"30\" r=\"1.8\" fill=\"#eaf3ff\"><\u002Fcircle><\u002Fsvg>\n        <\u002Fdiv>\n        <div><div style=\"font:600 13px system-ui;color:#EDEAE3;\">Open Cluster<\u002Fdiv><div style=\"font:400 11.5px system-ui;color:#8f8d89;\">Direction A · Variant 1 — scattered dots<\u002Fdiv><\u002Fdiv>\n      <\u002Fdiv>\n\n      <!-- Planet -->\n      <div style=\"display:flex;align-items:center;gap:24px;padding:18px 0;border-bottom:1px solid rgba(255,255,255,.08);\">\n        <div style=\"display:flex;align-items:center;gap:14px;width:110px;flex:none;\">\n          <svg viewBox=\"0 0 64 64\" width=\"32\" height=\"32\" style=\"display:block;\">\n            <defs><radialGradient id=\"fplb2plb2\" cx=\"35%\" cy=\"35%\" r=\"65%\"><stop offset=\"0%\" stop-color=\"#fff0cf\"><\u002Fstop><stop offset=\"100%\" stop-color=\"#d9ad6e\"><\u002Fstop><\u002FradialGradient><\u002Fdefs>\n            <ellipse cx=\"32\" cy=\"32\" rx=\"22\" ry=\"7.5\" fill=\"none\" stroke=\"#f0cf95\" stroke-width=\"2.4\" opacity=\".75\"><\u002Fellipse>\n            <ellipse cx=\"32\" cy=\"32\" rx=\"18\" ry=\"6\" fill=\"none\" stroke=\"#c9975a\" stroke-width=\"1.6\" opacity=\".55\"><\u002Fellipse>\n            <circle cx=\"32\" cy=\"32\" r=\"9.5\" fill=\"url(#fplb2plb2)\"><\u002Fcircle>\n          <\u002Fsvg>\n          <svg viewBox=\"0 0 64 64\" width=\"64\" height=\"64\" style=\"display:block;\">\n            <ellipse cx=\"32\" cy=\"32\" rx=\"22\" ry=\"7.5\" fill=\"none\" stroke=\"#f0cf95\" stroke-width=\"2.4\" opacity=\".75\"><\u002Fellipse>\n            <ellipse cx=\"32\" cy=\"32\" rx=\"18\" ry=\"6\" fill=\"none\" stroke=\"#c9975a\" stroke-width=\"1.6\" opacity=\".55\"><\u002Fellipse>\n            <circle cx=\"32\" cy=\"32\" r=\"9.5\" fill=\"url(#fplb2plb2)\"><\u002Fcircle>\n          <\u002Fsvg>\n        <\u002Fdiv>\n        <div><div style=\"font:600 13px system-ui;color:#EDEAE3;\">Planet<\u002Fdiv><div style=\"font:400 11.5px system-ui;color:#8f8d89;\">Direction B · Variant 2 — soft wide ring<\u002Fdiv><\u002Fdiv>\n      <\u002Fdiv>\n\n      <!-- Moon -->\n      <div style=\"display:flex;align-items:center;gap:24px;padding:18px 0;border-bottom:1px solid rgba(255,255,255,.08);\">\n        <div style=\"display:flex;align-items:center;gap:14px;width:110px;flex:none;\">\n          <svg viewBox=\"0 0 64 64\" width=\"32\" height=\"32\" style=\"display:block;\">\n            <defs><radialGradient id=\"fmb2mb2\" cx=\"35%\" cy=\"32%\" r=\"70%\"><stop offset=\"0%\" stop-color=\"#f5f4ef\"><\u002Fstop><stop offset=\"100%\" stop-color=\"#a8a6a0\"><\u002Fstop><\u002FradialGradient><\u002Fdefs>\n            <circle cx=\"32\" cy=\"32\" r=\"15\" fill=\"url(#fmb2mb2)\"><\u002Fcircle>\n            <circle cx=\"27\" cy=\"26\" r=\"2.4\" fill=\"#8f8d89\" opacity=\".45\"><\u002Fcircle><circle cx=\"37\" cy=\"36\" r=\"1.8\" fill=\"#8f8d89\" opacity=\".4\"><\u002Fcircle>\n            <circle cx=\"30\" cy=\"40\" r=\"1.3\" fill=\"#8f8d89\" opacity=\".4\"><\u002Fcircle>\n          <\u002Fsvg>\n          <svg viewBox=\"0 0 64 64\" width=\"64\" height=\"64\" style=\"display:block;\">\n            <circle cx=\"32\" cy=\"32\" r=\"15\" fill=\"url(#fmb2mb2)\"><\u002Fcircle>\n            <circle cx=\"27\" cy=\"26\" r=\"2.4\" fill=\"#8f8d89\" opacity=\".45\"><\u002Fcircle><circle cx=\"37\" cy=\"36\" r=\"1.8\" fill=\"#8f8d89\" opacity=\".4\"><\u002Fcircle>\n            <circle cx=\"30\" cy=\"40\" r=\"1.3\" fill=\"#8f8d89\" opacity=\".4\"><\u002Fcircle>\n          <\u002Fsvg>\n        <\u002Fdiv>\n        <div><div style=\"font:600 13px system-ui;color:#EDEAE3;\">Moon<\u002Fdiv><div style=\"font:400 11.5px system-ui;color:#8f8d89;\">Direction B · Variant 2 — glowing full<\u002Fdiv><\u002Fdiv>\n      <\u002Fdiv>\n\n      <!-- Double Star -->\n      <div style=\"display:flex;align-items:center;gap:24px;padding:18px 0;border-bottom:1px solid rgba(255,255,255,.08);\">\n        <div style=\"display:flex;align-items:center;gap:14px;width:110px;flex:none;\">\n          <svg viewBox=\"0 0 64 64\" width=\"32\" height=\"32\" style=\"display:block;\">\n            <defs><filter id=\"fdsb2dsb2\" x=\"-80%\" y=\"-80%\" width=\"260%\" height=\"260%\"><feGaussianBlur stdDeviation=\"1.1\"><\u002FfeGaussianBlur><\u002Ffilter><\u002Fdefs>\n            <g filter=\"url(#fdsb2dsb2)\"><circle cx=\"26\" cy=\"26\" r=\"4.6\" fill=\"#eaf3ff\"><\u002Fcircle><circle cx=\"38\" cy=\"38\" r=\"4.6\" fill=\"#f0cf95\"><\u002Fcircle><\u002Fg>\n            <circle cx=\"26\" cy=\"26\" r=\"1.4\" fill=\"#fff\"><\u002Fcircle><circle cx=\"38\" cy=\"38\" r=\"1.4\" fill=\"#fffbe8\"><\u002Fcircle>\n          <\u002Fsvg>\n          <svg viewBox=\"0 0 64 64\" width=\"64\" height=\"64\" style=\"display:block;\">\n            <g filter=\"url(#fdsb2dsb2)\"><circle cx=\"26\" cy=\"26\" r=\"4.6\" fill=\"#eaf3ff\"><\u002Fcircle><circle cx=\"38\" cy=\"38\" r=\"4.6\" fill=\"#f0cf95\"><\u002Fcircle><\u002Fg>\n            <circle cx=\"26\" cy=\"26\" r=\"1.4\" fill=\"#fff\"><\u002Fcircle><circle cx=\"38\" cy=\"38\" r=\"1.4\" fill=\"#fffbe8\"><\u002Fcircle>\n          <\u002Fsvg>\n        <\u002Fdiv>\n        <div><div style=\"font:600 13px system-ui;color:#EDEAE3;\">Double Star<\u002Fdiv><div style=\"font:400 11.5px system-ui;color:#8f8d89;\">Direction B · Variant 2 — glowing diagonal pair<\u002Fdiv><\u002Fdiv>\n      <\u002Fdiv>\n\n      <!-- Comet -->\n      <div style=\"display:flex;align-items:center;gap:24px;padding:18px 0;\">\n        <div style=\"display:flex;align-items:center;gap:14px;width:110px;flex:none;\">\n          <svg viewBox=\"0 0 64 64\" width=\"32\" height=\"32\" style=\"display:block;\">\n            <defs><linearGradient id=\"fcmta2tail\" x1=\"0.3\" y1=\"0.9\" x2=\"1\" y2=\"0.1\"><stop offset=\"0%\" stop-color=\"#E8953A\"><\u002Fstop><stop offset=\"45%\" stop-color=\"#F7C05E\"><\u002Fstop><stop offset=\"100%\" stop-color=\"#FFF3D6\"><\u002Fstop><\u002FlinearGradient><radialGradient id=\"fcmta2head\" cx=\"35%\" cy=\"35%\" r=\"65%\"><stop offset=\"0%\" stop-color=\"#FFF6DC\"><\u002Fstop><stop offset=\"100%\" stop-color=\"#F2A94A\"><\u002Fstop><\u002FradialGradient><\u002Fdefs>\n            <circle cx=\"32\" cy=\"32\" r=\"26\" fill=\"#0d0d14\"><\u002Fcircle>\n            <path d=\"M33.5,40 L54,10 L23.5,32 Z\" fill=\"url(#fcmta2tail)\"><\u002Fpath>\n            <circle cx=\"24\" cy=\"40\" r=\"7.5\" fill=\"url(#fcmta2head)\"><\u002Fcircle><circle cx=\"21.5\" cy=\"37.5\" r=\"2.4\" fill=\"#FFFCF0\" opacity=\".9\"><\u002Fcircle>\n          <\u002Fsvg>\n          <svg viewBox=\"0 0 64 64\" width=\"64\" height=\"64\" style=\"display:block;\">\n            <circle cx=\"32\" cy=\"32\" r=\"26\" fill=\"#0d0d14\"><\u002Fcircle>\n            <path d=\"M33.5,40 L54,10 L23.5,32 Z\" fill=\"url(#fcmta2tail)\"><\u002Fpath>\n            <circle cx=\"24\" cy=\"40\" r=\"7.5\" fill=\"url(#fcmta2head)\"><\u002Fcircle><circle cx=\"21.5\" cy=\"37.5\" r=\"2.4\" fill=\"#FFFCF0\" opacity=\".9\"><\u002Fcircle>\n          <\u002Fsvg>\n        <\u002Fdiv>\n        <div><div style=\"font:600 13px system-ui;color:#EDEAE3;\">Comet<\u002Fdiv><div style=\"font:400 11.5px system-ui;color:#8f8d89;\">Direction A · Variant 2 — bold tail<\u002Fdiv><\u002Fdiv>\n      <\u002Fdiv>\n\n    <\u002Fdiv>\n  <\u002Fdiv>\n<\u002Fdiv>\n\n\n\n<\u002Fbody><\u002Fhtml>"
+  </script>
+</body>
+</html>

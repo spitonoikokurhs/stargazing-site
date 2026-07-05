@@ -9,7 +9,9 @@
       "decDeg": 33.0292,
       "displayRadiusDeg": 0.15,
       "priority": 80,
-      "description": "A glowing smoke-ring left behind by a dying star, one of the sky's most famous tiny nebulae."
+      "description": "A glowing smoke-ring left behind by a dying star, one of the sky's most famous tiny nebulae.",
+      "constellation": "Lyra",
+      "distanceLy": 2570
     },
     {
       "id": "M27",
@@ -20,7 +22,9 @@
       "decDeg": 22.7211,
       "displayRadiusDeg": 0.2,
       "priority": 78,
-      "description": "A puffy, apple-core-shaped cloud of gas blown off by a star nearing the end of its life."
+      "description": "A puffy, apple-core-shaped cloud of gas blown off by a star nearing the end of its life.",
+      "constellation": "Vulpecula",
+      "distanceLy": 1360
     },
     {
       "id": "M13",
@@ -31,18 +35,113 @@
       "decDeg": 36.4613,
       "displayRadiusDeg": 0.25,
       "priority": 90,
-      "description": "A dense swarm of hundreds of thousands of ancient stars packed into a shimmering ball."
+      "description": "A dense swarm of hundreds of thousands of ancient stars packed into a shimmering ball.",
+      "constellation": "Hercules",
+      "distanceLy": 22200
     },
     {
       "id": "M31",
       "primaryName": "Andromeda Galaxy",
       "aliases": ["M31", "NGC 224"],
-      "type": "Galaxy",
+      "type": "Spiral Galaxy",
       "raDeg": 10.6847,
       "decDeg": 41.2687,
       "displayRadiusDeg": 2.5,
       "priority": 100,
-      "description": "Our nearest large galactic neighbor, a whole other galaxy of a trillion stars you can see with your own eyes."
+      "description": "Our nearest large galactic neighbor, a whole other galaxy of a trillion stars you can see with your own eyes.",
+      "constellation": "Andromeda",
+      "distanceLy": 2500000
+    },
+    {
+      "id": "M65",
+      "primaryName": "M65",
+      "aliases": ["M65", "NGC 3623"],
+      "type": "Spiral Galaxy",
+      "raDeg": 169.7333,
+      "decDeg": 13.0922,
+      "displayRadiusDeg": 0.12,
+      "priority": 95,
+      "description": "A slender spiral galaxy in Leo, one third of the famous Leo Triplet.",
+      "constellation": "Leo",
+      "distanceLy": 35000000
+    },
+    {
+      "id": "M66",
+      "primaryName": "M66",
+      "aliases": ["M66", "NGC 3627"],
+      "type": "Spiral Galaxy",
+      "raDeg": 170.0625,
+      "decDeg": 12.9914,
+      "displayRadiusDeg": 0.12,
+      "priority": 95,
+      "description": "A bright, warped spiral galaxy in Leo, tugged into shape by its Triplet neighbors.",
+      "constellation": "Leo",
+      "distanceLy": 35000000
+    },
+    {
+      "id": "LEO-TRIPLET",
+      "primaryName": "Leo Triplet",
+      "aliases": ["Leo Triplet", "M65 Group"],
+      "type": "Galaxy Group",
+      "raDeg": 170.0625,
+      "decDeg": 13.1900,
+      "displayRadiusDeg": 0.9,
+      "priority": 92,
+      "description": "Three galaxies locked in a slow gravitational dance, close enough together to share a single eyepiece view.",
+      "constellation": "Leo",
+      "distanceLy": 35000000
+    },
+    {
+      "id": "M81",
+      "primaryName": "Bode's Galaxy",
+      "aliases": ["M81", "NGC 3031", "Bode's Galaxy"],
+      "type": "Spiral Galaxy",
+      "raDeg": 148.8888,
+      "decDeg": 69.0653,
+      "displayRadiusDeg": 0.3,
+      "priority": 82,
+      "description": "A grand, sweeping spiral galaxy, one of the brightest and easiest galaxies to see beyond our own.",
+      "constellation": "Ursa Major",
+      "distanceLy": 12000000
+    },
+    {
+      "id": "M82",
+      "primaryName": "Cigar Galaxy",
+      "aliases": ["M82", "NGC 3034", "Cigar Galaxy"],
+      "type": "Irregular Galaxy",
+      "raDeg": 148.9683,
+      "decDeg": 69.6797,
+      "displayRadiusDeg": 0.25,
+      "priority": 80,
+      "description": "A galaxy torn ragged by a burst of furious star formation, glowing in a long cigar-shaped streak.",
+      "constellation": "Ursa Major",
+      "distanceLy": 12000000
+    },
+    {
+      "id": "M33",
+      "primaryName": "Triangulum Galaxy",
+      "aliases": ["M33", "NGC 598"],
+      "type": "Spiral Galaxy",
+      "raDeg": 23.4621,
+      "decDeg": 30.6600,
+      "displayRadiusDeg": 1.0,
+      "priority": 88,
+      "description": "A whole other galaxy of hundreds of billions of stars, quietly spiraling nearby.",
+      "constellation": "Triangulum",
+      "distanceLy": 2730000
+    },
+    {
+      "id": "M51",
+      "primaryName": "Whirlpool Galaxy",
+      "aliases": ["M51", "NGC 5194", "Whirlpool Galaxy"],
+      "type": "Spiral Galaxy",
+      "raDeg": 202.4696,
+      "decDeg": 47.1952,
+      "displayRadiusDeg": 0.25,
+      "priority": 84,
+      "description": "A textbook spiral galaxy caught mid-collision with a smaller companion, its arms stretched by gravity.",
+      "constellation": "Canes Venatici",
+      "distanceLy": 23000000
     },
     {
       "id": "M42",
@@ -64,7 +163,9 @@
       "decDeg": -24.3800,
       "displayRadiusDeg": 0.7,
       "priority": 82,
-      "description": "A bright cloud of glowing gas in Sagittarius, cradling a cluster of hot young stars."
+      "description": "A bright cloud of glowing gas in Sagittarius, cradling a cluster of hot young stars.",
+      "constellation": "Sagittarius",
+      "distanceLy": 4100
     },
     {
       "id": "M20",
@@ -75,7 +176,9 @@
       "decDeg": -23.0300,
       "displayRadiusDeg": 0.35,
       "priority": 75,
-      "description": "A three-lobed nebula split by dark dust lanes, glowing pink and blue side by side."
+      "description": "A three-lobed nebula split by dark dust lanes, glowing pink and blue side by side.",
+      "constellation": "Sagittarius",
+      "distanceLy": 5200
     },
     {
       "id": "M16",
@@ -86,7 +189,9 @@
       "decDeg": -13.8067,
       "displayRadiusDeg": 0.35,
       "priority": 80,
-      "description": "Home to the famous Pillars of Creation, towering columns of gas where stars are forming."
+      "description": "Home to the famous Pillars of Creation, towering columns of gas where stars are forming.",
+      "constellation": "Serpens",
+      "distanceLy": 7000
     },
     {
       "id": "M17",
@@ -97,7 +202,9 @@
       "decDeg": -16.1767,
       "displayRadiusDeg": 0.3,
       "priority": 72,
-      "description": "A glowing swan-shaped ribbon of gas, one of the brightest star-forming clouds in our galaxy."
+      "description": "A glowing swan-shaped ribbon of gas, one of the brightest star-forming clouds in our galaxy.",
+      "constellation": "Sagittarius",
+      "distanceLy": 5500
     },
     {
       "id": "NGC869-884",
@@ -108,7 +215,9 @@
       "decDeg": 57.1333,
       "displayRadiusDeg": 0.6,
       "priority": 85,
-      "description": "Two brilliant star clusters side by side, like a double handful of diamonds scattered on velvet."
+      "description": "Two brilliant star clusters side by side, like a double handful of diamonds scattered on velvet.",
+      "constellation": "Perseus",
+      "distanceLy": 7500
     },
     {
       "id": "M45",
@@ -119,7 +228,9 @@
       "decDeg": 24.1167,
       "displayRadiusDeg": 1.5,
       "priority": 95,
-      "description": "A sparkling cluster of young blue stars, often called the Seven Sisters, easy to spot with the naked eye."
+      "description": "A sparkling cluster of young blue stars, often called the Seven Sisters, easy to spot with the naked eye.",
+      "constellation": "Taurus",
+      "distanceLy": 444
     },
     {
       "id": "NGC6960-6992",
@@ -141,7 +252,9 @@
       "decDeg": 44.5333,
       "displayRadiusDeg": 1.3,
       "priority": 68,
-      "description": "A huge cloud of glowing gas shaped uncannily like the continent of North America."
+      "description": "A huge cloud of glowing gas shaped uncannily like the continent of North America.",
+      "constellation": "Cygnus",
+      "distanceLy": 2200
     },
     {
       "id": "M4",
@@ -152,7 +265,9 @@
       "decDeg": -26.5256,
       "displayRadiusDeg": 0.3,
       "priority": 65,
-      "description": "One of the closest globular clusters to us, a loose ball of ancient stars near the heart of Scorpius."
+      "description": "One of the closest globular clusters to us, a loose ball of ancient stars near the heart of Scorpius.",
+      "constellation": "Scorpius",
+      "distanceLy": 7200
     },
     {
       "id": "M22",
@@ -163,7 +278,9 @@
       "decDeg": -23.9042,
       "displayRadiusDeg": 0.3,
       "priority": 62,
-      "description": "A big, bright globular cluster in Sagittarius, one of the best in the sky for backyard telescopes."
+      "description": "A big, bright globular cluster in Sagittarius, one of the best in the sky for backyard telescopes.",
+      "constellation": "Sagittarius",
+      "distanceLy": 10600
     },
     {
       "id": "M6",
@@ -196,7 +313,9 @@
       "decDeg": -6.2717,
       "displayRadiusDeg": 0.25,
       "priority": 60,
-      "description": "A tightly packed swarm of stars whose fan-like shape reminded early observers of ducks in flight."
+      "description": "A tightly packed swarm of stars whose fan-like shape reminded early observers of ducks in flight.",
+      "constellation": "Scutum",
+      "distanceLy": 6200
     },
     {
       "id": "M15",
@@ -207,7 +326,9 @@
       "decDeg": 12.1670,
       "displayRadiusDeg": 0.25,
       "priority": 58,
-      "description": "A tightly compressed ball of ancient stars, one of the densest globular clusters known."
+      "description": "A tightly compressed ball of ancient stars, one of the densest globular clusters known.",
+      "constellation": "Pegasus",
+      "distanceLy": 33600
     },
     {
       "id": "M2",
@@ -218,7 +339,35 @@
       "decDeg": -0.8231,
       "displayRadiusDeg": 0.25,
       "priority": 50,
-      "description": "A rich, symmetrical ball of stars, one of the sky's grander globular clusters."
+      "description": "A rich, symmetrical ball of stars, one of the sky's grander globular clusters.",
+      "constellation": "Aquarius",
+      "distanceLy": 37500
+    },
+    {
+      "id": "M5",
+      "primaryName": "M5 Globular Cluster",
+      "aliases": ["M5", "NGC 5904"],
+      "type": "Globular Cluster",
+      "raDeg": 229.6383,
+      "decDeg": 2.0811,
+      "displayRadiusDeg": 0.2,
+      "priority": 65,
+      "description": "One of the oldest and largest globular clusters known, a dense swarm of ancient stars in Serpens.",
+      "constellation": "Serpens",
+      "distanceLy": 24500
+    },
+    {
+      "id": "M76",
+      "primaryName": "Little Dumbbell Nebula",
+      "aliases": ["M76", "NGC 650", "NGC 651", "Little Dumbbell Nebula"],
+      "type": "Planetary Nebula",
+      "raDeg": 25.5825,
+      "decDeg": 51.5753,
+      "displayRadiusDeg": 0.1,
+      "priority": 50,
+      "description": "A small, faint echo of the Dumbbell Nebula, the wispy remains of a dying star's outer layers.",
+      "constellation": "Perseus",
+      "distanceLy": 3400
     },
     {
       "id": "M92",

@@ -1,0 +1,850 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Stargazing Live — Guest View v4</title>
+<style>
+  :root{
+    --bg:#0a0a0f;
+    --text:#EDEAE3;
+    --muted:#A8A6A0;
+    --soft:#7b7870;
+    --gold:#c7a869;
+    --gold-soft:rgba(199,168,105,.52);
+    --line:rgba(237,234,227,.095);
+    --panel:rgba(237,234,227,.045);
+    --panel2:rgba(237,234,227,.07);
+    --red:#e25c58;
+  }
+
+  *{box-sizing:border-box}
+  html,body{min-height:100%}
+  body{
+    margin:0;
+    background:
+      radial-gradient(circle at 14% -4%, rgba(199,168,105,.08), transparent 34%),
+      radial-gradient(circle at 82% 14%, rgba(96,151,180,.06), transparent 24%),
+      #0a0a0f;
+    color:var(--text);
+    font-family: Inter, Lato, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+
+  body::before{
+    content:"";
+    position:fixed;
+    inset:0;
+    pointer-events:none;
+    opacity:.42;
+    background-image:
+      radial-gradient(circle at 16% 20%, rgba(255,255,255,.42) 0 1px, transparent 1.6px),
+      radial-gradient(circle at 83% 17%, rgba(255,255,255,.28) 0 1px, transparent 1.6px),
+      radial-gradient(circle at 88% 66%, rgba(255,255,255,.22) 0 1px, transparent 1.5px),
+      radial-gradient(circle at 21% 76%, rgba(255,255,255,.20) 0 1px, transparent 1.5px);
+  }
+
+  .page{
+    position:relative;
+    width:min(100%, 560px);
+    margin:0 auto;
+    padding:18px 10px 28px;
+  }
+
+  .topbar{
+    height:28px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+    padding:0 4px;
+    color:rgba(237,234,227,.72);
+    font-size:clamp(10px, 2.7vw, 13px);
+    letter-spacing:.19em;
+    text-transform:uppercase;
+    white-space:nowrap;
+  }
+
+  .topbar__live{
+    display:flex;
+    align-items:center;
+    gap:7px;
+    justify-content:flex-end;
+    color:rgba(237,234,227,.78);
+  }
+
+  .red-dot{
+    width:7px;
+    height:7px;
+    border-radius:50%;
+    background:var(--red);
+    box-shadow:0 0 12px rgba(226,92,88,.65);
+    animation:redPulse 1.45s ease-in-out infinite;
+    flex:0 0 auto;
+  }
+
+  @keyframes redPulse{
+    0%,100%{opacity:.48; transform:scale(.86); box-shadow:0 0 0 0 rgba(226,92,88,.35),0 0 10px rgba(226,92,88,.42)}
+    50%{opacity:1; transform:scale(1); box-shadow:0 0 0 5px rgba(226,92,88,0),0 0 16px rgba(226,92,88,.78)}
+  }
+
+  .viewer{
+    position:relative;
+    width:min(100%, 96vw);
+    max-width:540px;
+    aspect-ratio:1/1;
+    margin:8px auto 0;
+    border-radius:18px;
+    background:#020204;
+    overflow:hidden;
+    box-shadow:
+      0 28px 80px rgba(0,0,0,.56),
+      0 0 0 1px rgba(199,168,105,.10);
+  }
+
+  /* The feed remains square, because the real telescope image is square with a circular FOV inside it. */
+  .sky-square{
+    position:absolute;
+    inset:0;
+    background:#000;
+  }
+
+  .fov{
+    position:absolute;
+    inset:2.05%;
+    border-radius:50%;
+    overflow:hidden;
+    background:
+      radial-gradient(circle at 53% 53%, rgba(250,245,235,.85) 0 .75%, transparent 1.7%),
+      radial-gradient(circle at 49% 52%, rgba(238,128,179,.78) 0 4%, rgba(226,104,168,.42) 9%, transparent 23%),
+      radial-gradient(ellipse at 48% 50%, rgba(121,205,231,.34) 0 15%, rgba(171,61,135,.26) 28%, rgba(18,18,28,.28) 48%, rgba(0,0,0,.08) 69%),
+      radial-gradient(circle at 50% 50%, #050712 0 35%, #03040a 62%, #000 100%);
+    box-shadow:inset 0 0 52px rgba(0,0,0,.86);
+  }
+
+  .fov::before{
+    content:"";
+    position:absolute;
+    inset:0;
+    background-image:
+      radial-gradient(circle at 18% 22%, rgba(255,255,255,.58) 0 .7px, transparent 1.2px),
+      radial-gradient(circle at 40% 31%, rgba(255,255,255,.50) 0 .65px, transparent 1.1px),
+      radial-gradient(circle at 73% 26%, rgba(255,255,255,.54) 0 .75px, transparent 1.25px),
+      radial-gradient(circle at 81% 65%, rgba(255,255,255,.36) 0 .65px, transparent 1.1px),
+      radial-gradient(circle at 34% 79%, rgba(255,255,255,.34) 0 .6px, transparent 1px),
+      radial-gradient(circle at 58% 76%, rgba(255,255,255,.45) 0 .7px, transparent 1.2px);
+    opacity:.9;
+  }
+
+  .fov::after{
+    content:"";
+    position:absolute;
+    inset:0;
+    opacity:.48;
+    background:
+      radial-gradient(circle at 50% 50%, transparent 0 55%, rgba(0,0,0,.22) 69%, rgba(0,0,0,.76) 100%),
+      linear-gradient(122deg, transparent 0 38%, rgba(255,255,255,.038) 43%, transparent 52%);
+  }
+
+  .rim{
+    position:absolute;
+    inset:0;
+    pointer-events:none;
+  }
+
+  .rim-ring{
+    fill:none;
+    stroke:rgba(199,168,105,.26);
+    stroke-width:.42;
+    vector-effect:non-scaling-stroke;
+  }
+
+  .rim-ring.outer{
+    stroke:rgba(237,234,227,.07);
+    stroke-width:.35;
+  }
+
+  .rim-tick{
+    stroke:rgba(199,168,105,.22);
+    stroke-width:.32;
+    stroke-linecap:round;
+    vector-effect:non-scaling-stroke;
+  }
+
+  .rim-brand{
+    fill:rgba(237,234,227,.28);
+    font-family: Inter, Lato, ui-sans-serif, system-ui, sans-serif;
+    font-size:2.85px;
+    font-weight:500;
+    letter-spacing:.58px;
+    text-transform:uppercase;
+  }
+
+  .snapshot-toggle{
+    display:grid;
+    grid-template-columns:repeat(4, 1fr);
+    gap:5px;
+    margin:13px auto 0;
+    padding:4px;
+    width:min(100%, 540px);
+    border:1px solid rgba(237,234,227,.08);
+    border-radius:999px;
+    background:rgba(237,234,227,.035);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.035);
+  }
+
+  .snap{
+    border:0;
+    border-radius:999px;
+    min-height:34px;
+    padding:0 6px;
+    background:transparent;
+    color:rgba(168,166,160,.86);
+    font:600 clamp(10px, 2.9vw, 12px)/1 Inter, Lato, system-ui, sans-serif;
+    letter-spacing:.08em;
+    text-transform:uppercase;
+  }
+
+  .snap[aria-pressed="true"]{
+    color:#171005;
+    background:linear-gradient(180deg, #e7ce8a, #c39b54);
+    box-shadow:0 6px 20px rgba(199,168,105,.12);
+  }
+
+  .content{
+    text-align:center;
+    padding:0 2px;
+  }
+
+  .integration{
+    margin:14px 0 5px;
+    color:rgba(199,168,105,.92);
+    font-size:clamp(11px, 3.1vw, 13px);
+    letter-spacing:.2em;
+    text-transform:uppercase;
+  }
+
+  .title{
+    margin:0 auto;
+    max-width:96%;
+    color:#f2eee6;
+    font-family:"Cormorant Garamond", Georgia, "Times New Roman", serif;
+    font-size:clamp(42px, 12vw, 68px);
+    font-weight:520;
+    line-height:.92;
+    letter-spacing:.005em;
+    text-wrap:balance;
+  }
+
+  .alias{
+    margin-top:9px;
+    color:rgba(199,168,105,.82);
+    font-size:clamp(11px, 3.2vw, 13px);
+    letter-spacing:.16em;
+    text-transform:uppercase;
+  }
+
+  .type-line{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:10px;
+    margin:16px auto 0;
+    color:rgba(237,234,227,.88);
+    font-size:clamp(14px, 4vw, 17px);
+    line-height:1.25;
+    text-align:center;
+  }
+
+  .type-icon{
+    display:block;
+    width:26px;
+    height:26px;
+    flex:0 0 26px;
+  }
+
+  .facts{
+    display:grid;
+    grid-template-columns:repeat(3, minmax(0, 1fr));
+    gap:7px;
+    margin:16px auto 0;
+    width:min(100%, 540px);
+  }
+
+  .fact{
+    min-width:0;
+    min-height:58px;
+    padding:10px 7px;
+    border:1px solid rgba(237,234,227,.085);
+    border-radius:18px;
+    background:rgba(237,234,227,.043);
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+    align-items:center;
+    gap:5px;
+  }
+
+  .fact span{
+    color:rgba(168,166,160,.75);
+    font-size:clamp(8px, 2.35vw, 10px);
+    letter-spacing:.18em;
+    text-transform:uppercase;
+  }
+
+  .fact strong{
+    max-width:100%;
+    color:rgba(237,234,227,.95);
+    font-size:clamp(11px, 3.25vw, 14px);
+    line-height:1.15;
+    font-weight:650;
+    overflow-wrap:anywhere;
+    text-wrap:balance;
+  }
+
+  .description{
+    margin:16px auto 0;
+    width:min(100%, 520px);
+    padding:0 8px;
+  }
+
+  .type-description{
+    margin:0;
+    color:rgba(237,234,227,.91);
+    font-size:clamp(16px, 4.6vw, 19px);
+    line-height:1.36;
+    text-wrap:balance;
+  }
+
+  .object-description{
+    margin:15px auto 0;
+    padding:14px 14px;
+    border:1px solid rgba(199,168,105,.12);
+    border-radius:22px;
+    background:linear-gradient(180deg, rgba(237,234,227,.052), rgba(237,234,227,.026));
+    color:rgba(237,234,227,.82);
+    font-size:clamp(13px, 3.8vw, 15px);
+    line-height:1.42;
+    text-wrap:balance;
+  }
+
+  .tonight{
+    margin:22px auto 0;
+    padding-top:16px;
+    border-top:1px solid rgba(237,234,227,.07);
+    width:min(100%, 540px);
+  }
+
+  .section-head{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding:0 2px 10px;
+    color:rgba(168,166,160,.78);
+    font-size:clamp(10px, 2.7vw, 12px);
+    letter-spacing:.18em;
+    text-transform:uppercase;
+  }
+
+  .section-head small{
+    color:rgba(168,166,160,.54);
+    font-size:inherit;
+    letter-spacing:.10em;
+    text-transform:none;
+  }
+
+  .rail{
+    display:grid;
+    grid-template-columns:1fr;
+    gap:9px;
+    overflow:visible;
+    padding-bottom:0;
+  }
+
+  .target{
+    width:100%;
+    border:1px solid rgba(237,234,227,.08);
+    border-radius:18px;
+    background:rgba(237,234,227,.038);
+    padding:13px 14px;
+    text-align:left;
+    color:rgba(237,234,227,.82);
+  }
+
+  .target[aria-current="true"]{
+    border-color:rgba(199,168,105,.42);
+    background:rgba(199,168,105,.065);
+  }
+
+  .target-top{
+    display:flex;
+    justify-content:space-between;
+    gap:10px;
+    align-items:baseline;
+    margin-bottom:9px;
+  }
+
+  .target strong{
+    font-size:18px;
+    color:rgba(237,234,227,.95);
+  }
+
+  .target time{
+    color:#d8b76e;
+    font-size:13px;
+    font-weight:700;
+  }
+
+  .target p{
+    margin:0;
+    color:rgba(168,166,160,.86);
+    font-size:14px;
+    line-height:1.35;
+  }
+
+  .share-card{
+    margin:18px auto 0;
+    width:min(100%, 540px);
+    padding:14px;
+    border:1px solid rgba(237,234,227,.08);
+    border-radius:24px;
+    background:rgba(237,234,227,.038);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.035);
+  }
+
+  .share-head{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin-bottom:12px;
+    color:rgba(168,166,160,.78);
+    font-size:clamp(10px, 2.8vw, 12px);
+    letter-spacing:.18em;
+    text-transform:uppercase;
+  }
+
+  .share-head .gold{
+    color:#d8b76e;
+  }
+
+  .share-grid{
+    display:grid;
+    grid-template-columns:repeat(5, 1fr);
+    gap:8px;
+  }
+
+  .share-btn{
+    appearance:none;
+    min-width:0;
+    min-height:68px;
+    border:1px solid rgba(237,234,227,.08);
+    border-radius:18px;
+    background:rgba(10,10,15,.56);
+    color:rgba(237,234,227,.9);
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:7px;
+    font-size:clamp(10px, 2.8vw, 12px);
+    font-weight:700;
+    cursor:pointer;
+    -webkit-tap-highlight-color:transparent;
+  }
+
+  .share-btn svg{
+    width:24px;
+    height:24px;
+    display:block;
+  }
+
+  .share-btn.native svg{color:#EDEAE3}
+  .share-btn.whatsapp svg{color:#55d886}
+  .share-btn.facebook svg{color:#86aef7}
+  .share-btn.messenger svg{color:#8ab5ff}
+  .share-btn.instagram svg{color:#ef8bbc}
+
+  .share-status{
+    min-height:16px;
+    margin-top:9px;
+    color:rgba(199,168,105,.76);
+    text-align:center;
+    font-size:12px;
+  }
+
+
+  .share-preview-note{
+    width:min(100%, 540px);
+    margin:10px auto 0;
+    padding:12px 14px;
+    border-radius:18px;
+    border:1px dashed rgba(199,168,105,.18);
+    background:rgba(199,168,105,.035);
+    color:rgba(168,166,160,.86);
+    font-size:13px;
+    line-height:1.38;
+    text-align:center;
+  }
+
+  .share-preview-note strong{
+    color:rgba(237,234,227,.86);
+    font-weight:650;
+  }
+
+  @media (min-width:520px){
+    .rail{
+      grid-template-columns:repeat(3, minmax(0, 1fr));
+    }
+    .target{
+      min-height:128px;
+    }
+  }
+
+  @media (max-width:360px){
+    .page{padding-left:8px; padding-right:8px}
+    .topbar{letter-spacing:.13em}
+    .viewer{width:97vw}
+    .facts{gap:5px}
+    .fact{border-radius:15px; padding:8px 4px; min-height:56px}
+    .share-card{padding:11px}
+    .share-grid{gap:6px}
+    .share-btn{min-height:62px; border-radius:15px}
+    .share-btn svg{width:21px;height:21px}
+  }
+
+  @media (max-height:720px){
+    .page{padding-top:11px}
+    .topbar{height:24px}
+    .viewer{width:min(100%, 93vw)}
+    .snapshot-toggle{margin-top:10px}
+    .integration{margin-top:11px}
+    .title{font-size:clamp(38px, 10.8vw, 58px)}
+    .facts{margin-top:13px}
+    .description{margin-top:13px}
+  }
+
+  @media (prefers-reduced-motion:reduce){
+    *,*::before,*::after{
+      animation-duration:.001ms !important;
+      animation-iteration-count:1 !important;
+      transition-duration:.001ms !important;
+      scroll-behavior:auto !important;
+    }
+  }
+</style>
+</head>
+<body>
+<main class="page">
+  <header class="topbar" aria-label="Live page status">
+    <div>STARGAZING.EVENTS / LIVE</div>
+    <div class="topbar__live"><span class="red-dot" aria-hidden="true"></span><span>LIVE · UPDATED 18S AGO</span></div>
+  </header>
+
+  <section class="viewer" aria-label="Live telescope image">
+    <div class="sky-square">
+      <div class="fov" aria-hidden="true"></div>
+    </div>
+
+    <svg class="rim" viewBox="0 0 100 100" aria-hidden="true">
+      <defs>
+        <!-- Inside the circular field, close to the inner edge, roughly 10 o'clock to 2 o'clock. -->
+        <path id="brandArc" d="M 12.8 28.5 A 43 43 0 0 1 87.2 28.5" />
+      </defs>
+
+      <circle class="rim-ring outer" cx="50" cy="50" r="48" />
+      <circle class="rim-ring" cx="50" cy="50" r="45.9" />
+
+      <line class="rim-tick" x1="50" y1="2.2" x2="50" y2="4.2" />
+      <line class="rim-tick" x1="50" y1="95.8" x2="50" y2="97.8" />
+      <line class="rim-tick" x1="2.2" y1="50" x2="4.2" y2="50" />
+      <line class="rim-tick" x1="95.8" y1="50" x2="97.8" y2="50" />
+      <line class="rim-tick" x1="15.8" y1="15.8" x2="17.2" y2="17.2" />
+      <line class="rim-tick" x1="84.2" y1="15.8" x2="82.8" y2="17.2" />
+      <line class="rim-tick" x1="15.8" y1="84.2" x2="17.2" y2="82.8" />
+      <line class="rim-tick" x1="84.2" y1="84.2" x2="82.8" y2="82.8" />
+
+      <text class="rim-brand">
+        <textPath href="#brandArc" startOffset="50%" text-anchor="middle" textLength="52" lengthAdjust="spacing">
+          STARGAZING.EVENTS
+        </textPath>
+      </text>
+    </svg>
+  </section>
+
+  <div class="snapshot-toggle" role="group" aria-label="Compare stack age">
+    <button class="snap" data-snap="first" aria-pressed="false">First</button>
+    <button class="snap" data-snap="one" aria-pressed="false">1 min</button>
+    <button class="snap" data-snap="two" aria-pressed="false">2 min</button>
+    <button class="snap" data-snap="latest" aria-pressed="true">Latest</button>
+  </div>
+
+  <section class="content" aria-live="polite">
+    <p class="integration"><span id="integrationText">8 min 40s gathered light</span></p>
+    <h1 class="title" id="objectTitle">Lagoon Nebula</h1>
+    <div class="alias" id="objectAlias">M8 · NGC 6523</div>
+
+    <div class="type-line">
+      <span id="typeIconHost" aria-hidden="true"></span>
+      <span id="typeShort">Diffuse nebula · star-forming cloud</span>
+    </div>
+
+    <div class="facts" aria-label="Object information">
+      <div class="fact"><span>Constellation</span><strong id="constellation">Sagittarius</strong></div>
+      <div class="fact"><span>Distance</span><strong id="distance">≈ 4,100 ly</strong></div>
+      <div class="fact"><span>Size</span><strong id="size">≈ 110 ly</strong></div>
+    </div>
+
+    <div class="description">
+      <p class="type-description" id="typeDescription">A glowing cloud of hydrogen where young stars are lighting up the gas around them.</p>
+      <p class="object-description" id="objectDescription">This specific view is Messier 8, the Lagoon Nebula — a bright summer cloud in Sagittarius with young stars embedded inside the glow.</p>
+    </div>
+  </section>
+
+  <section class="tonight" aria-label="Tonight's observed targets">
+    <div class="section-head">
+      <span>Tonight’s views</span>
+      <small>observed tonight</small>
+    </div>
+    <div class="rail" id="targetRail"></div>
+  </section>
+
+  <section class="share-card" aria-label="Share this view">
+    <div class="share-head">
+      <span>Share a clean object card</span>
+      <span class="gold">Branded preview</span>
+    </div>
+
+    <div class="share-grid">
+      <button class="share-btn native" data-share="native" aria-label="Native share">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7a3.2 3.2 0 0 0 0-1.39l7.05-4.11A2.99 2.99 0 1 0 15 5c0 .24.03.47.08.69L8.03 9.8A3 3 0 1 0 8.03 14.2l7.12 4.18c-.05.2-.08.4-.08.62A2.93 2.93 0 1 0 18 16.08Z"/></svg>
+        <span>Native</span>
+      </button>
+
+      <button class="share-btn whatsapp" data-share="whatsapp" aria-label="Share on WhatsApp">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12.04 2a9.86 9.86 0 0 0-8.44 14.93L2.53 22l5.19-1.02A9.96 9.96 0 1 0 12.04 2Zm0 1.8a8.15 8.15 0 1 1-3.85 15.34l-.28-.15-3.02.6.62-2.95-.18-.3A8.06 8.06 0 0 1 12.04 3.8Zm-3.1 4.23c-.18 0-.48.07-.73.36-.25.29-.96.94-.96 2.28s.98 2.64 1.12 2.82c.14.18 1.9 3.03 4.7 4.13 2.32.91 2.8.73 3.3.68.5-.05 1.62-.66 1.85-1.3.23-.64.23-1.19.16-1.3-.07-.12-.25-.18-.53-.32-.28-.14-1.62-.8-1.88-.89-.25-.09-.43-.14-.62.14-.18.27-.71.88-.87 1.06-.16.18-.32.2-.6.07-.28-.14-1.17-.43-2.24-1.38-.83-.74-1.39-1.66-1.55-1.94-.16-.28-.02-.43.12-.56.13-.13.28-.32.42-.48.14-.16.18-.28.27-.46.09-.18.05-.34-.02-.48-.07-.14-.62-1.49-.85-2.04-.22-.54-.45-.46-.62-.47h-.53Z"/></svg>
+        <span>WhatsApp</span>
+      </button>
+
+      <button class="share-btn facebook" data-share="facebook" aria-label="Share on Facebook">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M14.2 8.5V6.8c0-.82.55-1.01.93-1.01h2.37V2.15L14.25 2.14c-3.6 0-4.42 2.7-4.42 4.43V8.5H7.5v3.75h2.33V22h4.37v-9.75h2.93l.39-3.75H14.2Z"/></svg>
+        <span>Facebook</span>
+      </button>
+
+      <button class="share-btn messenger" data-share="messenger" aria-label="Share on Messenger">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2.4c-5.45 0-9.6 3.98-9.6 9.35 0 2.81 1.15 5.24 3.04 6.91v3.0l2.78-1.53c1.13.31 2.4.48 3.78.48 5.45 0 9.6-3.98 9.6-9.35S17.45 2.4 12 2.4Zm.96 12.58-2.43-2.6-4.73 2.6 5.2-5.55 2.49 2.6 4.66-2.6-5.19 5.55Z"/></svg>
+        <span>Messenger</span>
+      </button>
+
+      <button class="share-btn instagram" data-share="instagram" aria-label="Share on Instagram">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M7.6 2h8.8A5.6 5.6 0 0 1 22 7.6v8.8a5.6 5.6 0 0 1-5.6 5.6H7.6A5.6 5.6 0 0 1 2 16.4V7.6A5.6 5.6 0 0 1 7.6 2Zm0 2A3.6 3.6 0 0 0 4 7.6v8.8A3.6 3.6 0 0 0 7.6 20h8.8a3.6 3.6 0 0 0 3.6-3.6V7.6A3.6 3.6 0 0 0 16.4 4H7.6Zm4.4 3.25A4.75 4.75 0 1 1 12 16.75a4.75 4.75 0 0 1 0-9.5Zm0 2A2.75 2.75 0 1 0 12 14.75a2.75 2.75 0 0 0 0-5.5Zm5.05-2.56a1.1 1.1 0 1 1-1.1 1.1 1.1 1.1 0 0 1 1.1-1.1Z"/></svg>
+        <span>Instagram</span>
+      </button>
+    </div>
+
+    <div class="share-status" id="shareStatus" aria-live="polite"></div>
+  </section>
+
+  <section class="share-preview-note" aria-label="Share card behavior">
+    <strong>Share behavior:</strong> these buttons should share a clean branded card page for the current object — no LIVE badge, no controls, no share buttons. The shared preview should focus on the object image, name, facts, and a small stargazing.events watermark.
+  </section>
+
+</main>
+
+<script>
+  const icons = {
+    diffuse: `
+      <svg class="type-icon" viewBox="0 0 64 64" role="img" aria-label="Diffuse nebula">
+        <defs>
+          <radialGradient id="diffuse-g" cx="48%" cy="45%" r="58%">
+            <stop offset="0" stop-color="#fff6fb" stop-opacity=".96"/>
+            <stop offset=".22" stop-color="#ff8bbd" stop-opacity=".86"/>
+            <stop offset=".58" stop-color="#c72b73" stop-opacity=".44"/>
+            <stop offset="1" stop-color="#0a0a0f" stop-opacity="0"/>
+          </radialGradient>
+          <filter id="diffuse-blur"><feGaussianBlur stdDeviation="1.35"/></filter>
+        </defs>
+        <path d="M10 35c2-14 15-23 29-20 11 2 17 10 14 19-4 11-17 16-29 14-10-2-15-6-14-13Z" fill="url(#diffuse-g)" filter="url(#diffuse-blur)"/>
+        <circle cx="28" cy="30" r="1.8" fill="#fff"/>
+        <circle cx="39" cy="25" r="1.2" fill="#ffe0ed"/>
+        <circle cx="44" cy="40" r="1.2" fill="#ffd0e5"/>
+      </svg>`,
+    globular: `
+      <svg class="type-icon" viewBox="0 0 64 64" role="img" aria-label="Globular cluster">
+        <defs>
+          <radialGradient id="glob-g" cx="50%" cy="50%" r="53%">
+            <stop offset="0" stop-color="#fff8d7"/>
+            <stop offset=".26" stop-color="#f2ca78" stop-opacity=".9"/>
+            <stop offset=".74" stop-color="#936426" stop-opacity=".34"/>
+            <stop offset="1" stop-color="#0a0a0f" stop-opacity="0"/>
+          </radialGradient>
+        </defs>
+        <circle cx="32" cy="32" r="24" fill="url(#glob-g)"/>
+        <g fill="#fff7d9">
+          <circle cx="32" cy="32" r="2"/><circle cx="25" cy="30" r="1.5"/><circle cx="39" cy="29" r="1.4"/>
+          <circle cx="29" cy="39" r="1.3"/><circle cx="41" cy="38" r="1.1"/><circle cx="22" cy="36" r="1"/>
+          <circle cx="45" cy="33" r="1"/><circle cx="34" cy="22" r="1.1"/>
+        </g>
+      </svg>`,
+    planetary: `
+      <svg class="type-icon" viewBox="0 0 64 64" role="img" aria-label="Planetary nebula">
+        <defs>
+          <radialGradient id="pn-g" cx="50%" cy="50%" r="56%">
+            <stop offset="0" stop-color="#ffffff" stop-opacity=".92"/>
+            <stop offset=".18" stop-color="#8bfff5" stop-opacity=".42"/>
+            <stop offset=".36" stop-color="#24ccd2" stop-opacity=".95"/>
+            <stop offset=".54" stop-color="#0a0a0f" stop-opacity=".18"/>
+            <stop offset=".76" stop-color="#3be2d4" stop-opacity=".28"/>
+            <stop offset="1" stop-color="#0a0a0f" stop-opacity="0"/>
+          </radialGradient>
+          <filter id="pn-blur"><feGaussianBlur stdDeviation=".8"/></filter>
+        </defs>
+        <ellipse cx="32" cy="32" rx="19" ry="15" fill="none" stroke="url(#pn-g)" stroke-width="8" filter="url(#pn-blur)"/>
+        <circle cx="32" cy="32" r="2.1" fill="#fffdf2"/>
+      </svg>`
+  };
+
+  const targets = [
+    {
+      id:'M8',
+      displayName:'Lagoon Nebula',
+      fallbackName:'Messier 8',
+      alias:'M8 · NGC 6523',
+      integration:'8 min 40s gathered light',
+      typeShort:'Diffuse nebula · star-forming cloud',
+      typeDescription:'A glowing cloud of hydrogen where young stars are lighting up the gas around them.',
+      objectDescription:'This specific view is Messier 8, the Lagoon Nebula — a bright summer cloud in Sagittarius with young stars embedded inside the glow.',
+      constellation:'Sagittarius',
+      distance:'≈ 4,100 ly',
+      size:'≈ 110 ly',
+      icon:'diffuse',
+      rail:'Diffuse nebula · A bright star-forming cloud in Sagittarius.',
+      time:'Now'
+    },
+    {
+      id:'M13',
+      displayName:'Hercules Cluster',
+      fallbackName:'Messier 13',
+      alias:'M13 · NGC 6205',
+      integration:'7 min 10s gathered light',
+      typeShort:'Globular cluster · ancient star swarm',
+      typeDescription:'An ancient swarm of stars packed tightly together, orbiting the Milky Way like a golden city.',
+      objectDescription:'This is Messier 13, the Great Hercules Cluster — one of the finest globular clusters visible from the northern sky.',
+      constellation:'Hercules',
+      distance:'≈ 22,000 ly',
+      size:'≈ 145 ly',
+      icon:'globular',
+      rail:'Globular cluster · Ancient stars packed into a shimmering ball.',
+      time:'21:37'
+    },
+    {
+      id:'M57',
+      displayName:'Ring Nebula',
+      fallbackName:'Messier 57',
+      alias:'M57 · NGC 6720',
+      integration:'9 min 50s gathered light',
+      typeShort:'Planetary nebula · dying star shell',
+      typeDescription:'A dying star has shed its outer layers, leaving a small glowing shell of gas behind.',
+      objectDescription:'Messier 57 is the famous Ring Nebula in Lyra, a tiny smoke-ring shape with a faint central star at its heart.',
+      constellation:'Lyra',
+      distance:'≈ 2,500 ly',
+      size:'≈ 1 ly',
+      icon:'planetary',
+      rail:'Planetary nebula · A dying star glowing through its own remains.',
+      time:''
+    }
+  ];
+
+  let activeId = 'M8';
+
+  function applyTarget(t){
+    activeId = t.id;
+    document.getElementById('objectTitle').textContent = t.displayName || t.fallbackName || t.id;
+    document.getElementById('objectAlias').textContent = t.alias || t.id;
+    document.getElementById('integrationText').textContent = t.integration;
+    document.getElementById('typeShort').textContent = t.typeShort;
+    document.getElementById('typeDescription').textContent = t.typeDescription;
+    document.getElementById('objectDescription').textContent = t.objectDescription;
+    document.getElementById('constellation').textContent = t.constellation;
+    document.getElementById('distance').textContent = t.distance;
+    document.getElementById('size').textContent = t.size;
+    document.getElementById('typeIconHost').innerHTML = icons[t.icon] || icons.diffuse;
+    renderRail();
+  }
+
+  function renderRail(){
+    const rail = document.getElementById('targetRail');
+    rail.innerHTML = targets.map(t => `
+      <button class="target" data-id="${t.id}" aria-current="${t.id === activeId ? 'true' : 'false'}">
+        <div class="target-top"><strong>${t.id}</strong><time>${t.time || ''}</time></div>
+        <p>${t.rail}</p>
+      </button>
+    `).join('');
+    rail.querySelectorAll('.target').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const t = targets.find(x => x.id === btn.dataset.id);
+        if(t) applyTarget(t);
+      });
+    });
+  }
+
+  document.querySelectorAll('.snap').forEach(button => {
+    button.addEventListener('click', () => {
+      document.querySelectorAll('.snap').forEach(b => b.setAttribute('aria-pressed','false'));
+      button.setAttribute('aria-pressed','true');
+      const snap = button.dataset.snap;
+      const active = targets.find(t => t.id === activeId) || targets[0];
+      const text = snap === 'first' ? 'first light · 10s' : snap === 'one' ? '1 min gathered light' : snap === 'two' ? '2 min gathered light' : active.integration;
+      document.getElementById('integrationText').textContent = text;
+    });
+  });
+
+  applyTarget(targets[0]);
+
+  // In production, share this clean static route, not the live control page.
+  // Example: /live/share/M8 or /live/share?observation=M8
+  const shareUrl = location.origin + '/live/share/' + activeId;
+  const shareText = 'Tonight’s telescope view from Stargazing Events on Kos ✨';
+  const status = document.getElementById('shareStatus');
+
+  async function copyLink(){
+    try{
+      await navigator.clipboard.writeText(shareUrl);
+      status.textContent = 'Link copied.';
+    }catch{
+      status.textContent = 'Copy unavailable — use Native share.';
+    }
+  }
+
+  async function nativeShare(){
+    if(navigator.share){
+      try{
+        await navigator.share({title:'Stargazing Events object card', text:shareText, url:shareUrl});
+      }catch(e){}
+    }else{
+      await copyLink();
+    }
+  }
+
+  document.querySelectorAll('[data-share]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const action = btn.dataset.share;
+      const url = encodeURIComponent(shareUrl);
+      const text = encodeURIComponent(shareText);
+      status.textContent = '';
+      if(action === 'native') return nativeShare();
+      if(action === 'whatsapp') return window.open(`https://wa.me/?text=${text}%20${url}`, '_blank', 'noopener,noreferrer');
+      if(action === 'facebook') return window.open(`https://www.facebook.com/sharer/sharer.php?u=${url}`, '_blank', 'noopener,noreferrer');
+      if(action === 'messenger') {
+        status.textContent = 'Opening Messenger if available…';
+        location.href = `fb-messenger://share?link=${url}`;
+        setTimeout(nativeShare, 650);
+        return;
+      }
+      if(action === 'instagram') {
+        status.textContent = 'Instagram uses the phone share sheet.';
+        return nativeShare();
+      }
+    });
+  });
+</script>
+</body>
+</html>

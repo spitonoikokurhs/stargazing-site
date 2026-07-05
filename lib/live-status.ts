@@ -14,10 +14,37 @@ export const UI_STATES = [
 ] as const
 export type UiState = (typeof UI_STATES)[number]
 
+// What the guest-facing object label should show, derived once at dispatch
+// time from telemetry.astrometryState + objectMatch (see LiveView.tsx). Kept
+// as a settled display decision rather than raw telemetry, so this reducer
+// (and every other consumer of LiveFrame) stays presentation-agnostic about
+// astrometry states/confidence tiers — it just renders whichever of these
+// three the caller already decided.
+export type DisplayObject =
+  | {
+      kind: 'known'
+      name: string
+      description: string
+      type: string
+      // Not yet populated anywhere (config/catalog.json has no distanceLy/
+      // constellation fields yet — separate, not-yet-built item). Optional
+      // so the facts UI can render gracefully-absent until that data exists,
+      // rather than needing a second, larger type migration later.
+      constellation?: string
+      distanceLy?: number
+    }
+  | { kind: 'moving' }
+  | { kind: 'fallback' }
+
 export type LiveFrame = {
   frameId: string
   blobUrl: string
   objectName: string
+  displayObject: DisplayObject
+  // Seconds of exposure the device has accumulated, when telemetry reported
+  // it. "Total accumulated" (not per-object) — see the render label; absent
+  // on Tier-1-only frames or when the device didn't send it.
+  totalAccumulatedTime?: number
   ingestedAt: string
   loadedAt: number // Date.now() when the preload actually completed — drives "updated Xs ago"
 }
@@ -44,12 +71,14 @@ export const initialLiveStatusState: LiveStatusState = {
   lastOfflinePayload: null,
 }
 
-// Only the three fields the reducer needs from a raw /api/status "live" body.
+// Only the fields the reducer needs from a raw /api/status "live" body.
 type LiveFramePayload = {
   frameId: string
   blobUrl: string
   ingestedAt: string
   objectName: string
+  displayObject: DisplayObject
+  totalAccumulatedTime?: number
 }
 
 export type LiveStatusEvent =
@@ -84,6 +113,8 @@ export function liveStatusReducer(state: LiveStatusState, event: LiveStatusEvent
         frameId: event.frame.frameId,
         blobUrl: event.frame.blobUrl,
         objectName: event.frame.objectName,
+        displayObject: event.frame.displayObject,
+        totalAccumulatedTime: event.frame.totalAccumulatedTime,
         ingestedAt: event.frame.ingestedAt,
         loadedAt: event.loadedAt,
       }

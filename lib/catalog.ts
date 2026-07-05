@@ -11,6 +11,11 @@ export type CatalogObject = {
   priority: number
   description: string
   requiresEphemeris?: boolean
+  // Guest-facing facts shown as fact chips on /live (see Facts in
+  // app/live/LiveView.tsx). Optional/additive — absent on any entry not yet
+  // back-filled; the UI omits a chip rather than showing a placeholder.
+  constellation?: string
+  distanceLy?: number
 }
 
 export type Confidence = 'high' | 'medium' | 'low' | 'none'
