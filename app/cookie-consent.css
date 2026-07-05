@@ -104,44 +104,18 @@
   color: #e8ecf1;
 }
 
-/* /live-specific override: on that page (identified by its own root
-   container existing as a sibling in <body>) the cookie banner and privacy
-   button must NEVER render on a bare white background. /live has no
-   <footer>, so cookie-consent.js's addPrivacySettingsButton() falls through
-   to appending straight onto <body> — which has no background color set
-   (see app/globals.css), so it sits on browser-default WHITE. On a dark,
-   night-adapted event page that's a real harm, not a cosmetic one: guests
-   are dark-adapted, and a flash of white light ruins night vision for
-   several minutes. Fixed positioning (not just recoloring) also stops it
-   from being page content that a drag gesture can reveal/scroll to, which
-   is the same root cause as the pull-to-refresh-looks-like-scrolling bug —
-   see .live-root/.status-root's overflow:hidden comments for why <body>
-   itself is deliberately left scrollable (native pull-to-refresh), which
-   means any extra body content, like this button, must never be allowed to
-   sit below the fold where that residual scroll room can reveal it. */
-body:has(.live-root) .privacy-settings-button,
-body:has(.status-root) .privacy-settings-button {
-  position: fixed;
-  left: 12px;
-  bottom: 12px;
-  z-index: 1000;
-  margin: 0;
-  padding: 6px 10px;
-  border-radius: 8px;
-  background: rgba(10, 10, 15, 0.85);
-  color: #a8a6a0;
-  backdrop-filter: blur(6px);
-}
-
-body:has(.live-root) .privacy-settings-button:hover,
-body:has(.status-root) .privacy-settings-button:hover {
-  color: #edeae3;
-}
-
-/* The full consent banner is already dark-themed by default (see
-   .cookie-consent-banner above), so no color change is needed here — but it
-   must be pinned the same way so it can't become scrollable trailing
-   content either. */
+/* /live and the offline/status screen are an immersive full-screen dark
+   experience — the persistent privacy-settings button is suppressed there
+   entirely (see isImmersivePage() in cookie-consent.js), not just restyled,
+   so there is no button-specific rule to keep here. The one-time consent
+   banner is unaffected and still needs pinning below so it can't become
+   scrollable trailing content on <body> (same root cause as the
+   pull-to-refresh-looks-like-scrolling bug — see .live-root/.status-root's
+   overflow:hidden comments for why <body> itself is deliberately left
+   scrollable for native pull-to-refresh). The full consent banner is
+   already dark-themed by default (see .cookie-consent-banner above), so no
+   color change is needed here — but it must be pinned the same way so it
+   can't become scrollable trailing content either. */
 body:has(.live-root) .cookie-consent-banner,
 body:has(.status-root) .cookie-consent-banner {
   position: fixed;

@@ -594,6 +594,9 @@ function formatUpdatedAgo(loadedAtMs: number): string {
 // "Xh Ym". Guest-friendly and compact for the top cap. Returns null for
 // absent/negative/non-finite input so the caller can omit the line entirely
 // rather than render "0s" or "NaN".
+// "52 min stacked" / "45 sec stacked" / "1h 12m stacked" — seconds are only
+// ever shown when the total is under a minute; once minutes are shown, the
+// leftover seconds are dropped rather than appended as a clunky "52m 0s".
 function formatAccumulated(seconds: number | undefined): string | null {
   if (seconds === undefined || !Number.isFinite(seconds) || seconds < 0) return null
   const total = Math.round(seconds)
@@ -601,8 +604,8 @@ function formatAccumulated(seconds: number | undefined): string | null {
   const m = Math.floor((total % 3600) / 60)
   const s = total % 60
   if (h > 0) return `${h}h ${m}m`
-  if (m > 0) return `${m}m ${s}s`
-  return `${s}s`
+  if (m > 0) return `${m} min`
+  return `${s} sec`
 }
 
 // `loader` gates the telescope "getting ready" orbit — true only in the states
@@ -766,13 +769,10 @@ function LiveFrameView({
         {/* object-fit: contain — the WHOLE square frame stays visible,
             maximized within the viewport. No circular mask, no rim text:
             fullscreen is the see-everything-in-detail mode, not the eyepiece
-            aesthetic (that's the default circular view). */}
-        {/* eslint-disable-next-line @next/next/no-img-element -- external Vercel Blob URL, no next/image domain config for v1 */}
-        <img
-          src={lastLiveFrame.blobUrl}
-          alt={objectLabel(lastLiveFrame.displayObject)}
-          className="fullscreen-image"
-        />
+            aesthetic (that's the default circular view). Pinch-to-zoom/pan
+            is scoped entirely to this image (see PannableZoomImage) — the
+            exit button and page chrome are outside it and never affected. */}
+        <PannableZoomImage src={lastLiveFrame.blobUrl} alt={objectLabel(lastLiveFrame.displayObject)} />
       </div>
     )
   }
@@ -795,7 +795,7 @@ function LiveFrameView({
                 <span>{uiState === 'reconnecting' ? 'RECONNECTING' : 'LIVE'}</span>
                 <span>· UPDATED {formatUpdatedAgo(lastLiveFrame.loadedAt)}</span>
                 {formatAccumulated(lastLiveFrame.totalAccumulatedTime) ? (
-                  <span>· {formatAccumulated(lastLiveFrame.totalAccumulatedTime)} GATHERED</span>
+                  <span>· {formatAccumulated(lastLiveFrame.totalAccumulatedTime)} STACKED</span>
                 ) : null}
               </>
             ) : (
@@ -878,11 +878,274 @@ function LiveFrameView({
   )
 }
 
+const ZOOM_MIN = 1
+const ZOOM_MAX = 4
+const DOUBLE_TAP_ZOOM = 2.5
+const DOUBLE_TAP_MAX_INTERVAL_MS = 300
+const DOUBLE_TAP_MAX_DISTANCE_PX = 40 // two taps further apart than this are two separate taps, not a double-tap
+
+function distanceBetween(a: React.PointerEvent, b: React.PointerEvent): number {
+  return Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY)
+}
+
+// How far the image content (post object-fit:contain, pre zoom-scale) can be
+// panned before its own edge would cross the wrapper's edge, in each axis.
+// Computed from the image's natural size, not assumed square — a wide/tall
+// camera frame is fit-scaled differently than a square one, and clamping
+// against the wrong box would let a black gap open on one axis but not
+// the other.
+function maxPanOffset(
+  wrapperSize: { width: number; height: number },
+  naturalSize: { width: number; height: number },
+  scale: number,
+): { x: number; y: number } {
+  if (naturalSize.width <= 0 || naturalSize.height <= 0) return { x: 0, y: 0 }
+  const fitScale = Math.min(wrapperSize.width / naturalSize.width, wrapperSize.height / naturalSize.height)
+  const renderedWidth = naturalSize.width * fitScale * scale
+  const renderedHeight = naturalSize.height * fitScale * scale
+  return {
+    x: Math.max(0, (renderedWidth - wrapperSize.width) / 2),
+    y: Math.max(0, (renderedHeight - wrapperSize.height) / 2),
+  }
+}
+
+function clampPan(
+  x: number,
+  y: number,
+  wrapperSize: { width: number; height: number },
+  naturalSize: { width: number; height: number },
+  scale: number,
+): { x: number; y: number } {
+  const max = maxPanOffset(wrapperSize, naturalSize, scale)
+  return {
+    x: Math.min(max.x, Math.max(-max.x, x)),
+    y: Math.min(max.y, Math.max(-max.y, y)),
+  }
+}
+
+// Pinch-to-zoom + pan + double-tap-to-zoom, scoped to exactly this image —
+// used only in fullscreen, where there's no other UI to fight with.
+// Deliberately hand-rolled (pointer events, no gesture library): the
+// interaction is small and self-contained enough that a dependency would
+// cost more than it saves, and pointer events already unify touch/mouse
+// across mobile Safari and Chrome.
+//
+// touch-action: none on the wrapper (see .pannable-zoom-wrapper in styles.css)
+// is what actually stops the browser's own page-zoom/scroll from intercepting
+// the gesture — without it, iOS Safari in particular will hijack a two-finger
+// pinch for its native viewport zoom instead of delivering pointer events here.
+function PannableZoomImage({ src, alt }: { src: string; alt: string }) {
+  const [transform, setTransform] = useState({ scale: 1, x: 0, y: 0 })
+  // Only true for the brief animated snap-to on double-tap — pinch/pan get no
+  // transition so they track fingers with zero lag; double-tap is a discrete
+  // jump that needs to visibly ease rather than pop.
+  const [animating, setAnimating] = useState(false)
+  const pointers = useRef(new Map<number, React.PointerEvent>())
+  const wrapperRef = useRef<HTMLDivElement>(null)
+  const imgRef = useRef<HTMLImageElement>(null)
+  // Natural (unscaled) image dimensions, captured once the image loads —
+  // required to clamp panning against the real object-fit:contain content
+  // box (see maxPanOffset), which depends on the image's own aspect ratio.
+  const naturalSize = useRef({ width: 0, height: 0 })
+  const lastTap = useRef<{ time: number; x: number; y: number } | null>(null)
+  // Gesture-start snapshot: the scale/pan/pointer-position(s) at the moment a
+  // pinch or pan begins, so every subsequent move computes its delta from a
+  // fixed baseline rather than accumulating rounding error frame-to-frame.
+  const gestureStart = useRef<{
+    scale: number
+    x: number
+    y: number
+    distance: number | null
+    midX: number
+    midY: number
+  } | null>(null)
+
+  // No reset effect needed: LiveFrameView only renders PannableZoomImage
+  // while isFullscreen is true, so exiting fullscreen unmounts this
+  // component entirely and its state (including transform) is discarded —
+  // re-entering fullscreen always starts a fresh, unzoomed component.
+
+  function wrapperSize(): { width: number; height: number } {
+    const el = wrapperRef.current
+    return el ? { width: el.clientWidth, height: el.clientHeight } : { width: 0, height: 0 }
+  }
+
+  function clamp(x: number, y: number, scale: number): { x: number; y: number } {
+    return clampPan(x, y, wrapperSize(), naturalSize.current, scale)
+  }
+
+  function captureNaturalSize() {
+    const el = imgRef.current
+    if (el && el.naturalWidth > 0) naturalSize.current = { width: el.naturalWidth, height: el.naturalHeight }
+  }
+
+  // Belt-and-suspenders alongside onLoad below: a cache-hit image can finish
+  // loading synchronously before React attaches the onLoad listener, in
+  // which case onLoad never fires at all — checking `complete` on mount
+  // catches that case too.
+  useEffect(() => {
+    captureNaturalSize()
+  }, [])
+
+  function snapshotGestureStart(pts: React.PointerEvent[]) {
+    gestureStart.current = {
+      scale: transform.scale,
+      x: transform.x,
+      y: transform.y,
+      distance: pts.length === 2 ? distanceBetween(pts[0], pts[1]) : null,
+      midX: pts.length === 2 ? (pts[0].clientX + pts[1].clientX) / 2 : (pts[0]?.clientX ?? 0),
+      midY: pts.length === 2 ? (pts[0].clientY + pts[1].clientY) / 2 : (pts[0]?.clientY ?? 0),
+    }
+  }
+
+  // Zoom toward a specific viewport point (tapX/tapY) rather than the
+  // wrapper's center — so double-tapping near an edge feels anchored to
+  // where the guest actually tapped, not just a center-zoom.
+  function zoomToward(tapX: number, tapY: number, nextScale: number) {
+    const wrapper = wrapperSize()
+    const centerX = wrapper.width / 2
+    const centerY = wrapper.height / 2
+    // Keep the point under the finger fixed: solve for the new pan offset
+    // that maps (tapX, tapY) to the same screen position after rescaling.
+    const scaleRatio = nextScale / transform.scale
+    const nextX = tapX - centerX - (tapX - centerX - transform.x) * scaleRatio
+    const nextY = tapY - centerY - (tapY - centerY - transform.y) * scaleRatio
+    const clamped = clamp(nextX, nextY, nextScale)
+    setAnimating(true)
+    setTransform({ scale: nextScale, x: clamped.x, y: clamped.y })
+  }
+
+  function onPointerDown(e: React.PointerEvent<HTMLDivElement>) {
+    e.currentTarget.setPointerCapture(e.pointerId)
+    pointers.current.set(e.pointerId, e)
+    setAnimating(false)
+    snapshotGestureStart(Array.from(pointers.current.values()))
+
+    // Double-tap detection: only meaningful for a single-finger tap (a second
+    // finger already joining is a pinch start, not a tap), matched against
+    // the previous tap's time and position.
+    if (pointers.current.size === 1) {
+      const now = Date.now()
+      const prev = lastTap.current
+      if (
+        prev &&
+        now - prev.time <= DOUBLE_TAP_MAX_INTERVAL_MS &&
+        Math.hypot(e.clientX - prev.x, e.clientY - prev.y) <= DOUBLE_TAP_MAX_DISTANCE_PX
+      ) {
+        lastTap.current = null
+        const nextScale = transform.scale > ZOOM_MIN ? ZOOM_MIN : DOUBLE_TAP_ZOOM
+        zoomToward(e.clientX, e.clientY, nextScale)
+        return
+      }
+      lastTap.current = { time: now, x: e.clientX, y: e.clientY }
+    } else {
+      // A pinch is starting — this is not a tap sequence.
+      lastTap.current = null
+    }
+  }
+
+  function onPointerMove(e: React.PointerEvent<HTMLDivElement>) {
+    if (!pointers.current.has(e.pointerId)) return
+    pointers.current.set(e.pointerId, e)
+    const start = gestureStart.current
+    if (!start) return
+    const pts = Array.from(pointers.current.values())
+
+    if (pts.length === 2 && start.distance) {
+      // Pinch: scale from the ratio of current to gesture-start finger
+      // distance, clamped to a sane range so the image can't vanish or
+      // balloon past usefulness. Pan follows the pinch midpoint too, so
+      // zooming feels anchored to where the fingers are, not just the center.
+      const newDistance = distanceBetween(pts[0], pts[1])
+      const nextScale = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, start.scale * (newDistance / start.distance)))
+      const midX = (pts[0].clientX + pts[1].clientX) / 2
+      const midY = (pts[0].clientY + pts[1].clientY) / 2
+      const clamped = clamp(start.x + (midX - start.midX), start.y + (midY - start.midY), nextScale)
+      setTransform({ scale: nextScale, x: clamped.x, y: clamped.y })
+      return
+    }
+
+    if (pts.length === 1) {
+      // Pan: only meaningful once zoomed in — at scale 1 the whole image
+      // already fits the viewport, so dragging at rest is a no-op rather
+      // than an unexpected shift.
+      if (start.scale <= ZOOM_MIN) return
+      const clamped = clamp(start.x + (pts[0].clientX - start.midX), start.y + (pts[0].clientY - start.midY), start.scale)
+      setTransform({ scale: start.scale, x: clamped.x, y: clamped.y })
+    }
+  }
+
+  function onPointerUp(e: React.PointerEvent<HTMLDivElement>) {
+    pointers.current.delete(e.pointerId)
+    const remaining = Array.from(pointers.current.values())
+    if (remaining.length > 0) {
+      // A finger lifted mid-gesture (e.g. pinch -> single-finger pan): snapshot
+      // fresh from here so the next move computes deltas against the new,
+      // now-one-fewer-pointer baseline instead of the stale two-finger one.
+      snapshotGestureStart(remaining)
+    } else {
+      gestureStart.current = null
+      // Pinch-out can end with the image no longer fully filling the view on
+      // one axis (e.g. released mid-gesture at a transient scale); re-clamp
+      // against the final scale so it can't rest in an off-position.
+      setTransform((t) => {
+        const clamped = clamp(t.x, t.y, t.scale)
+        return { scale: t.scale, x: clamped.x, y: clamped.y }
+      })
+    }
+  }
+
+  return (
+    <div
+      ref={wrapperRef}
+      className="pannable-zoom-wrapper"
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
+      onPointerCancel={onPointerUp}
+    >
+      {/* eslint-disable-next-line @next/next/no-img-element -- external Vercel Blob URL, no next/image domain config for v1 */}
+      <img
+        ref={imgRef}
+        src={src}
+        alt={alt}
+        className={`fullscreen-image${animating ? ' fullscreen-image--animating' : ''}`}
+        style={{
+          transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})`,
+        }}
+        draggable={false}
+        onLoad={captureNaturalSize}
+        onTransitionEnd={() => setAnimating(false)}
+      />
+    </div>
+  )
+}
+
+// Neutral grey used for the fallback "Deep-sky field" pill — deliberately not
+// one of TYPE_COLORS' per-catalog-type accents, since this isn't a matched
+// catalog type at all, just an honest "we don't have a confident name yet."
+const FALLBACK_PILL_COLOR = '#A8A6A0'
+
 // Colored type pill (icon + label on a tinted rounded background, color-coded
-// per catalog type) plus its one-line definition underneath, shown only when
-// a catalog match is confirmed (kind: 'known'). Renders nothing for
-// 'moving'/'fallback' — there's no catalog type to show.
+// per catalog type) plus its one-line definition underneath. Shown for a
+// confirmed catalog match (kind: 'known') AND for the no-confident-match
+// fallback (kind: 'fallback', a neutral "Deep-sky field" pill) so that state
+// looks like a deliberate design choice rather than an empty gap. Renders
+// nothing for 'moving' — that state already has its own "next object
+// incoming" copy and doesn't need a type pill.
 function ObjectTypeLine({ displayObject }: { displayObject: DisplayObject }) {
+  if (displayObject.kind === 'fallback') {
+    return (
+      <div className="type-line">
+        <div className="type-pill" style={{ '--type-color': FALLBACK_PILL_COLOR } as React.CSSProperties}>
+          <span className="type-icon" aria-hidden="true">
+            <FallbackFieldIcon />
+          </span>
+          <span className="type-pill-label">Deep-sky field</span>
+        </div>
+      </div>
+    )
+  }
   if (displayObject.kind !== 'known') return null
   const definition = typeDefinition(displayObject.type)
   const color = typeColor(displayObject.type)
@@ -903,6 +1166,23 @@ function ObjectTypeLine({ displayObject }: { displayObject: DisplayObject }) {
       </div>
       {definition ? <p className="type-pill-definition">{definition}</p> : null}
     </div>
+  )
+}
+
+// Small scattered-stars glyph for the fallback pill — visually distinct from
+// TypeIcon's per-type illustrations (this isn't a catalog type), but in the
+// same restrained style: a few soft points of light on a dark circle.
+function FallbackFieldIcon() {
+  return (
+    <svg viewBox="0 0 64 64" width="32" height="32" aria-hidden="true">
+      <circle cx="32" cy="32" r="26" fill="#111318" />
+      <circle cx="24" cy="22" r="1.8" fill="#dcdad4" opacity=".85" />
+      <circle cx="40" cy="18" r="1.2" fill="#dcdad4" opacity=".6" />
+      <circle cx="44" cy="34" r="1.6" fill="#dcdad4" opacity=".75" />
+      <circle cx="22" cy="40" r="1.3" fill="#dcdad4" opacity=".65" />
+      <circle cx="34" cy="44" r="1.8" fill="#dcdad4" opacity=".85" />
+      <circle cx="18" cy="30" r="1" fill="#dcdad4" opacity=".5" />
+    </svg>
   )
 }
 

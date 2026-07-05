@@ -161,8 +161,23 @@
       .addEventListener("click", grantConsent);
   }
 
+  // /live and the offline/status screen are an immersive, dark, full-screen
+  // experience (guests are night-adapted under a real dark sky) — a
+  // persistent floating button breaks that on purpose-built grounds, not
+  // just a style call. The one-time consent banner (showBanner) is
+  // unaffected and still appears when required; only the always-on
+  // re-open-preferences button is suppressed on these pages.
+  function isImmersivePage() {
+    return !!(
+      document.querySelector(".live-root") || document.querySelector(".status-root")
+    );
+  }
+
   function addPrivacySettingsButton() {
     if (document.getElementById("privacy-settings-button")) {
+      return;
+    }
+    if (isImmersivePage()) {
       return;
     }
 
