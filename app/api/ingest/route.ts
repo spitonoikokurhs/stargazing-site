@@ -3,7 +3,7 @@ import { createHash, timingSafeEqual } from 'crypto'
 import { put } from '@vercel/blob'
 import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/db'
-import { redis, isValidSource, latestFrameKey, type Source } from '@/lib/redis'
+import { redis, ingestRatelimit, isValidSource, latestFrameKey, type Source } from '@/lib/redis'
 import { athensToday, scheduledHotelFor } from '@/lib/schedule'
 
 // Node runtime required: crypto.timingSafeEqual, createHash, Buffer.
@@ -46,19 +46,50 @@ function authorized(req: NextRequest, secret: string): boolean {
   return timingSafeEqual(presented, expected)
 }
 
+// Best-effort client IP for rate-limit keying and failure logging only — never
+// used for auth. x-forwarded-for's first entry is the original client behind
+// Vercel's proxy chain; falls back to a fixed key if absent (e.g. local dev)
+// so rate limiting still functions (as one shared bucket) rather than no-op.
+function clientIp(req: NextRequest): string {
+  const forwardedFor = req.headers.get('x-forwarded-for')
+  if (forwardedFor) return forwardedFor.split(',')[0].trim()
+  return req.headers.get('x-real-ip') ?? 'unknown'
+}
+
 export async function POST(req: NextRequest) {
   try {
-    // 1. Auth — fail closed and loud if the secret is not configured.
+    const ip = clientIp(req)
+
+    // 1. Rate limit BEFORE auth — this must also throttle wrong-token guesses,
+    // not just excessive traffic from an already-valid token, so it can't be
+    // keyed on the (not-yet-verified) token. Keyed by IP instead: 30 req/min
+    // comfortably clears the real relay's cadence (~1 frame per 20-40s per
+    // source) even with two sources behind one router, while still bounding
+    // a leaked/guessed token's blast radius. Fails OPEN on an Upstash error —
+    // dropping real frames at a live event is worse than a brief unthrottled
+    // window, so a limiter outage must never block legitimate ingest.
+    try {
+      const { success } = await ingestRatelimit.limit(ip)
+      if (!success) {
+        console.warn(`ingest: rate limited at ${new Date().toISOString()} from ${ip}`)
+        return NextResponse.json({ error: 'rate limited' }, { status: 429 })
+      }
+    } catch (e) {
+      console.warn(`ingest: ratelimit check failed, failing open at ${new Date().toISOString()}`, e)
+    }
+
+    // 2. Auth — fail closed and loud if the secret is not configured.
     const secret = process.env.INGEST_SECRET
     if (!secret) {
       console.error('INGEST_SECRET not configured')
       return NextResponse.json({ error: 'internal' }, { status: 500 })
     }
     if (!authorized(req, secret)) {
+      console.warn(`ingest: auth failure at ${new Date().toISOString()} from ${ip}`)
       return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
     }
 
-    // 2. Parse + validate multipart fields.
+    // 3. Parse + validate multipart fields.
     const form = await req.formData()
 
     const image = form.get('image')
@@ -121,10 +152,10 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 3. Hash server-side — never trusted from the client.
+    // 4. Hash server-side — never trusted from the client.
     const sha256 = createHash('sha256').update(bytes).digest('hex')
 
-    // 4. Dedup check BEFORE any writes: same source + same bytes → done.
+    // 5. Dedup check BEFORE any writes: same source + same bytes → done.
     const existing = await prisma.frame.findUnique({
       where: { source_sha256: { source, sha256 } },
       select: { id: true },
@@ -133,7 +164,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ deduped: true, frameId: existing.id }, { status: 200 })
     }
 
-    // 5. Blob upload. If this fails we 500 with nothing written anywhere —
+    // 6. Blob upload. If this fails we 500 with nothing written anywhere —
     // the relay retries. Store the RETURNED url/pathname, never the requested
     // path (put() is not guaranteed to honor it verbatim).
     //
@@ -162,7 +193,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'internal' }, { status: 500 })
     }
 
-    // 6. DB writes in a single transaction.
+    // 7. DB writes in a single transaction.
     let result: {
       frameId: string
       observationId: string
@@ -281,7 +312,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'internal' }, { status: 500 })
     }
 
-    // 7. Redis LAST — only after the transaction commits. A Redis failure
+    // 8. Redis LAST — only after the transaction commits. A Redis failure
     // must not fail the request: the frame IS persisted; /api/status is at
     // most one frame stale.
     let redisWarning = false
@@ -318,7 +349,7 @@ export async function POST(req: NextRequest) {
       console.error('ingest: Redis set failed after DB commit', e)
     }
 
-    // 8. Done.
+    // 9. Done.
     return NextResponse.json(
       {
         frameId: result.frameId,

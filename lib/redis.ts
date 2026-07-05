@@ -1,8 +1,22 @@
 import { Redis } from '@upstash/redis'
+import { Ratelimit } from '@upstash/ratelimit'
 
 export const redis = new Redis({
   url: process.env.UPSTASH_KV_REST_API_URL as string,
   token: process.env.UPSTASH_KV_REST_API_TOKEN as string,
+})
+
+// Ingest-only limiter: 30 requests/minute per key (see app/api/ingest/route.ts
+// for the key choice and fail-open handling). Headroom rationale: the real
+// relay posts roughly one frame per 20-40s per source, so even two sources
+// sharing one IP (same travel router) sit around ~6/min in steady state —
+// 30/min leaves ~5x room for retries/bursts before throttling kicks in.
+// A separate Ratelimit instance (not shared with any other route) so its
+// prefix/quota can never collide with unrelated future rate limiting.
+export const ingestRatelimit = new Ratelimit({
+  redis,
+  limiter: Ratelimit.slidingWindow(30, '1 m'),
+  prefix: 'ratelimit:ingest',
 })
 
 // The devices that can act as a live-view source. Plain strings in the DB;
