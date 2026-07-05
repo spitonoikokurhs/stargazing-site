@@ -26,6 +26,8 @@ import {
 } from '@/lib/live-share'
 import { typeDefinition } from '@/lib/object-types'
 import { typeColor } from '@/lib/type-colors'
+import catalogData from '@/config/catalog.json'
+import type { CatalogObject } from '@/lib/catalog'
 
 // Crossfade duration for a flavor-line swap; must match the opacity transition
 // in styles.css (.status-flavor).
@@ -49,7 +51,14 @@ type StatusLive = {
   observation: { observationId: string; objectName: string }
   sessionId: string
   telemetry?: { state?: string; totalAccumulatedTime?: number; astrometryState?: string }
-  objectMatch?: { name: string; confidence: ObjectMatchConfidence; description: string; type: string }
+  objectMatch?: {
+    name: string
+    confidence: ObjectMatchConfidence
+    description: string
+    type: string
+    constellation?: string
+    distanceLy?: number
+  }
 }
 type StatusOffline = {
   live: false
@@ -112,7 +121,9 @@ function isValidObjectMatch(v: unknown): v is StatusLive['objectMatch'] {
     isString(v.confidence) &&
     validConfidence.includes(v.confidence) &&
     isString(v.description) &&
-    isString(v.type)
+    isString(v.type) &&
+    (v.constellation === undefined || isString(v.constellation)) &&
+    (v.distanceLy === undefined || typeof v.distanceLy === 'number')
   )
 }
 
@@ -194,6 +205,8 @@ function resolveDisplayObject(body: StatusLive): DisplayObject {
       name: body.objectMatch.name,
       description: body.objectMatch.description,
       type: body.objectMatch.type,
+      constellation: body.objectMatch.constellation,
+      distanceLy: body.objectMatch.distanceLy,
     }
   }
   if (astrometryState !== undefined && MOVING_ASTROMETRY_STATES.has(astrometryState)) {
@@ -255,64 +268,62 @@ function getDemoMode(): DemoMode | null {
 // definitions can each be reviewed in context (?demo=known-galaxy, etc.)
 // rather than only ever seeing the nebula case. Real image files already
 // shipped under /public/images stand in for the live telescope frame.
-const KNOWN_DEMOS: Record<
-  string,
-  { blobUrl: string; name: string; type: string; description: string; totalAccumulatedTime: number }
-> = {
-  'known-nebula': {
-    blobUrl: '/images/nebula-orion-m42.jpg',
-    name: 'Orion Nebula',
-    type: 'Diffuse Nebula',
-    description:
-      'A vast stellar nursery where new stars are being born right now, visible as a fuzzy patch below Orion’s belt.',
-    totalAccumulatedTime: 2580,
-  },
-  'known-galaxy': {
-    blobUrl: '/images/galaxy-triangulum-m33.jpg',
-    name: 'Triangulum Galaxy',
-    type: 'Galaxy',
-    description: 'A whole other galaxy of hundreds of billions of stars, quietly spiraling nearby.',
-    totalAccumulatedTime: 3120,
-  },
-  'known-globular': {
-    blobUrl: '/images/astro-01.jpg',
-    name: 'Hercules Globular Cluster',
-    type: 'Globular Cluster',
-    description: 'A dense swarm of hundreds of thousands of ancient stars packed into a shimmering ball.',
-    totalAccumulatedTime: 1860,
-  },
-  'known-open-cluster': {
-    blobUrl: '/images/astro-02.jpg',
-    name: 'Pleiades',
-    type: 'Open Cluster',
-    description: 'A sparkling cluster of young blue stars, often called the Seven Sisters.',
-    totalAccumulatedTime: 1440,
-  },
-  'known-planetary': {
-    blobUrl: '/images/astro-03.jpg',
-    name: 'Ring Nebula',
-    type: 'Planetary Nebula',
-    description: 'A glowing smoke-ring left behind by a dying star, one of the sky’s most famous tiny nebulae.',
-    totalAccumulatedTime: 960,
-  },
+//
+// Fields (type/constellation/distanceLy/description) are pulled from the
+// real config/catalog.json by id below, NOT duplicated here — a prior
+// version hardcoded these and silently drifted from the catalog (e.g. still
+// showing "Galaxy" after the catalog was upgraded to "Spiral Galaxy"), which
+// made the demo pages misrepresent what a real match actually looks like.
+const KNOWN_DEMO_SOURCE: Record<string, { catalogId: string; blobUrl: string; totalAccumulatedTime: number }> = {
+  'known-nebula': { catalogId: 'M42', blobUrl: '/images/nebula-orion-m42.jpg', totalAccumulatedTime: 2580 },
+  'known-galaxy': { catalogId: 'M33', blobUrl: '/images/galaxy-triangulum-m33.jpg', totalAccumulatedTime: 3120 },
+  'known-globular': { catalogId: 'M13', blobUrl: '/images/astro-01.jpg', totalAccumulatedTime: 1860 },
+  'known-open-cluster': { catalogId: 'M45', blobUrl: '/images/astro-02.jpg', totalAccumulatedTime: 1440 },
+  'known-planetary': { catalogId: 'M57', blobUrl: '/images/astro-03.jpg', totalAccumulatedTime: 960 },
   'known-supernova-remnant': {
+    catalogId: 'NGC6960-6992',
     blobUrl: '/images/astro-04.jpg',
-    name: 'Veil Nebula',
-    type: 'Supernova Remnant',
-    description: 'The delicate, tattered remains of a star that exploded thousands of years ago, still glowing.',
     totalAccumulatedTime: 2100,
   },
   // A target that JUST started — short accumulated time, and (see
   // demoSnapshotsFor) only 'current' exists yet in the progress-toggle mock,
   // since there hasn't been time to accumulate a 1min/2min stack.
-  'new-target': {
-    blobUrl: '/images/nebula-trifid-m20.jpg',
-    name: 'Trifid Nebula',
-    type: 'Diffuse Nebula',
-    description: 'A three-lobed nebula split by dark dust lanes, glowing pink and blue side by side.',
-    totalAccumulatedTime: 22,
-  },
+  'new-target': { catalogId: 'M20', blobUrl: '/images/nebula-trifid-m20.jpg', totalAccumulatedTime: 22 },
 }
+
+const CATALOG_BY_ID = new Map((catalogData as { objects: CatalogObject[] }).objects.map((o) => [o.id, o]))
+
+const KNOWN_DEMOS: Record<
+  string,
+  {
+    blobUrl: string
+    name: string
+    type: string
+    description: string
+    totalAccumulatedTime: number
+    constellation?: string
+    distanceLy?: number
+  }
+> = Object.fromEntries(
+  Object.entries(KNOWN_DEMO_SOURCE).flatMap(([demoKey, source]) => {
+    const catalogObject = CATALOG_BY_ID.get(source.catalogId)
+    if (!catalogObject) return []
+    return [
+      [
+        demoKey,
+        {
+          blobUrl: source.blobUrl,
+          name: catalogObject.primaryName,
+          type: catalogObject.type,
+          description: catalogObject.description,
+          totalAccumulatedTime: source.totalAccumulatedTime,
+          constellation: catalogObject.constellation,
+          distanceLy: catalogObject.distanceLy,
+        },
+      ],
+    ]
+  }),
+)
 
 // A real astro photo (already shipped under /public/images) stands in for the
 // live telescope frame in demo mode — cache-busted per call so the "new
@@ -352,6 +363,8 @@ function getDemoStatusBody(): StatusLive | null {
         confidence: 'high',
         description: known.description,
         type: known.type,
+        constellation: known.constellation,
+        distanceLy: known.distanceLy,
       },
     }
   }

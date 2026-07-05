@@ -108,7 +108,14 @@ export async function GET() {
       // the frontend's existing no-confident-name fallback path handles it.
       const telemetry = f.telemetry
       let objectMatch:
-        | { name: string; confidence: 'high' | 'medium' | 'low' | 'none'; description: string; type: string }
+        | {
+            name: string
+            confidence: 'high' | 'medium' | 'low' | 'none'
+            description: string
+            type: string
+            constellation?: string
+            distanceLy?: number
+          }
         | undefined
       if (
         telemetry?.astrometryState === 'solved' &&
@@ -122,6 +129,8 @@ export async function GET() {
             confidence: result.confidence,
             description: result.match.description,
             type: result.match.type,
+            ...(result.match.constellation ? { constellation: result.match.constellation } : {}),
+            ...(result.match.distanceLy ? { distanceLy: result.match.distanceLy } : {}),
           }
         }
       }
