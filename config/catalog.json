@@ -152,7 +152,9 @@
       "decDeg": -5.3911,
       "displayRadiusDeg": 1.0,
       "priority": 100,
-      "description": "A vast stellar nursery where new stars are being born right now, visible as a fuzzy patch below Orion's belt."
+      "description": "A vast stellar nursery where new stars are being born right now, visible as a fuzzy patch below Orion's belt.",
+      "constellation": "Orion",
+      "distanceLy": 1344
     },
     {
       "id": "M8",
@@ -241,7 +243,9 @@
       "decDeg": 30.7167,
       "displayRadiusDeg": 1.2,
       "priority": 70,
-      "description": "The delicate, tattered remains of a star that exploded thousands of years ago, still glowing across the sky."
+      "description": "The delicate, tattered remains of a star that exploded thousands of years ago, still glowing across the sky.",
+      "constellation": "Cygnus",
+      "distanceLy": 2400
     },
     {
       "id": "NGC7000",

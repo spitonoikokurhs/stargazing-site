@@ -788,9 +788,15 @@ function LiveFrameView({
             {snapshotSelection === 'current' ? (
               <>
                 <span className={`red-dot${uiState === 'reconnecting' ? ' reconnecting' : ''}`} aria-hidden="true" />
-                <span>
-                  {uiState === 'reconnecting' ? 'RECONNECTING' : 'LIVE'} · UPDATED {formatUpdatedAgo(lastLiveFrame.loadedAt)}
-                </span>
+                {/* Each "· "-joined segment is its own span (not one long
+                    string) so topbar__live's flex-wrap can break the row
+                    between segments on narrow phones instead of only
+                    shrinking via the font-size clamp. */}
+                <span>{uiState === 'reconnecting' ? 'RECONNECTING' : 'LIVE'}</span>
+                <span>· UPDATED {formatUpdatedAgo(lastLiveFrame.loadedAt)}</span>
+                {formatAccumulated(lastLiveFrame.totalAccumulatedTime) ? (
+                  <span>· {formatAccumulated(lastLiveFrame.totalAccumulatedTime)} GATHERED</span>
+                ) : null}
               </>
             ) : (
               // Viewing a historical frame (demo-mock only, see SnapshotToggle):
@@ -851,16 +857,13 @@ function LiveFrameView({
         />
 
         <section className="content" aria-live="polite">
-          {/* Object name is the topmost element in the content block —
-              "gathered light" moved below it, grouped with the other
-              stat/fact area rather than sitting above the name. */}
+          {/* Object name is the topmost element in the content block.
+              "Gathered light" now lives only in the topbar (next to
+              LIVE/updated) — showing it twice on one screen was redundant,
+              see git history for the removed .integration line. */}
           <h1 className="title">{objectLabel(lastLiveFrame.displayObject)}</h1>
 
           <ObjectTypeLine displayObject={lastLiveFrame.displayObject} />
-
-          {formatAccumulated(lastLiveFrame.totalAccumulatedTime) ? (
-            <p className="integration">{formatAccumulated(lastLiveFrame.totalAccumulatedTime)} gathered light</p>
-          ) : null}
 
           <Facts displayObject={lastLiveFrame.displayObject} />
 
