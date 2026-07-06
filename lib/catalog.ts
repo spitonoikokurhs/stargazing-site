@@ -64,6 +64,45 @@ export function angularSeparationDeg(ra1: number, dec1: number, ra2: number, dec
 // "Star field in Cygnus"). Out of scope here — this module only reports
 // match/no-match; presentation-layer fallback text is the caller's job.
 
+// The telescope's actual field of view. This is the physical anchor for the
+// size-aware confidence cutoff below: the scope can only ever frame a patch
+// of sky about this wide, so for any catalog object noticeably larger than
+// the FOV, the reported solve coordinate is necessarily SOME sub-region of
+// the object, not the object's true center — "off-center" is the normal,
+// expected case for a big object, not a sign of an uncertain match.
+// TODO(future branch): read the real per-frame fovDegrees from the solve
+// payload instead of this fixed estimate, if/when the device reports it —
+// would let a wider or narrower actual FOV shift this per-frame rather than
+// using one constant for every device/session.
+const TELESCOPE_FOV_DEG = 0.94
+
+// How close to a catalog object's center a solve needs to land, as a
+// fraction of that object's own displayRadiusDeg, to count as "high"
+// confidence rather than "medium" (see matchCoordinates below).
+//
+// A flat 50%-of-radius cutoff (the original rule) is correct for objects
+// much smaller than the telescope's FOV: the scope's view can contain the
+// whole object plus empty sky around it, so landing in the outer half of a
+// SMALL object's radius really can mean "centered near it, not on it."
+//
+// It breaks down for objects bigger than the FOV (e.g. North America Nebula
+// at 1.3° radius vs. a ~0.94° FOV): the telescope can never see the whole
+// object at once, so any solve that falls anywhere within a large object's
+// extent IS a confident match — there's no "centered on empty sky nearby"
+// failure mode once the object itself is bigger than what the scope can see.
+//
+// Formula: the cutoff rises linearly from 0.5 (radius -> 0) to 1.0 (radius
+// >= 2x the FOV), then holds at 1.0 (anywhere within radius counts as high)
+// for anything larger still. 2x the FOV (not 1x) as the point where the
+// cutoff maxes out is deliberately conservative — an object only "a bit"
+// bigger than the FOV still leaves room for a real near-miss, so the
+// generous end of the curve is reserved for objects clearly larger than what
+// the scope can frame in one view.
+function highConfidenceCutoffFraction(displayRadiusDeg: number): number {
+  const sizeRatio = Math.min(1, displayRadiusDeg / (2 * TELESCOPE_FOV_DEG))
+  return 0.5 + 0.5 * sizeRatio
+}
+
 // Within-radius candidates, preferring priority over raw closeness — e.g.
 // coordinates near both M42 (huge, famous, high priority) and a tiny obscure
 // NGC nebula nearby should resolve to M42 even if the NGC object is closer.
@@ -89,7 +128,7 @@ export function matchCoordinates(raDeg: number, decDeg: number): MatchResult {
 
   const radius = best.obj.displayRadiusDeg as number
   const fractionOfRadius = best.separationDeg / radius
-  const confidence: Confidence = fractionOfRadius <= 0.5 ? 'high' : 'medium'
+  const confidence: Confidence = fractionOfRadius <= highConfidenceCutoffFraction(radius) ? 'high' : 'medium'
 
   return { match: best.obj, confidence, separationDeg: best.separationDeg }
 }

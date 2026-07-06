@@ -34,8 +34,12 @@ function assert(label, cond, detail) {
   assert('exact M57 coords -> separation ~0', r.separationDeg < 1e-6, `got ${r.separationDeg}`)
 }
 
-// 2. Coordinates just inside a large object's radius (edge of M31's radius)
-//    -> medium/high, correct match.
+// 2. Coordinates near the edge of a LARGE object's radius (M31, 2.5°, well
+//    over 2x the ~0.94° telescope FOV) -> still HIGH confidence, correct
+//    match. This is the size-aware cutoff's whole point (see
+//    highConfidenceCutoffFraction in lib/catalog.ts): the telescope can never
+//    frame all of a 2.5°-wide object in one ~0.94° view, so landing anywhere
+//    within a large object's extent is a confident match, not a near-miss.
 {
   const m31 = byId('M31')
   // Offset straight north by 90% of the radius (still within bounds, near the edge).
@@ -47,8 +51,45 @@ function assert(label, cond, detail) {
     `got ${r.match?.id ?? 'null'}`,
   )
   assert(
-    'near-edge M31 coords -> medium confidence',
+    'near-edge M31 coords (large object) -> high confidence',
+    r.confidence === 'high',
+    `got ${r.confidence}`,
+  )
+}
+
+// 2b. The same 90%-of-radius offset on a SMALL object (M57, 0.15° — far under
+//     the FOV) must still resolve to medium, not high — confirms the
+//     size-aware cutoff didn't accidentally loosen small objects too.
+{
+  const m57 = byId('M57')
+  const edgeDec = m57.decDeg + m57.displayRadiusDeg * 0.9
+  const r = matchCoordinates(m57.raDeg, edgeDec)
+  assert(
+    'near-edge M57 coords -> match M57',
+    r.match?.id === 'M57',
+    `got ${r.match?.id ?? 'null'}`,
+  )
+  assert(
+    'near-edge M57 coords (small object) -> still medium confidence',
     r.confidence === 'medium',
+    `got ${r.confidence}`,
+  )
+}
+
+// 2c. Regression guard for the original bug: NGC 7000 at the exact reported
+//     coordinates (RA 314.747, Dec 44.650) must resolve to HIGH confidence —
+//     this is the specific case that was silently falling back to
+//     "Deep-sky field" under the old flat 50%-of-radius cutoff.
+{
+  const r = matchCoordinates(314.747, 44.65)
+  assert(
+    'NGC 7000 dry-run coordinates -> match NGC7000',
+    r.match?.id === 'NGC7000',
+    `got ${r.match?.id ?? 'null'}`,
+  )
+  assert(
+    'NGC 7000 dry-run coordinates -> high confidence (was the bug: medium)',
+    r.confidence === 'high',
     `got ${r.confidence}`,
   )
 }
