@@ -474,24 +474,26 @@
   background: color-mix(in srgb, var(--type-color) 6%, rgba(237, 234, 227, 0.043));
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  /* flex-start (not center): pins the label to the same top position across
+     all three chips regardless of how many lines the value wraps to — with
+     center, a short value (e.g. "Lyra") vertically centers the whole
+     label+value block higher than a chip whose value wraps to two lines
+     (e.g. "the pair spans about 2× the full Moon"), so the labels drift
+     up/mid/down relative to each other instead of lining up as a row. */
+  justify-content: flex-start;
   align-items: center;
   gap: 5px;
 }
 
-/* Label tint: mixed toward the base muted grey rather than full-strength
-   --type-color — the type pill already carries the strong statement of that
-   color, and the chip background already carries a faint wash of it, so the
-   label just needs to echo the family, not repeat the pill at the same
-   volume. Two strengths below (STRONG commented out) so the softer one can
-   be swapped for the bolder one by flipping which color-mix wins, without
-   restructuring anything else. VALUES (Vulpecula / ≈1,360 ly / 4× the full
-   Moon) are untouched below in .fact strong — only the label recolors. */
+/* Label tint: mixed toward --text (near-white) rather than the dim base
+   grey — mixing into a dark/muted color barely shifts the visible hue at
+   this text size, while mixing toward near-white lets the tint actually
+   read while staying legible on the dark background. Full strength (100%
+   --type-color) read best on-device — softer mixes were too close to the
+   plain grey to notice at this text size. */
 .fact span {
-  /* STRONG variant — flip to this to compare on-device:
-  color: color-mix(in srgb, var(--type-color) 65%, rgba(168, 166, 160, 0.75));
-  */
-  color: color-mix(in srgb, var(--type-color) 38%, rgba(168, 166, 160, 0.75));
+  color: color-mix(in srgb, var(--type-color) 100%, #edeae3);
+  opacity: 0.88;
   font-size: clamp(8px, 2.35vw, 10px);
   letter-spacing: 0.18em;
   text-transform: uppercase;
