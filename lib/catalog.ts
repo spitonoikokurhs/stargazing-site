@@ -121,6 +121,26 @@ function highConfidenceCutoffFraction(displayRadiusDeg: number): number {
 // two close candidates.
 const RUNNER_UP_CLEAR_MARGIN = 1.5
 
+// Floor on the margin threshold below (winnerScore * RUNNER_UP_CLEAR_MARGIN):
+// without it, an exactly-centered winner (winnerScore === 0) would compute a
+// threshold of 0, and NO runner-up score could ever be "less than" 0 — the
+// guardrail would silently disable itself for a dead-center hit, which is
+// backwards (a dead-center hit tied by an equally dead-center runner-up is
+// exactly the ambiguous case the guardrail exists to catch). Not reachable
+// by any current catalog entry (no two objects share coordinates), but a
+// real risk for future nested/group/duplicate entries — cheap to guard now.
+const RUNNER_UP_MARGIN_FLOOR = 0.05
+
+// Exported so scripts/test-catalog.mjs can verify this exact formula
+// directly: the real catalog has no two objects at or near the same
+// coordinates today, so the zero-score edge case this floor guards against
+// can't be exercised through matchCoordinates with real data. Testing the
+// formula itself against the scenario it's designed for (a tied dead-center
+// runner-up) is more honest than skipping coverage or faking a catalog entry.
+export function runnerUpClearMarginThreshold(winnerScore: number): number {
+  return Math.max(winnerScore * RUNNER_UP_CLEAR_MARGIN, RUNNER_UP_MARGIN_FLOOR)
+}
+
 // Within-radius candidates, preferring priority over raw closeness — e.g.
 // coordinates near both M42 (huge, famous, high priority) and a tiny obscure
 // NGC nebula nearby should resolve to M42 even if the NGC object is closer.
@@ -164,7 +184,7 @@ export function matchCoordinates(raDeg: number, decDeg: number): MatchResult {
     }
 
     const winnerScore = fractionOfRadius
-    if (bestRunnerUpScore < winnerScore * RUNNER_UP_CLEAR_MARGIN) {
+    if (bestRunnerUpScore < runnerUpClearMarginThreshold(winnerScore)) {
       confidence = 'medium'
     }
   }

@@ -5,7 +5,7 @@
 // tsx is used on-demand (not added as a project dependency) purely so this
 // script can import the real .ts module directly instead of duplicating it.
 
-import { matchCoordinates, angularSeparationDeg } from '../lib/catalog.ts'
+import { matchCoordinates, angularSeparationDeg, runnerUpClearMarginThreshold } from '../lib/catalog.ts'
 import catalogData from '../config/catalog.json' with { type: 'json' }
 
 const CATALOG = catalogData.objects
@@ -139,6 +139,48 @@ function assert(label, cond, detail) {
     'M65 exact center -> high confidence restored once clearly ahead',
     r.confidence === 'high',
     `got ${r.confidence}`,
+  )
+}
+
+// 2f. Zero-score floor: without RUNNER_UP_MARGIN_FLOOR, an exactly-centered
+//     winner (winnerScore === 0) computes a clear-margin threshold of
+//     0 * RUNNER_UP_CLEAR_MARGIN = 0 — and no runner-up score can ever be
+//     "less than" 0, so the guardrail would silently disable itself for a
+//     dead-center hit. That's backwards: two objects tied at dead center is
+//     exactly the ambiguous case the guardrail exists to catch. The real
+//     catalog has no two objects at/near the same coordinates today (this
+//     doesn't bite yet), so this tests the exact threshold formula
+//     matchCoordinates uses, at the scenario it's designed for, rather than
+//     faking a catalog entry or skipping coverage.
+{
+  const winnerScore = 0 // exactly-centered winner
+  const tiedRunnerUpScore = 0 // a second object equally dead-centered
+  const threshold = runnerUpClearMarginThreshold(winnerScore)
+  assert(
+    'zero-score floor -> threshold is NOT zero (floor applied)',
+    threshold === 0.05,
+    `got ${threshold}`,
+  )
+  assert(
+    'zero-score floor -> a tied dead-center runner-up correctly fails to clear it',
+    tiedRunnerUpScore < threshold,
+    `runnerUpScore=${tiedRunnerUpScore} threshold=${threshold}`,
+  )
+}
+
+// 2g. Sanity check alongside 2f: the floor must not fire for a genuinely
+//     clear win at nonzero scores — a winner at 10% of its radius with a
+//     runner-up at 40% should stay "high" (0.4 clears both the floor and the
+//     1.5x margin), confirming this isn't an overly aggressive blanket
+//     downgrade near any small winner score.
+{
+  const winnerScore = 0.1
+  const clearRunnerUpScore = 0.4
+  const threshold = runnerUpClearMarginThreshold(winnerScore)
+  assert(
+    'non-tied small winner score -> a clearly-worse runner-up still clears the threshold',
+    clearRunnerUpScore >= threshold,
+    `runnerUpScore=${clearRunnerUpScore} threshold=${threshold}`,
   )
 }
 
