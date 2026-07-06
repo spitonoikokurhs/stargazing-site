@@ -103,6 +103,24 @@ function highConfidenceCutoffFraction(displayRadiusDeg: number): number {
   return 0.5 + 0.5 * sizeRatio
 }
 
+// Runner-up guardrail: in a crowded field, being size-aware-close to the
+// WINNING object isn't enough on its own — if a second object is nearly as
+// plausible a match, we genuinely don't know which one the telescope is
+// actually on, and a confidently-wrong name is worse than a fallback (see
+// matchCoordinates' doc comment). "Nearly as plausible" is judged on the
+// same normalized score both candidates are ranked by: separationDeg /
+// displayRadiusDeg (fraction of the OBJECT'S OWN radius), so a tiny object
+// and a huge one are compared on equal footing rather than by raw distance.
+//
+// The runner-up must score at least this much WORSE (i.e. a larger,
+// less-convincing fraction) than the winner for "high" to survive; otherwise
+// confidence is downgraded to "medium" regardless of how well the winner
+// alone would have qualified. 1.5x is a deliberately conservative margin —
+// "clearly stands out," not just "technically ahead" — favoring an
+// occasional safe fallback over ever confidently picking the wrong one of
+// two close candidates.
+const RUNNER_UP_CLEAR_MARGIN = 1.5
+
 // Within-radius candidates, preferring priority over raw closeness — e.g.
 // coordinates near both M42 (huge, famous, high priority) and a tiny obscure
 // NGC nebula nearby should resolve to M42 even if the NGC object is closer.
@@ -128,7 +146,28 @@ export function matchCoordinates(raDeg: number, decDeg: number): MatchResult {
 
   const radius = best.obj.displayRadiusDeg as number
   const fractionOfRadius = best.separationDeg / radius
-  const confidence: Confidence = fractionOfRadius <= highConfidenceCutoffFraction(radius) ? 'high' : 'medium'
+  let confidence: Confidence = fractionOfRadius <= highConfidenceCutoffFraction(radius) ? 'high' : 'medium'
+
+  // Runner-up check: only matters when the winner would otherwise be "high" —
+  // a "medium" result is already the safe/hedged outcome, nothing to guard.
+  // Score every OTHER in-range candidate the same way (fraction of its own
+  // radius) and find the most convincing one; if it's not clearly worse than
+  // the winner's own score, this is a crowded field and "high" isn't safe.
+  if (confidence === 'high') {
+    let bestRunnerUpScore = Infinity
+    for (const obj of STATIC_CATALOG) {
+      if (obj.id === best.obj.id) continue
+      const separationDeg = angularSeparationDeg(raDeg, decDeg, obj.raDeg as number, obj.decDeg as number)
+      if (separationDeg > (obj.displayRadiusDeg as number)) continue
+      const score = separationDeg / (obj.displayRadiusDeg as number)
+      if (score < bestRunnerUpScore) bestRunnerUpScore = score
+    }
+
+    const winnerScore = fractionOfRadius
+    if (bestRunnerUpScore < winnerScore * RUNNER_UP_CLEAR_MARGIN) {
+      confidence = 'medium'
+    }
+  }
 
   return { match: best.obj, confidence, separationDeg: best.separationDeg }
 }

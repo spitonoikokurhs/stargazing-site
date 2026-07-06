@@ -79,7 +79,10 @@ function assert(label, cond, detail) {
 // 2c. Regression guard for the original bug: NGC 7000 at the exact reported
 //     coordinates (RA 314.747, Dec 44.650) must resolve to HIGH confidence —
 //     this is the specific case that was silently falling back to
-//     "Deep-sky field" under the old flat 50%-of-radius cutoff.
+//     "Deep-sky field" under the old flat 50%-of-radius cutoff. It's also the
+//     only in-range candidate at these coordinates, so this doubles as
+//     confirmation that the runner-up guardrail (see 2d/2e below) does NOT
+//     block a legitimate size-aware "high" when there's no real competitor.
 {
   const r = matchCoordinates(314.747, 44.65)
   assert(
@@ -89,6 +92,51 @@ function assert(label, cond, detail) {
   )
   assert(
     'NGC 7000 dry-run coordinates -> high confidence (was the bug: medium)',
+    r.confidence === 'high',
+    `got ${r.confidence}`,
+  )
+}
+
+// 2d. Runner-up guardrail: a genuine crowded-field case using REAL catalog
+//     data (not synthetic/injected). M65 and the Leo Triplet's radius
+//     circles genuinely overlap (0.12° and 0.9° radii, 0.335° apart) because
+//     the Triplet's entry is centered on the wider group framing while M65
+//     is its own tight entry — at Dec 13.1372 (found by sweeping for the
+//     point where both objects' fraction-of-own-radius scores are closest),
+//     M65 scores 0.375 and the Triplet scores 0.361 — nearly tied. Even
+//     though M65 wins outright on priority (95 vs 92) and would otherwise
+//     qualify as "high" on its own, the near-tie means we can't be sure
+//     which object the telescope is actually centered on, so confidence
+//     must downgrade to "medium" (-> guest sees "Deep-sky field", not a
+//     possibly-wrong name) rather than confidently naming M65.
+{
+  const r = matchCoordinates(169.7333, 13.1372)
+  assert(
+    'crowded M65/Leo-Triplet point -> still matches M65 (wins on priority)',
+    r.match?.id === 'M65',
+    `got ${r.match?.id ?? 'null'}`,
+  )
+  assert(
+    'crowded M65/Leo-Triplet point -> downgraded to medium, not high',
+    r.confidence === 'medium',
+    `got ${r.confidence}`,
+  )
+}
+
+// 2e. Sanity check alongside 2d: moving further from the near-tie point
+//     (toward M65's own center) should let the winner pull clearly ahead of
+//     the runner-up again and restore "high" — confirms the guardrail reacts
+//     to the actual margin rather than blanket-downgrading anything near
+//     the Triplet.
+{
+  const r = matchCoordinates(169.7333, 13.0922) // M65's exact center
+  assert(
+    'M65 exact center (clear of the near-tie zone) -> match M65',
+    r.match?.id === 'M65',
+    `got ${r.match?.id ?? 'null'}`,
+  )
+  assert(
+    'M65 exact center -> high confidence restored once clearly ahead',
     r.confidence === 'high',
     `got ${r.confidence}`,
   )
