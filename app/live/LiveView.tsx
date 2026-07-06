@@ -1519,14 +1519,20 @@ function TypeIcon({ type }: { type: string }) {
 }
 
 // One-line description under the object name. When the object is matched from
-// the catalog (kind: 'known'), shows its curated description. Otherwise
-// (moving / fallback / unmatched) rotates a gentle universal phrase — see
-// UNIVERSAL_PHRASES and RotatingPhrase.
+// the catalog (kind: 'known'), shows its curated description. 'moving' gets
+// its own rotating poetic line (the telescope is between targets); 'fallback'
+// gets a fixed warm supporting line (solved, but no confident catalog match).
+// Both transitional states also show a small rotating instruction line
+// beneath the main line (see TransitionCopy) — Option A structure: main line
+// prominent, instruction line smaller/dimmer.
 function ObjectDescription({ displayObject }: { displayObject: DisplayObject }) {
   if (displayObject.kind === 'known') {
     return <p className="live-object-desc">{displayObject.description}</p>
   }
-  return <RotatingPhrase />
+  if (displayObject.kind === 'moving') {
+    return <TransitionCopy mainPhrases={MOVING_PHRASES} />
+  }
+  return <TransitionCopy mainPhrases={[FALLBACK_SUPPORTING_LINE]} />
 }
 
 // Guest-facing label for the three display states — see DisplayObject in
@@ -1539,9 +1545,10 @@ function objectLabel(displayObject: DisplayObject): string {
 }
 
 // Universal one-liners shown under the object name when there's no catalog
-// description (unmatched / moving / fallback). Same spirit as the offline
-// flavor text: poetic/educational, object-agnostic, always true. PROPOSED —
-// pending review; trim/replace freely.
+// description (kind: 'known' with no confident type match doesn't occur —
+// this pool is currently unused by ObjectDescription directly, kept for any
+// future generic-fallback need). Same spirit as the offline flavor text:
+// poetic/educational, object-agnostic, always true.
 const UNIVERSAL_PHRASES = [
   'The light reaching this lens left its source long before you were born.',
   'Every photon here crossed the dark for thousands of years to arrive tonight.',
@@ -1555,35 +1562,91 @@ const UNIVERSAL_PHRASES = [
   'The same sky the ancient Greeks watched over the Aegean, seen a little deeper.',
 ]
 
-const UNIVERSAL_PHRASE_ROTATE_MS = 25 * 1000
-const UNIVERSAL_PHRASE_FADE_MS = 600
+// Shown for kind: 'moving' (astrometryState 'unavailable'/'failed' — the
+// telescope is between targets). Rotates gently, same mechanism/cadence as
+// the old universal phrases.
+const MOVING_PHRASES = [
+  'Turning toward the next view…',
+  'The telescope is moving through the night…',
+  'On our way to the next object…',
+  'Crossing to another part of the sky…',
+  'A new patch of sky is coming into view…',
+]
 
-// Gently rotating universal phrase with a crossfade — used when no catalog
-// description is available. Rotation cadence is calm (25s) so it reads as
-// ambient, not attention-grabbing.
-function RotatingPhrase() {
-  const [index, setIndex] = useState(() => Math.floor(Math.random() * UNIVERSAL_PHRASES.length))
+// Shown for kind: 'fallback' (solved, but no confident catalog match) as the
+// warm supporting line beneath the "Deep-sky field" pill — so this state
+// reads as an intentional design choice, not an error.
+//
+// PROPOSED — two other options in the same voice, in case this one doesn't
+// land; swap freely:
+//   'Gathering light while we get our bearings…'
+//   'Somewhere out there, still finding the name for this…'
+const FALLBACK_SUPPORTING_LINE = 'Collecting light while we find our bearings…'
+
+// Small instruction line rotating beneath the main transitional phrase (both
+// 'moving' and 'fallback') — Option A: dimmer/smaller than the main line,
+// just enough reassurance that nothing is broken.
+const INSTRUCTION_PHRASES = ['just a moment', 'one moment', 'the view returns shortly', 'back in a moment']
+
+const TRANSITION_PHRASE_ROTATE_MS = 25 * 1000
+const TRANSITION_PHRASE_FADE_MS = 600
+
+// Crossfades between entries of `phrases` on an interval — the shared
+// rotation mechanism behind both the main transitional line and the
+// instruction line. A single-entry pool (e.g. the fixed fallback supporting
+// line) just renders statically without ever rotating (the effect's interval
+// still runs but modulo-1 always re-selects the same index, and the identical
+// text skips the visible crossfade in practice).
+function useRotatingPhrase(phrases: string[]): { text: string; visible: boolean } {
+  const [index, setIndex] = useState(() => Math.floor(Math.random() * phrases.length))
   const [visible, setVisible] = useState(true)
 
   useEffect(() => {
+    if (phrases.length <= 1) return
     const fadeRef = { id: null as ReturnType<typeof setTimeout> | null }
     const rotate = setInterval(() => {
       setVisible(false)
       fadeRef.id = setTimeout(() => {
-        setIndex((i) => (i + 1) % UNIVERSAL_PHRASES.length)
+        setIndex((i) => (i + 1) % phrases.length)
         setVisible(true)
-      }, UNIVERSAL_PHRASE_FADE_MS)
-    }, UNIVERSAL_PHRASE_ROTATE_MS)
+      }, TRANSITION_PHRASE_FADE_MS)
+    }, TRANSITION_PHRASE_ROTATE_MS)
     return () => {
       clearInterval(rotate)
       if (fadeRef.id) clearTimeout(fadeRef.id)
     }
-  }, [])
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- phrases is a
+    // module-level constant array per call site; re-running on identity
+    // would restart rotation needlessly since it's never actually new.
+  }, [phrases.length])
 
+  return { text: phrases[index], visible }
+}
+
+// Gently rotating universal phrase with a crossfade — used when no catalog
+// description is available. Rotation cadence is calm (25s) so it reads as
+// ambient, not attention-grabbing. Kept as the plain single-line variant
+// (no instruction line) for any future non-transitional use of
+// UNIVERSAL_PHRASES.
+function RotatingPhrase() {
+  const { text, visible } = useRotatingPhrase(UNIVERSAL_PHRASES)
   return (
-    <p className={`live-object-desc live-object-desc--rotating${visible ? ' is-visible' : ''}`}>
-      {UNIVERSAL_PHRASES[index]}
-    </p>
+    <p className={`live-object-desc live-object-desc--rotating${visible ? ' is-visible' : ''}`}>{text}</p>
+  )
+}
+
+// Option A structure for the two transitional states (moving/fallback): the
+// poetic/supporting line is the prominent element, with a small, dimmer,
+// independently-rotating instruction line beneath it — same card, same
+// rotation cadence/crossfade as RotatingPhrase, just two lines instead of one.
+function TransitionCopy({ mainPhrases }: { mainPhrases: string[] }) {
+  const main = useRotatingPhrase(mainPhrases)
+  const instruction = useRotatingPhrase(INSTRUCTION_PHRASES)
+  return (
+    <div className="live-object-desc live-object-desc--transition">
+      <p className={`transition-main${main.visible ? ' is-visible' : ''}`}>{main.text}</p>
+      <p className={`transition-instruction${instruction.visible ? ' is-visible' : ''}`}>{instruction.text}</p>
+    </div>
   )
 }
 
