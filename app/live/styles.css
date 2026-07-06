@@ -479,8 +479,19 @@
   gap: 5px;
 }
 
+/* Label tint: mixed toward the base muted grey rather than full-strength
+   --type-color — the type pill already carries the strong statement of that
+   color, and the chip background already carries a faint wash of it, so the
+   label just needs to echo the family, not repeat the pill at the same
+   volume. Two strengths below (STRONG commented out) so the softer one can
+   be swapped for the bolder one by flipping which color-mix wins, without
+   restructuring anything else. VALUES (Vulpecula / ≈1,360 ly / 4× the full
+   Moon) are untouched below in .fact strong — only the label recolors. */
 .fact span {
-  color: rgba(168, 166, 160, 0.75);
+  /* STRONG variant — flip to this to compare on-device:
+  color: color-mix(in srgb, var(--type-color) 65%, rgba(168, 166, 160, 0.75));
+  */
+  color: color-mix(in srgb, var(--type-color) 38%, rgba(168, 166, 160, 0.75));
   font-size: clamp(8px, 2.35vw, 10px);
   letter-spacing: 0.18em;
   text-transform: uppercase;
