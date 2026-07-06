@@ -1581,7 +1581,7 @@ const MOVING_PHRASES = [
 // land; swap freely:
 //   'Gathering light while we get our bearings…'
 //   'Somewhere out there, still finding the name for this…'
-const FALLBACK_SUPPORTING_LINE = 'Collecting light while we find our bearings…'
+const FALLBACK_SUPPORTING_LINE = 'Collecting light from this part of the sky…'
 
 // Small instruction line rotating beneath the main transitional phrase (both
 // 'moving' and 'fallback') — Option A: dimmer/smaller than the main line,
@@ -1894,10 +1894,11 @@ function splitIntoSentences(line: string): string[] {
     .filter(Boolean)
 }
 
-// Bodies that can orbit the telescope. One is picked at random each time the
-// loader mounts. `modifier` tweaks per-body styling: the '✦' is a CSS-tinted
-// Newtonian 4-point star, the UFO spins on itself (no counter-rotation), the
-// moon is drawn smaller. To add more, just extend this list.
+// Bodies that cycle around the telescope, in order: moon → satellite → saturn →
+// star → UFO → repeat. `modifier` tweaks per-body styling: the '✦' is a
+// CSS-tinted Newtonian 4-point star, the UFO spins on itself (no
+// counter-rotation), the moon is drawn smaller. To add more, just extend this
+// list.
 const ORBIT_BODIES = [
   { glyph: '🌙', modifier: 'scope-loader__body--moon' },
   { glyph: '🛰️', modifier: '' },
@@ -1906,17 +1907,24 @@ const ORBIT_BODIES = [
   { glyph: '🛸', modifier: 'scope-loader__body--spin' },
 ] as const
 
+// One full orbit lap. Must match the scope-orbit / scope-orbit-counter duration
+// in styles.css so the body advances exactly when a lap completes.
+const ORBIT_DURATION_MS = 4000
+
 // Slow calm orbit around a telescope — a "getting ready" cue, deliberately not
 // a fast spinner. Bodies travel the ring without spinning on themselves (see
-// the counter-rotation in styles.css); the UFO is the exception. Decorative
+// the counter-rotation in styles.css); the UFO is the exception. The body
+// advances to the next one each time the orbit completes a lap. Decorative
 // only, so hidden from assistive tech.
 function TelescopeLoader() {
-  // Start deterministic (index 0) so the server-rendered and first client
-  // render match — then pick a random body after mount. Randomizing during
-  // render would desync SSR vs client and trip a hydration error.
+  // Start at index 0 (moon) so the server-rendered and first client render
+  // match (no hydration mismatch), then step through the list every lap.
   const [index, setIndex] = useState(0)
   useEffect(() => {
-    setIndex(Math.floor(Math.random() * ORBIT_BODIES.length))
+    const id = setInterval(() => {
+      setIndex((i) => (i + 1) % ORBIT_BODIES.length)
+    }, ORBIT_DURATION_MS)
+    return () => clearInterval(id)
   }, [])
 
   const chosen = ORBIT_BODIES[index]
