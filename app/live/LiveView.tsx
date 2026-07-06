@@ -58,6 +58,7 @@ type StatusLive = {
     type: string
     constellation?: string
     distanceLy?: number
+    sizeDescription?: string
   }
 }
 type StatusOffline = {
@@ -123,7 +124,8 @@ function isValidObjectMatch(v: unknown): v is StatusLive['objectMatch'] {
     isString(v.description) &&
     isString(v.type) &&
     (v.constellation === undefined || isString(v.constellation)) &&
-    (v.distanceLy === undefined || typeof v.distanceLy === 'number')
+    (v.distanceLy === undefined || typeof v.distanceLy === 'number') &&
+    (v.sizeDescription === undefined || isString(v.sizeDescription))
   )
 }
 
@@ -207,6 +209,7 @@ function resolveDisplayObject(body: StatusLive): DisplayObject {
       type: body.objectMatch.type,
       constellation: body.objectMatch.constellation,
       distanceLy: body.objectMatch.distanceLy,
+      sizeDescription: body.objectMatch.sizeDescription,
     }
   }
   if (astrometryState !== undefined && MOVING_ASTROMETRY_STATES.has(astrometryState)) {
@@ -303,6 +306,7 @@ const KNOWN_DEMOS: Record<
     totalAccumulatedTime: number
     constellation?: string
     distanceLy?: number
+    sizeDescription?: string
   }
 > = Object.fromEntries(
   Object.entries(KNOWN_DEMO_SOURCE).flatMap(([demoKey, source]) => {
@@ -319,6 +323,7 @@ const KNOWN_DEMOS: Record<
           totalAccumulatedTime: source.totalAccumulatedTime,
           constellation: catalogObject.constellation,
           distanceLy: catalogObject.distanceLy,
+          sizeDescription: catalogObject.sizeDescription,
         },
       ],
     ]
@@ -365,6 +370,7 @@ function getDemoStatusBody(): StatusLive | null {
         type: known.type,
         constellation: known.constellation,
         distanceLy: known.distanceLy,
+        sizeDescription: known.sizeDescription,
       },
     }
   }
@@ -1186,16 +1192,19 @@ function FallbackFieldIcon() {
   )
 }
 
-// Constellation / distance / size fact chips — ONLY rendered once the
-// catalog actually carries this data (distanceLy/constellation are not yet
-// added to config/catalog.json; that's a separate, not-yet-built item). No
-// placeholder/fake values in the meantime: the whole grid is simply absent
-// rather than showing invented facts.
+// Constellation / distance / size fact chips — each ONLY rendered once the
+// catalog actually carries that field. No placeholder/fake values: a chip is
+// simply absent rather than showing an invented fact, and the whole grid is
+// absent if none of the three are present.
 function Facts({ displayObject }: { displayObject: DisplayObject }) {
   if (displayObject.kind !== 'known') return null
-  if (!displayObject.constellation && !displayObject.distanceLy) return null
+  if (!displayObject.constellation && !displayObject.distanceLy && !displayObject.sizeDescription) return null
+  // Same --type-color the type pill uses (see ObjectTypeLine) — set once here
+  // and inherited by every .fact child, so the whole card reads as one
+  // coordinated color family rather than each chip needing its own lookup.
+  const color = typeColor(displayObject.type)
   return (
-    <div className="facts" aria-label="Object information">
+    <div className="facts" aria-label="Object information" style={{ '--type-color': color } as React.CSSProperties}>
       {displayObject.constellation ? (
         <div className="fact">
           <span>Constellation</span>
@@ -1206,6 +1215,12 @@ function Facts({ displayObject }: { displayObject: DisplayObject }) {
         <div className="fact">
           <span>Distance</span>
           <strong>≈ {displayObject.distanceLy.toLocaleString()} ly</strong>
+        </div>
+      ) : null}
+      {displayObject.sizeDescription ? (
+        <div className="fact">
+          <span>Size</span>
+          <strong>{displayObject.sizeDescription}</strong>
         </div>
       ) : null}
     </div>

@@ -16,6 +16,10 @@ export type CatalogObject = {
   // back-filled; the UI omits a chip rather than showing a placeholder.
   constellation?: string
   distanceLy?: number
+  // Guest-relatable apparent size (angular size vs. the Moon's ~31 arcmin),
+  // e.g. "6× wider than the full Moon" or "a tiny ring — telescope only" —
+  // NOT physical/linear size. Optional/additive like the two fields above.
+  sizeDescription?: string
 }
 
 export type Confidence = 'high' | 'medium' | 'low' | 'none'

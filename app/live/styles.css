@@ -461,13 +461,17 @@
   width: min(100%, 540px);
 }
 
+/* --type-color is set once on .facts (see Facts in LiveView.tsx) and inherits
+   here — a whisper of the object's type-pill color so the card reads as one
+   coordinated family, NOT a second loud color statement (contrast the much
+   stronger 55%/13% mix the type pill itself uses). */
 .fact {
   min-width: 0;
   min-height: 58px;
   padding: 10px 7px;
-  border: 1px solid rgba(237, 234, 227, 0.085);
+  border: 1px solid color-mix(in srgb, var(--type-color) 21%, rgba(237, 234, 227, 0.085));
   border-radius: 18px;
-  background: rgba(237, 234, 227, 0.043);
+  background: color-mix(in srgb, var(--type-color) 6%, rgba(237, 234, 227, 0.043));
   display: flex;
   flex-direction: column;
   justify-content: center;
