@@ -11,7 +11,8 @@
       "priority": 80,
       "description": "A glowing smoke-ring left behind by a dying star, one of the sky's most famous tiny nebulae.",
       "constellation": "Lyra",
-      "distanceLy": 2570
+      "distanceLy": 2570,
+      "sizeDescription": "a tiny ring — telescope only"
     },
     {
       "id": "M27",
@@ -24,7 +25,8 @@
       "priority": 78,
       "description": "A puffy, apple-core-shaped cloud of gas blown off by a star nearing the end of its life.",
       "constellation": "Vulpecula",
-      "distanceLy": 1360
+      "distanceLy": 1360,
+      "sizeDescription": "a quarter of the full Moon"
     },
     {
       "id": "M13",
@@ -37,7 +39,8 @@
       "priority": 90,
       "description": "A dense swarm of hundreds of thousands of ancient stars packed into a shimmering ball.",
       "constellation": "Hercules",
-      "distanceLy": 22200
+      "distanceLy": 22200,
+      "sizeDescription": "two-thirds of the full Moon"
     },
     {
       "id": "M31",
@@ -50,7 +53,8 @@
       "priority": 100,
       "description": "Our nearest large galactic neighbor, a whole other galaxy of a trillion stars you can see with your own eyes.",
       "constellation": "Andromeda",
-      "distanceLy": 2500000
+      "distanceLy": 2500000,
+      "sizeDescription": "6× wider than the full Moon"
     },
     {
       "id": "M65",
@@ -63,7 +67,8 @@
       "priority": 95,
       "description": "A slender spiral galaxy in Leo, one third of the famous Leo Triplet.",
       "constellation": "Leo",
-      "distanceLy": 35000000
+      "distanceLy": 35000000,
+      "sizeDescription": "a slim glow — telescope only"
     },
     {
       "id": "M66",
@@ -76,7 +81,8 @@
       "priority": 95,
       "description": "A bright, warped spiral galaxy in Leo, tugged into shape by its Triplet neighbors.",
       "constellation": "Leo",
-      "distanceLy": 35000000
+      "distanceLy": 35000000,
+      "sizeDescription": "a small spiral — telescope only"
     },
     {
       "id": "LEO-TRIPLET",
@@ -89,7 +95,8 @@
       "priority": 92,
       "description": "Three galaxies locked in a slow gravitational dance, close enough together to share a single eyepiece view.",
       "constellation": "Leo",
-      "distanceLy": 35000000
+      "distanceLy": 35000000,
+      "sizeDescription": "the three span ~1.5× the full Moon"
     },
     {
       "id": "M81",
@@ -102,7 +109,8 @@
       "priority": 82,
       "description": "A grand, sweeping spiral galaxy, one of the brightest and easiest galaxies to see beyond our own.",
       "constellation": "Ursa Major",
-      "distanceLy": 12000000
+      "distanceLy": 12000000,
+      "sizeDescription": "nearly the full Moon"
     },
     {
       "id": "M82",
@@ -115,7 +123,8 @@
       "priority": 80,
       "description": "A galaxy torn ragged by a burst of furious star formation, glowing in a long cigar-shaped streak.",
       "constellation": "Ursa Major",
-      "distanceLy": 12000000
+      "distanceLy": 12000000,
+      "sizeDescription": "a third of the full Moon"
     },
     {
       "id": "M33",
@@ -128,7 +137,8 @@
       "priority": 88,
       "description": "A whole other galaxy of hundreds of billions of stars, quietly spiraling nearby.",
       "constellation": "Triangulum",
-      "distanceLy": 2730000
+      "distanceLy": 2730000,
+      "sizeDescription": "about twice the full Moon"
     },
     {
       "id": "M51",
@@ -141,7 +151,8 @@
       "priority": 84,
       "description": "A textbook spiral galaxy caught mid-collision with a smaller companion, its arms stretched by gravity.",
       "constellation": "Canes Venatici",
-      "distanceLy": 23000000
+      "distanceLy": 23000000,
+      "sizeDescription": "a third of the full Moon"
     },
     {
       "id": "M42",
@@ -154,7 +165,8 @@
       "priority": 100,
       "description": "A vast stellar nursery where new stars are being born right now, visible as a fuzzy patch below Orion's belt.",
       "constellation": "Orion",
-      "distanceLy": 1344
+      "distanceLy": 1344,
+      "sizeDescription": "about twice the full Moon"
     },
     {
       "id": "M8",
@@ -167,7 +179,8 @@
       "priority": 82,
       "description": "A bright cloud of glowing gas in Sagittarius, cradling a cluster of hot young stars.",
       "constellation": "Sagittarius",
-      "distanceLy": 4100
+      "distanceLy": 4100,
+      "sizeDescription": "about 1.5× the full Moon"
     },
     {
       "id": "M20",
@@ -180,7 +193,8 @@
       "priority": 75,
       "description": "A three-lobed nebula split by dark dust lanes, glowing pink and blue side by side.",
       "constellation": "Sagittarius",
-      "distanceLy": 5200
+      "distanceLy": 5200,
+      "sizeDescription": "about the full Moon"
     },
     {
       "id": "M16",
@@ -193,7 +207,8 @@
       "priority": 80,
       "description": "Home to the famous Pillars of Creation, towering columns of gas where stars are forming.",
       "constellation": "Serpens",
-      "distanceLy": 7000
+      "distanceLy": 7000,
+      "sizeDescription": "about the full Moon"
     },
     {
       "id": "M17",
@@ -206,7 +221,8 @@
       "priority": 72,
       "description": "A glowing swan-shaped ribbon of gas, one of the brightest star-forming clouds in our galaxy.",
       "constellation": "Sagittarius",
-      "distanceLy": 5500
+      "distanceLy": 5500,
+      "sizeDescription": "a third of the full Moon"
     },
     {
       "id": "NGC869-884",
@@ -219,7 +235,8 @@
       "priority": 85,
       "description": "Two brilliant star clusters side by side, like a double handful of diamonds scattered on velvet.",
       "constellation": "Perseus",
-      "distanceLy": 7500
+      "distanceLy": 7500,
+      "sizeDescription": "the pair spans about 2× the full Moon"
     },
     {
       "id": "M45",
@@ -232,7 +249,8 @@
       "priority": 95,
       "description": "A sparkling cluster of young blue stars, often called the Seven Sisters, easy to spot with the naked eye.",
       "constellation": "Taurus",
-      "distanceLy": 444
+      "distanceLy": 444,
+      "sizeDescription": "about 3× the full Moon"
     },
     {
       "id": "NGC6960-6992",
@@ -245,7 +263,8 @@
       "priority": 70,
       "description": "The delicate, tattered remains of a star that exploded thousands of years ago, still glowing across the sky.",
       "constellation": "Cygnus",
-      "distanceLy": 2400
+      "distanceLy": 2400,
+      "sizeDescription": "spreads 6× the full Moon"
     },
     {
       "id": "NGC7000",
@@ -258,7 +277,8 @@
       "priority": 68,
       "description": "A huge cloud of glowing gas shaped uncannily like the continent of North America.",
       "constellation": "Cygnus",
-      "distanceLy": 2200
+      "distanceLy": 2200,
+      "sizeDescription": "4× the full Moon"
     },
     {
       "id": "M4",
@@ -271,7 +291,8 @@
       "priority": 65,
       "description": "One of the closest globular clusters to us, a loose ball of ancient stars near the heart of Scorpius.",
       "constellation": "Scorpius",
-      "distanceLy": 7200
+      "distanceLy": 7200,
+      "sizeDescription": "about the full Moon"
     },
     {
       "id": "M22",
@@ -284,7 +305,8 @@
       "priority": 62,
       "description": "A big, bright globular cluster in Sagittarius, one of the best in the sky for backyard telescopes.",
       "constellation": "Sagittarius",
-      "distanceLy": 10600
+      "distanceLy": 10600,
+      "sizeDescription": "three-quarters of the full Moon"
     },
     {
       "id": "M6",
@@ -295,7 +317,8 @@
       "decDeg": -32.2167,
       "displayRadiusDeg": 0.4,
       "priority": 55,
-      "description": "A cluster of stars whose pattern fans out like the wings of a butterfly."
+      "description": "A cluster of stars whose pattern fans out like the wings of a butterfly.",
+      "sizeDescription": "about the full Moon"
     },
     {
       "id": "M7",
@@ -306,7 +329,8 @@
       "decDeg": -34.8192,
       "displayRadiusDeg": 0.5,
       "priority": 55,
-      "description": "A loose, bright scattering of stars known since antiquity, easily seen with the naked eye near the scorpion's tail."
+      "description": "A loose, bright scattering of stars known since antiquity, easily seen with the naked eye near the scorpion's tail.",
+      "sizeDescription": "about 2.5× the full Moon"
     },
     {
       "id": "M11",
@@ -319,7 +343,8 @@
       "priority": 60,
       "description": "A tightly packed swarm of stars whose fan-like shape reminded early observers of ducks in flight.",
       "constellation": "Scutum",
-      "distanceLy": 6200
+      "distanceLy": 6200,
+      "sizeDescription": "about half the full Moon"
     },
     {
       "id": "M15",
@@ -332,7 +357,8 @@
       "priority": 58,
       "description": "A tightly compressed ball of ancient stars, one of the densest globular clusters known.",
       "constellation": "Pegasus",
-      "distanceLy": 33600
+      "distanceLy": 33600,
+      "sizeDescription": "over half the full Moon"
     },
     {
       "id": "M2",
@@ -345,7 +371,8 @@
       "priority": 50,
       "description": "A rich, symmetrical ball of stars, one of the sky's grander globular clusters.",
       "constellation": "Aquarius",
-      "distanceLy": 37500
+      "distanceLy": 37500,
+      "sizeDescription": "about half the full Moon"
     },
     {
       "id": "M5",
@@ -358,7 +385,8 @@
       "priority": 65,
       "description": "One of the oldest and largest globular clusters known, a dense swarm of ancient stars in Serpens.",
       "constellation": "Serpens",
-      "distanceLy": 24500
+      "distanceLy": 24500,
+      "sizeDescription": "three-quarters of the full Moon"
     },
     {
       "id": "M76",
@@ -371,7 +399,8 @@
       "priority": 50,
       "description": "A small, faint echo of the Dumbbell Nebula, the wispy remains of a dying star's outer layers.",
       "constellation": "Perseus",
-      "distanceLy": 3400
+      "distanceLy": 3400,
+      "sizeDescription": "tiny — telescope only"
     },
     {
       "id": "M92",
@@ -382,7 +411,8 @@
       "decDeg": 43.1358,
       "displayRadiusDeg": 0.2,
       "priority": 52,
-      "description": "A brilliant, tightly packed cluster often overlooked in favor of its famous neighbor M13."
+      "description": "A brilliant, tightly packed cluster often overlooked in favor of its famous neighbor M13.",
+      "sizeDescription": "about half the full Moon"
     },
     {
       "id": "M56",
@@ -426,7 +456,8 @@
       "decDeg": 48.4333,
       "displayRadiusDeg": 0.4,
       "priority": 35,
-      "description": "A wide, loose scattering of bright stars, best swept up with binoculars on a dark night."
+      "description": "A wide, loose scattering of bright stars, best swept up with binoculars on a dark night.",
+      "sizeDescription": "about the full Moon"
     },
     {
       "id": "MOON",

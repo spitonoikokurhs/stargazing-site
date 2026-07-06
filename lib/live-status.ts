@@ -26,12 +26,14 @@ export type DisplayObject =
       name: string
       description: string
       type: string
-      // Not yet populated anywhere (config/catalog.json has no distanceLy/
-      // constellation fields yet — separate, not-yet-built item). Optional
-      // so the facts UI can render gracefully-absent until that data exists,
-      // rather than needing a second, larger type migration later.
+      // Optional/additive — absent on any catalog entry not yet back-filled;
+      // the facts UI renders gracefully-absent rather than showing a fake
+      // value (see Facts in app/live/LiveView.tsx).
       constellation?: string
       distanceLy?: number
+      // Guest-relatable apparent size (vs. the Moon), NOT physical size —
+      // see CatalogObject.sizeDescription in lib/catalog.ts.
+      sizeDescription?: string
     }
   | { kind: 'moving' }
   | { kind: 'fallback' }

@@ -115,6 +115,7 @@ export async function GET() {
             type: string
             constellation?: string
             distanceLy?: number
+            sizeDescription?: string
           }
         | undefined
       if (
@@ -131,6 +132,7 @@ export async function GET() {
             type: result.match.type,
             ...(result.match.constellation ? { constellation: result.match.constellation } : {}),
             ...(result.match.distanceLy ? { distanceLy: result.match.distanceLy } : {}),
+            ...(result.match.sizeDescription ? { sizeDescription: result.match.sizeDescription } : {}),
           }
         }
       }
