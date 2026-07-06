@@ -1021,6 +1021,13 @@
   flex: none;
 }
 
+/* Smaller variant for the 'moving' transition card (see TransitionCopy) —
+   same component/cycling logic as the checking screen, just scaled down to
+   fit inline above a compact two-line copy card instead of a full screen. */
+.scope-loader--small {
+  --scope-size: clamp(26px, 2.6vmin, 34px);
+}
+
 .scope-loader__icon {
   font-size: calc(var(--scope-size) * 0.45); /* telescope, ~18px at the 40px floor */
   line-height: 1;
