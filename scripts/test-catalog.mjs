@@ -241,6 +241,29 @@ function assert(label, cond, detail) {
   assert('no ephemeris object ever returned as a match', !leaked)
 }
 
+// 6. Spot-check a couple of the feat/catalog-additions objects at their own
+//    exact coordinates — confirms they were entered correctly and resolve
+//    with high confidence, not just that the JSON parses.
+{
+  const owl = byId('NGC457')
+  const rOwl = matchCoordinates(owl.raDeg, owl.decDeg)
+  assert('Owl Cluster exact coords -> match NGC457', rOwl.match?.id === 'NGC457', `got ${rOwl.match?.id ?? 'null'}`)
+  assert('Owl Cluster exact coords -> high confidence', rOwl.confidence === 'high', `got ${rOwl.confidence}`)
+
+  const bubble = byId('NGC7635')
+  const rBubble = matchCoordinates(bubble.raDeg, bubble.decDeg)
+  assert('Bubble Nebula exact coords -> match NGC7635', rBubble.match?.id === 'NGC7635', `got ${rBubble.match?.id ?? 'null'}`)
+  assert('Bubble Nebula exact coords -> high confidence', rBubble.confidence === 'high', `got ${rBubble.confidence}`)
+
+  // Bubble Nebula and M52 are only 0.616° apart (the closest new-object pair
+  // added) — confirm each still resolves correctly to ITSELF at its own
+  // center despite the neighbor being in range for the runner-up guardrail.
+  const m52 = byId('M52')
+  const rM52 = matchCoordinates(m52.raDeg, m52.decDeg)
+  assert('M52 exact coords -> match M52 (not swayed by nearby Bubble Nebula)', rM52.match?.id === 'M52', `got ${rM52.match?.id ?? 'null'}`)
+  assert('M52 exact coords -> high confidence', rM52.confidence === 'high', `got ${rM52.confidence}`)
+}
+
 console.log('')
 if (failures > 0) {
   console.log(`${failures} assertion(s) failed.`)
