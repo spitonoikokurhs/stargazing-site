@@ -806,10 +806,10 @@ function LiveViewPresentation({ state }: { state: LiveStatusState }) {
   )
 }
 
-// Split out so it (and its isFullscreen state) only mounts once we actually
-// have a frame to show — the circular FOV view is the pretty default view;
-// fullscreen swaps to the full square image, maximized, with the circular
-// framing dropped entirely (see the Fullscreen API wiring below).
+// Split out so it (and its fullscreenMode state) only mounts once we
+// actually have a frame to show — the circular FOV view is the pretty
+// default view; fullscreen swaps to the full square image, maximized, with
+// the circular framing dropped entirely (see the fullscreen wiring below).
 function LiveFrameView({
   uiState,
   lastLiveFrame,
@@ -819,7 +819,15 @@ function LiveFrameView({
   lastLiveFrame: NonNullable<LiveStatusState['lastLiveFrame']>
   demoSnapshots: SnapshotKey[]
 }) {
-  const [isFullscreen, setIsFullscreen] = useState(false)
+  // 'off': normal circular view. 'native': the real Fullscreen API is active
+  // (Android/desktop — unaffected by this change). 'css-fallback': a fixed
+  // full-viewport overlay standing in for fullscreen where the API doesn't
+  // exist at all — namely iOS Safari, which only allows native fullscreen on
+  // <video> elements (Apple's restriction, not a bug we can work around) and
+  // exposes neither document.fullscreenEnabled nor element.requestFullscreen
+  // for anything else. See supportsNativeFullscreen()/handleToggleFullscreen
+  // below for the feature-detection (never user-agent sniffing).
+  const [fullscreenMode, setFullscreenMode] = useState<'off' | 'native' | 'css-fallback'>('off')
   // DEMO-MOCK ONLY — see SnapshotToggle's doc comment. Resets to 'current'
   // whenever the available set changes (e.g. demo mode swapped) so a stale
   // selection can never point at a snapshot that no longer exists.
@@ -830,19 +838,79 @@ function LiveFrameView({
 
   useEffect(() => {
     function onFullscreenChange() {
-      setIsFullscreen(document.fullscreenElement != null)
+      // Only the NATIVE path fires this browser event; the CSS fallback has
+      // no browser-level fullscreen state to listen for; its own toggle
+      // handler sets fullscreenMode directly. Guard so a native
+      // fullscreenchange (e.g. the user pressing Esc) can't stomp on an
+      // active css-fallback session that it has nothing to do with.
+      if (document.fullscreenElement != null) {
+        setFullscreenMode('native')
+      } else {
+        setFullscreenMode((current) => (current === 'native' ? 'off' : current))
+      }
     }
     document.addEventListener('fullscreenchange', onFullscreenChange)
     return () => document.removeEventListener('fullscreenchange', onFullscreenChange)
   }, [])
 
-  if (isFullscreen) {
+  // Body-scroll lock for the CSS fallback only — native fullscreen already
+  // suspends the page's own scroll (the browser replaces the whole viewport
+  // with the fullscreen element), so locking here too would be redundant.
+  // The CSS fallback instead renders an overlay ON TOP of the still-present
+  // scrollable page, so without this, a background scroll/iOS rubber-band
+  // bounce would be visible/possible behind the "fullscreen" overlay.
+  useEffect(() => {
+    if (fullscreenMode !== 'css-fallback') return
+    const { body } = document
+    const previousOverflow = body.style.overflow
+    const previousPosition = body.style.position
+    const previousWidth = body.style.width
+    const previousTop = body.style.top
+    const scrollY = window.scrollY
+    body.style.overflow = 'hidden'
+    // position:fixed (not just overflow:hidden) is what actually stops iOS
+    // Safari's rubber-band bounce — overflow:hidden alone still lets the
+    // page rubber-band on iOS. Pinning the scroll offset via top + restoring
+    // it on cleanup keeps the guest's place in the page across the toggle.
+    body.style.position = 'fixed'
+    body.style.width = '100%'
+    body.style.top = `-${scrollY}px`
+    return () => {
+      body.style.overflow = previousOverflow
+      body.style.position = previousPosition
+      body.style.width = previousWidth
+      body.style.top = previousTop
+      window.scrollTo(0, scrollY)
+    }
+  }, [fullscreenMode])
+
+  function handleToggleFullscreen() {
+    if (fullscreenMode === 'native') {
+      document.exitFullscreen().catch(() => {})
+      return
+    }
+    if (fullscreenMode === 'css-fallback') {
+      setFullscreenMode('off')
+      return
+    }
+    if (supportsNativeFullscreen()) {
+      document.documentElement.requestFullscreen().catch(() => {})
+      // fullscreenMode itself is set by the fullscreenchange listener above
+      // once the browser actually grants it, not optimistically here — if
+      // the promise rejects (e.g. blocked by a permissions policy), the
+      // listener simply never fires and the view correctly stays 'off'.
+    } else {
+      setFullscreenMode('css-fallback')
+    }
+  }
+
+  if (fullscreenMode !== 'off') {
     return (
       <div className="live-root live-root--fullscreen">
         <button
           type="button"
           className="fullscreen-button fullscreen-exit-button"
-          onClick={toggleFullscreen}
+          onClick={handleToggleFullscreen}
           aria-label="Exit fullscreen"
         >
           ⤢
@@ -852,7 +920,12 @@ function LiveFrameView({
             fullscreen is the see-everything-in-detail mode, not the eyepiece
             aesthetic (that's the default circular view). Pinch-to-zoom/pan
             is scoped entirely to this image (see PannableZoomImage) — the
-            exit button and page chrome are outside it and never affected. */}
+            exit button and page chrome are outside it and never affected.
+            Identical markup for BOTH native and css-fallback modes — the
+            only difference between them is how fullscreenMode gets set/
+            cleared (a real browser API vs. plain React state), not how this
+            is rendered, so the zoomable-image experience is exactly the
+            same either way. */}
         <PannableZoomImage src={lastLiveFrame.blobUrl} alt={objectLabel(lastLiveFrame.displayObject)} />
       </div>
     )
@@ -924,7 +997,7 @@ function LiveFrameView({
           <button
             type="button"
             className="fullscreen-button viewer-fullscreen-button"
-            onClick={toggleFullscreen}
+            onClick={handleToggleFullscreen}
             aria-label="Toggle fullscreen"
           >
             ⛶
@@ -1890,13 +1963,24 @@ function CopyIcon() {
   )
 }
 
-function toggleFullscreen() {
-  if (typeof document === 'undefined') return
-  if (document.fullscreenElement) {
-    document.exitFullscreen().catch(() => {})
-  } else {
-    document.documentElement.requestFullscreen().catch(() => {})
+// Feature detection ONLY — never user-agent sniffing. iOS Safari doesn't
+// implement the Fullscreen API on anything but <video> elements (an Apple
+// platform restriction, not a bug), so document.documentElement.requestFullscreen
+// is simply undefined there; checking for its existence (plus
+// fullscreenEnabled, which some browsers set false even when the method
+// exists, e.g. inside a cross-origin iframe without an allow policy) is a
+// reliable, forward-compatible way to know whether calling it will actually
+// do anything, regardless of which browser/OS this is.
+function supportsNativeFullscreen(): boolean {
+  if (typeof document === 'undefined') return false
+  // DEMO-MOCK ONLY: ?forceFullscreenFallback=1 lets the CSS fallback path be
+  // reviewed on any desktop/Android browser tonight, without waiting for a
+  // real iOS device — forces the same code path an actual iPhone would take,
+  // without any user-agent sniffing in the real detection logic above/below.
+  if (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('forceFullscreenFallback') === '1') {
+    return false
   }
+  return document.fullscreenEnabled === true && typeof document.documentElement.requestFullscreen === 'function'
 }
 
 // Build the flavor-text context from the current (offline) state. Purely

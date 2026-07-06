@@ -139,13 +139,32 @@
    aesthetic — the circular framing, rim, and info block are all dropped.
    Just the full square frame, maximized, plus a small exit affordance. This
    still uses the OLD fixed/no-scroll treatment since it's a dedicated
-   full-viewport mode, not part of the new scrollable page. */
+   full-viewport mode, not part of the new scrollable page.
+
+   Same markup/class serves BOTH the real Fullscreen API (Android/desktop)
+   and the CSS-only fallback (iOS Safari, which never grants native
+   fullscreen on anything but <video> — see supportsNativeFullscreen() in
+   LiveView.tsx). position:fixed + a z-index above everything else on the
+   page is what actually makes this work as an overlay in the fallback case
+   (a real fullscreened element fills the screen regardless of its own
+   `position`, so this is a no-op change for the native path, not a risk to
+   it). height is specified twice, most-correct LAST so it wins on browsers
+   that support it: 100vh first as a universal fallback (an unsupported
+   value is simply ignored, so the last VALID declaration always wins), then
+   100dvh overrides it where supported — dvh tracks the ACTUAL current
+   visible viewport as Safari's address bar/toolbar show or hide, which is
+   what actually prevents a cut-off strip; the alternative (100svh, the
+   worst-case SMALLEST viewport) would be overly conservative and leave
+   black bars even once the browser chrome has collapsed and more real
+   space is available. */
 .live-root--fullscreen {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
   height: 100vh;
   height: 100dvh;
   min-height: 0;
   overflow: hidden;
-  position: relative;
   padding: 0;
   background: #000;
   display: flex;
