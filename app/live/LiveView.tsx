@@ -1545,7 +1545,12 @@ function ObjectDescription({ displayObject }: { displayObject: DisplayObject }) 
     return <p className="live-object-desc">{displayObject.description}</p>
   }
   if (displayObject.kind === 'moving') {
-    return <TransitionCopy mainPhrases={MOVING_PHRASES} />
+    // Loader ONLY here, not on 'fallback' — 'moving' is the "telescope is
+    // physically busy" state (slewing/searching), so it gets the same
+    // "getting ready" cue as the checking screen. 'fallback' already has a
+    // confident live frame in view with a name it just can't confirm; nothing
+    // is "in progress" there, so no loader.
+    return <TransitionCopy mainPhrases={MOVING_PHRASES} showLoader />
   }
   return <TransitionCopy mainPhrases={[FALLBACK_SUPPORTING_LINE]} />
 }
@@ -1654,11 +1659,18 @@ function RotatingPhrase() {
 // poetic/supporting line is the prominent element, with a small, dimmer,
 // independently-rotating instruction line beneath it — same card, same
 // rotation cadence/crossfade as RotatingPhrase, just two lines instead of one.
-function TransitionCopy({ mainPhrases }: { mainPhrases: string[] }) {
+function TransitionCopy({
+  mainPhrases,
+  showLoader,
+}: {
+  mainPhrases: string[]
+  showLoader?: boolean
+}) {
   const main = useRotatingPhrase(mainPhrases)
   const instruction = useRotatingPhrase(INSTRUCTION_PHRASES)
   return (
     <div className="live-object-desc live-object-desc--transition">
+      {showLoader ? <TelescopeLoader small /> : null}
       <p className={`transition-main${main.visible ? ' is-visible' : ''}`}>{main.text}</p>
       <p className={`transition-instruction${instruction.visible ? ' is-visible' : ''}`}>{instruction.text}</p>
     </div>
@@ -1931,7 +1943,12 @@ const ORBIT_DURATION_MS = 4000
 // the counter-rotation in styles.css); the UFO is the exception. The body
 // advances to the next one each time the orbit completes a lap. Decorative
 // only, so hidden from assistive tech.
-function TelescopeLoader() {
+//
+// `small`: reuses the exact same component/cycling logic for the 'moving'
+// transition card (see ObjectDescription/TransitionCopy) — only --scope-size
+// changes (via the scope-loader--small modifier), so both contexts share one
+// "the telescope is working" visual instead of a second bespoke widget.
+function TelescopeLoader({ small }: { small?: boolean }) {
   // Start at index 0 (moon) so the server-rendered and first client render
   // match (no hydration mismatch), then step through the list every lap.
   const [index, setIndex] = useState(0)
@@ -1944,7 +1961,7 @@ function TelescopeLoader() {
 
   const chosen = ORBIT_BODIES[index]
   return (
-    <span className="scope-loader" aria-hidden="true">
+    <span className={`scope-loader${small ? ' scope-loader--small' : ''}`} aria-hidden="true">
       <span className="scope-loader__ring" />
       <span className="scope-loader__orbit">
         <span className={`scope-loader__body${chosen.modifier ? ` ${chosen.modifier}` : ''}`}>{chosen.glyph}</span>
