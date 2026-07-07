@@ -20,6 +20,25 @@ export type CatalogObject = {
   // e.g. "6× wider than the full Moon" or "a tiny ring — telescope only" —
   // NOT physical/linear size. Optional/additive like the two fields above.
   sizeDescription?: string
+  // Enriched-card content (see docs/enriched-card-designer-brief-2026-07-07.md
+  // and the design previews at app/preview/enriched*). Optional/additive and
+  // back-filled gradually like the fields above — absent on any entry not
+  // yet written. Deliberately real, fact-checked copy (not placeholder text):
+  // this is production content, independent of which UI design (if any)
+  // eventually ships it, so it lives here rather than in a preview's own
+  // sample data. A short, punchy sentence each; astronomically precise
+  // rather than rounded to a "nicer"-sounding but wrong number or date.
+  wowFacts?: string[]
+  // A short line managing what the guest should actually expect to SEE
+  // through the eyepiece/telescope image — distinct in purpose from
+  // wowFacts (which are about the object itself, not how it looks tonight).
+  visualHint?: string
+  // Four-section deep-dive shown in a collapsed-by-default "more" drawer.
+  // Section headings are meant to stay consistent across every object
+  // (What you're seeing / Why it matters / The human story / How to spot
+  // it), so the UI can render a fixed heading order rather than looking
+  // them up per object.
+  drawer?: { heading: string; body: string }[]
 }
 
 export type Confidence = 'high' | 'medium' | 'low' | 'none'

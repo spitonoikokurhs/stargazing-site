@@ -7,6 +7,10 @@ export const TYPE_COLORS: Record<string, string> = {
   'Planetary Nebula': '#35C7B7',
   'Supernova Remnant': '#F0784E',
   'Open Cluster': '#B8D7F2',
+  // Distinct from Open Cluster's pale blue — a star cloud isn't a bound
+  // cluster (see lib/object-types.ts), so it gets its own warm, dense-field
+  // color rather than sharing the cluster hue.
+  'Star Cloud': '#E8D9B0',
   'Globular Cluster': '#D6A94B',
   Galaxy: '#B69CFF',
   // Specific galaxy morphologies share the base Galaxy violet — only the

@@ -1573,6 +1573,37 @@ function TypeIcon({ type }: { type: string }) {
           <circle cx="36" cy="30" r="1.8" fill="#eaf3ff" />
         </svg>
       )
+    // Deliberately much denser/more numerous points than Open Cluster above
+    // — a star cloud isn't a handful of bound stars, it's an unresolved
+    // crowd of thousands of unrelated background stars (see the doc comment
+    // on 'Star Cloud' in lib/object-types.ts), so the glyph itself should
+    // read as "field," not "group."
+    case 'Star Cloud':
+      return (
+        <svg viewBox="0 0 64 64" width="32" height="32" aria-hidden="true">
+          <circle cx="32" cy="32" r="26" fill="#0c0f16" />
+          <circle cx="20" cy="18" r="1.1" fill="#f3ecd8" />
+          <circle cx="27" cy="14" r="0.8" fill="#e8d9b0" />
+          <circle cx="34" cy="17" r="1.3" fill="#f3ecd8" />
+          <circle cx="42" cy="14" r="0.9" fill="#e8d9b0" />
+          <circle cx="46" cy="22" r="1.2" fill="#f3ecd8" />
+          <circle cx="18" cy="27" r="0.9" fill="#e8d9b0" />
+          <circle cx="25" cy="24" r="1" fill="#f3ecd8" />
+          <circle cx="32" cy="26" r="0.8" fill="#e8d9b0" />
+          <circle cx="39" cy="28" r="1.1" fill="#f3ecd8" />
+          <circle cx="47" cy="32" r="0.9" fill="#e8d9b0" />
+          <circle cx="16" cy="36" r="1.2" fill="#f3ecd8" />
+          <circle cx="22" cy="34" r="0.8" fill="#e8d9b0" />
+          <circle cx="29" cy="37" r="1" fill="#f3ecd8" />
+          <circle cx="36" cy="35" r="0.9" fill="#e8d9b0" />
+          <circle cx="43" cy="40" r="1.1" fill="#f3ecd8" />
+          <circle cx="20" cy="44" r="0.9" fill="#e8d9b0" />
+          <circle cx="27" cy="46" r="1.2" fill="#f3ecd8" />
+          <circle cx="34" cy="44" r="0.8" fill="#e8d9b0" />
+          <circle cx="41" cy="47" r="1" fill="#f3ecd8" />
+          <circle cx="46" cy="42" r="0.8" fill="#e8d9b0" />
+        </svg>
+      )
     case 'Planet':
       return (
         <svg viewBox="0 0 64 64" width="32" height="32" aria-hidden="true">

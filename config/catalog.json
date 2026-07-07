@@ -26,7 +26,32 @@
       "description": "A puffy, apple-core-shaped cloud of gas blown off by a star nearing the end of its life.",
       "constellation": "Vulpecula",
       "distanceLy": 1360,
-      "sizeDescription": "a quarter of the full Moon"
+      "sizeDescription": "a quarter of the full Moon",
+      "wowFacts": [
+        "The star at its center is dying — this is its outer atmosphere, cast into space.",
+        "Over the next tens of thousands of years, this cloud will fade away.",
+        "The core star is collapsing into a white dwarf, roughly the size of Earth but impossibly dense.",
+        "This was the very first planetary nebula ever recorded, back in 1764."
+      ],
+      "visualHint": "Look for a soft apple-core glow — gas shed by a dying star, not a sharp edge.",
+      "drawer": [
+        {
+          "heading": "What you're seeing",
+          "body": "The light in this image began its journey around the early Middle Ages and is arriving at the telescope tonight. What made that journey is a stretched shell of gas, shed by a star in the final act of its life — its dumbbell shape comes from that shell seen from our particular angle."
+        },
+        {
+          "heading": "Why it matters",
+          "body": "This is one of the clearest nearby examples of what our own Sun will eventually become — a preview of stellar death, several billion years early."
+        },
+        {
+          "heading": "The human story",
+          "body": "First catalogued by Charles Messier in 1764 — the very first planetary nebula anyone ever recorded. He was hunting comets and kept finding things that weren't; this list of \"not comets\" became the Messier catalog astronomers still use tonight."
+        },
+        {
+          "heading": "How to spot it",
+          "body": "Small and dim to the naked eye, but unmistakable through a telescope — a soft, glowing patch with a faint greenish tint in dark skies."
+        }
+      ]
     },
     {
       "id": "M13",
@@ -54,7 +79,32 @@
       "description": "Our nearest large galactic neighbor, a whole other galaxy of a trillion stars you can see with your own eyes.",
       "constellation": "Andromeda",
       "distanceLy": 2500000,
-      "sizeDescription": "6× wider than the full Moon"
+      "sizeDescription": "6× wider than the full Moon",
+      "wowFacts": [
+        "It contains roughly a trillion stars — about four times as many as our own Milky Way.",
+        "It's the most distant thing most people will ever see with the naked eye.",
+        "Andromeda and the Milky Way may merge billions of years from now, though the exact outcome is still being studied.",
+        "What looks like a small smudge is, edge to edge, over six times wider than the full Moon."
+      ],
+      "visualHint": "It's bigger than it looks — the faint haze extends well past what first catches your eye.",
+      "drawer": [
+        {
+          "heading": "What you're seeing",
+          "body": "The light in this image began its journey roughly 2.5 million years ago — long before modern humans existed anywhere on Earth — and is arriving at the telescope tonight. What made that journey is an entire separate galaxy, seen at a steep angle: a bright core surrounded by a much fainter, sprawling disk of stars and dust."
+        },
+        {
+          "heading": "Why it matters",
+          "body": "Andromeda is the benchmark for understanding our own galaxy from the outside — we can never photograph the Milky Way's full shape from within it, but Andromeda shows us roughly what it would look like."
+        },
+        {
+          "heading": "The human story",
+          "body": "Recorded as a \"little cloud\" by Persian astronomer Al-Sufi in 964 AD, nearly a thousand years before telescopes existed to explain what it actually was."
+        },
+        {
+          "heading": "How to spot it",
+          "body": "Under dark skies, visible to the naked eye as a faint smudge — one of the few galaxies you can see without any equipment at all."
+        }
+      ]
     },
     {
       "id": "M65",
@@ -487,7 +537,32 @@
       "requiresEphemeris": true,
       "displayRadiusDeg": null,
       "priority": 98,
-      "description": "The ringed jewel of the solar system, and always a crowd favorite through the eyepiece."
+      "description": "The ringed jewel of the solar system, and always a crowd favorite through the eyepiece.",
+      "wowFacts": [
+        "Its rings are countless icy pieces, mostly dust-to-boulder sized.",
+        "Saturn's average density is lower than water, which is why people say it could \"float.\"",
+        "In places, the rings may be only tens of meters thick.",
+        "A day on Saturn lasts just over 10 hours, despite the planet being about 9× Earth's width."
+      ],
+      "visualHint": "Steady the view and look closely — the rings appear as a thin line or oval around a small, bright disk.",
+      "drawer": [
+        {
+          "heading": "What you're seeing",
+          "body": "The light in this image left Saturn about 80 minutes ago and is arriving at the telescope tonight. What made that short journey is a small golden disk with a ring system tilted at whatever angle Saturn currently presents to Earth — sometimes wide open, sometimes nearly edge-on."
+        },
+        {
+          "heading": "Why it matters",
+          "body": "Saturn is the farthest planet most people will ever see rings on directly — a genuinely rare, unmistakable sight through even a modest telescope."
+        },
+        {
+          "heading": "The human story",
+          "body": "Galileo first saw Saturn's rings in 1610 but couldn't explain them — his telescope was too weak to resolve the shape, and he described them as \"ears\" on the planet."
+        },
+        {
+          "heading": "How to spot it",
+          "body": "Look for a steady, non-twinkling point of golden light — planets don't twinkle the way stars do, which is often the easiest way to pick one out."
+        }
+      ]
     },
     {
       "id": "VENUS",
@@ -653,7 +728,7 @@
       "id": "M24",
       "primaryName": "Sagittarius Star Cloud",
       "aliases": ["M24", "IC 4715", "Small Sagittarius Star Cloud"],
-      "type": "Open Cluster",
+      "type": "Star Cloud",
       "raDeg": 274.2000,
       "decDeg": -18.5500,
       "displayRadiusDeg": 0.75,

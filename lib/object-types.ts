@@ -12,6 +12,12 @@ export const TYPE_DEFINITIONS: Record<string, string> = {
   'Supernova Remnant': 'The glowing debris of a star that exploded.',
   'Globular Cluster': 'A dense, ancient ball of thousands of stars.',
   'Open Cluster': 'A loose group of young stars born together.',
+  // Distinct from Open Cluster: a star cloud isn't a gravitationally bound
+  // group at all, just a dense window through our own galaxy's dust where
+  // many unrelated background stars happen to line up (e.g. M24 — see
+  // config/catalog.json). Retyped from 'Open Cluster' after a content
+  // review flagged the mismatch.
+  'Star Cloud': 'A dense window through our galaxy’s dust, packed with countless background stars.',
   Planet: 'A world orbiting our own Sun.',
   Moon: 'Our nearest neighbor in space.',
   // Not present in the catalog yet — defined ahead of time so a future
