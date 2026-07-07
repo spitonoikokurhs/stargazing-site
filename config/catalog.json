@@ -15,6 +15,20 @@
       "sizeDescription": "a tiny ring — telescope only"
     },
     {
+      "id": "ALBIREO",
+      "primaryName": "Albireo",
+      "aliases": ["Albireo", "Beta Cygni"],
+      "type": "Double Star",
+      "raDeg": 292.6804,
+      "decDeg": 27.9597,
+      "displayRadiusDeg": 0.06,
+      "priority": 70,
+      "description": "A striking double star — one gold, one blue — sitting side by side in a vivid color contrast.",
+      "constellation": "Cygnus",
+      "distanceLy": 430,
+      "sizeDescription": "a close pair — telescope only"
+    },
+    {
       "id": "M27",
       "primaryName": "Dumbbell Nebula",
       "aliases": ["M27", "NGC 6853"],
@@ -231,6 +245,34 @@
       "constellation": "Canes Venatici",
       "distanceLy": 23000000,
       "sizeDescription": "a third of the full Moon"
+    },
+    {
+      "id": "M63",
+      "primaryName": "Sunflower Galaxy",
+      "aliases": ["M63", "NGC 5055", "Sunflower Galaxy"],
+      "type": "Spiral Galaxy",
+      "raDeg": 198.9554,
+      "decDeg": 42.0292,
+      "displayRadiusDeg": 0.1,
+      "priority": 79,
+      "description": "A bright spiral with tightly wound, flecked arms that give it a sunflower-like glow.",
+      "constellation": "Canes Venatici",
+      "distanceLy": 29000000,
+      "sizeDescription": "a small bright glow — telescope only"
+    },
+    {
+      "id": "M94",
+      "primaryName": "M94",
+      "aliases": ["M94", "NGC 4736"],
+      "type": "Spiral Galaxy",
+      "raDeg": 192.7212,
+      "decDeg": 41.1206,
+      "displayRadiusDeg": 0.09,
+      "priority": 78,
+      "description": "A compact, bright-cored spiral galaxy ringed by a faint outer halo of stars.",
+      "constellation": "Canes Venatici",
+      "distanceLy": 16000000,
+      "sizeDescription": "a small bright glow — telescope only"
     },
     {
       "id": "M42",
@@ -479,6 +521,20 @@
       "constellation": "Perseus",
       "distanceLy": 3400,
       "sizeDescription": "tiny — telescope only"
+    },
+    {
+      "id": "NGC6543",
+      "primaryName": "Cat's Eye Nebula",
+      "aliases": ["NGC 6543", "Caldwell 6", "Cat's Eye Nebula"],
+      "type": "Planetary Nebula",
+      "raDeg": 269.6392,
+      "decDeg": 66.6331,
+      "displayRadiusDeg": 0.1,
+      "priority": 62,
+      "description": "A small, brilliant planetary nebula with intricate layered structure, one of the sky's most detailed.",
+      "constellation": "Draco",
+      "distanceLy": 3300,
+      "sizeDescription": "tiny but bright — telescope only"
     },
     {
       "id": "M92",

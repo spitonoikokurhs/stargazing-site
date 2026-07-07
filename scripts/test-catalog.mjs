@@ -309,6 +309,49 @@ function assert(label, cond, detail) {
   assert('M104 exact coords -> high confidence', r.confidence === 'high', `got ${r.confidence}`)
 }
 
+// 9. Four more showpieces added after a follow-up sanity pass named specific
+//    candidates by object: Albireo (the catalog's first real use of the
+//    'Double Star' type, previously defined in TYPE_DEFINITIONS/TYPE_COLORS
+//    but never used by any entry), NGC 6543 (Cat's Eye Nebula — verified
+//    circumpolar from Kos's ~36.9N latitude), M63 and M94 (bright Canes
+//    Venatici spirals near M51, confirmed 5.7deg/9.25deg away with no
+//    crowded-field conflict). M92/M11/M3, also checked in that pass, were
+//    already present and are covered by no new test here.
+{
+  const albireo = byId('ALBIREO')
+  assert('catalog contains Albireo', albireo !== undefined)
+  assert('Albireo uses the Double Star type', albireo?.type === 'Double Star', `got ${albireo?.type}`)
+  const rAlbireo = matchCoordinates(albireo.raDeg, albireo.decDeg)
+  assert('Albireo exact coords -> match ALBIREO', rAlbireo.match?.id === 'ALBIREO', `got ${rAlbireo.match?.id ?? 'null'}`)
+  assert('Albireo exact coords -> high confidence', rAlbireo.confidence === 'high', `got ${rAlbireo.confidence}`)
+
+  const catsEye = byId('NGC6543')
+  assert('catalog contains Cat’s Eye Nebula', catsEye !== undefined)
+  const rCatsEye = matchCoordinates(catsEye.raDeg, catsEye.decDeg)
+  assert('Cat’s Eye exact coords -> match NGC6543', rCatsEye.match?.id === 'NGC6543', `got ${rCatsEye.match?.id ?? 'null'}`)
+  assert('Cat’s Eye exact coords -> high confidence', rCatsEye.confidence === 'high', `got ${rCatsEye.confidence}`)
+
+  const m63 = byId('M63')
+  assert('catalog contains M63', m63 !== undefined)
+  const rM63 = matchCoordinates(m63.raDeg, m63.decDeg)
+  assert('M63 exact coords -> match M63', rM63.match?.id === 'M63', `got ${rM63.match?.id ?? 'null'}`)
+  assert('M63 exact coords -> high confidence', rM63.confidence === 'high', `got ${rM63.confidence}`)
+  // M63 is genuinely close to M51 (~5.7deg, well outside both radii) — confirm
+  // that proximity never causes it to be mismatched as M51 or downgraded by
+  // the runner-up guardrail.
+  const m51 = byId('M51')
+  assert(
+    'M63 does not collide with the nearby M51',
+    angularSeparationDeg(m63.raDeg, m63.decDeg, m51.raDeg, m51.decDeg) > m63.displayRadiusDeg + m51.displayRadiusDeg,
+  )
+
+  const m94 = byId('M94')
+  assert('catalog contains M94', m94 !== undefined)
+  const rM94 = matchCoordinates(m94.raDeg, m94.decDeg)
+  assert('M94 exact coords -> match M94', rM94.match?.id === 'M94', `got ${rM94.match?.id ?? 'null'}`)
+  assert('M94 exact coords -> high confidence', rM94.confidence === 'high', `got ${rM94.confidence}`)
+}
+
 console.log('')
 if (failures > 0) {
   console.log(`${failures} assertion(s) failed.`)
