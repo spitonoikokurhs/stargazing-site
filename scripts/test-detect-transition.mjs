@@ -2,11 +2,15 @@
 // Standalone validation runner for lib/detect-transition.ts. Run via:
 //   npx tsx scripts/test-detect-transition.mjs
 //
-// detectObservationTransition is validated by REPLAYING two real telescope
-// sessions frame-by-frame (scripts/fixtures/astir-2026-07-06.json, dumped
-// verbatim from Postgres; scripts/fixtures/oku-2026-07-07.json, transcribed
-// from the real relay debug log for 2026-07-07 at OKU Kos) and asserting the
-// transition call at every known reset/non-reset point in each session.
+// detectTransition is validated by REPLAYING two real telescope sessions
+// frame-by-frame (scripts/fixtures/astir-2026-07-06.json, dumped verbatim
+// from Postgres; scripts/fixtures/oku-2026-07-07.json, transcribed from the
+// real relay debug log for 2026-07-07 at OKU Kos) and asserting the
+// transition call at every known reset/non-reset point in each session. The
+// replay loop below implements the CALLER CONTRACT documented in
+// lib/detect-transition.ts: `previous` only advances past frames with usable
+// totalAccumulatedTime, and lastStackRunStartedAtMs is tracked across calls
+// to drive the settling window.
 //
 // assessAstrometryFreshness is validated only against SYNTHETIC fixtures
 // (see the bottom section) — the relay does not yet forward a real
@@ -14,7 +18,7 @@
 // above, ingested metadata has no such field), so this function is
 // UNVALIDATED against real data. Revisit once a real sample lands.
 
-import { detectObservationTransition, assessAstrometryFreshness } from '../lib/detect-transition.ts'
+import { detectTransition, assessAstrometryFreshness } from '../lib/detect-transition.ts'
 import { readFileSync } from 'node:fs'
 
 let failures = 0
@@ -31,241 +35,330 @@ function loadFixture(path) {
   return JSON.parse(readFileSync(new URL(path, import.meta.url)))
 }
 
+function isUsable(v) {
+  return typeof v === 'number' && Number.isFinite(v)
+}
+
+// Replays a fixture end-to-end following the caller contract: `previous`
+// only advances past frames with usable totalAccumulatedTime;
+// lastStackRunStartedAtMs updates whenever stackRun 'new' fires. Returns the
+// per-frame results array (same length/order as the input frames).
+function replay(frames) {
+  let previous = null
+  let lastStackRunStartedAtMs = null
+  const results = []
+
+  for (const f of frames) {
+    const nowMs = Date.parse(f.capturedAt)
+    const current = { totalAccumulatedTime: f.totalAccumulatedTime, raDegrees: f.raDegrees, decDegrees: f.decDegrees }
+    const result = detectTransition(previous, current, { nowMs, lastStackRunStartedAtMs })
+    results.push(result)
+
+    if (result.stackRun === 'new') lastStackRunStartedAtMs = nowMs
+    if (isUsable(current.totalAccumulatedTime)) previous = current
+    // else: caller contract — do NOT advance `previous` past an unusable frame
+  }
+  return results
+}
+
 // ---------------------------------------------------------------------------
-// 1. detectObservationTransition — replay real OKU 2026-07-07 session
+// 1. detectTransition — replay real OKU 2026-07-07 session
 // ---------------------------------------------------------------------------
 {
   const frames = loadFixture('./fixtures/oku-2026-07-07.json')
   console.log(`\n--- OKU 2026-07-07: replaying ${frames.length} real frames ---`)
+  const results = replay(frames)
 
   // Known reset points by index (0-based), from manual analysis of the log
   // (verified programmatically against the fixture's own "RESET" notes).
+  // None of these fall within 90s of a PRIOR reset in this real session (the
+  // gaps between them are all many minutes), so the settling window should
+  // never suppress any of them.
   const expectedNew = new Set([34, 53, 64]) // 1590->10, 1070->20, 710->100
-  let prev = null
+
   for (let i = 0; i < frames.length; i++) {
     const f = frames[i]
-    const result = detectObservationTransition(prev, {
-      totalAccumulatedTime: f.totalAccumulatedTime,
-      raDegrees: f.raDegrees,
-      decDegrees: f.decDegrees,
-    })
+    const r = results[i]
     if (expectedNew.has(i)) {
       assert(
-        `OKU frame ${i} (${f.capturedAt}) -> NEW (${f.note ?? ''})`,
-        result.transition === 'new',
-        `got ${result.transition}: ${result.reason}`,
+        `OKU frame ${i} (${f.capturedAt}) -> stackRun NEW (${f.note ?? ''})`,
+        r.stackRun === 'new',
+        `got ${r.stackRun}: ${r.reason}`,
       )
     } else if (i > 0) {
       assert(
-        `OKU frame ${i} (${f.capturedAt}) -> SAME (${f.note ?? 'steady state'})`,
-        result.transition === 'same',
-        `got ${result.transition}: ${result.reason}`,
+        `OKU frame ${i} (${f.capturedAt}) -> stackRun SAME (${f.note ?? 'steady state'})`,
+        r.stackRun === 'same',
+        `got ${r.stackRun}: ${r.reason}`,
       )
     }
-    prev = { totalAccumulatedTime: f.totalAccumulatedTime, raDegrees: f.raDegrees, decDegrees: f.decDegrees }
   }
 
   // The specific claim in the user's brief: the frozen-astrometry episode
-  // (frames 35-44, ra/dec identical throughout) must NOT confuse detection —
-  // frame 35 (the reset into it) is NEW, every frame after within it is SAME,
-  // and detection never wavers despite raDegrees/decDegrees never changing
-  // for the entire 12-minute span.
+  // (indices 53-63, ra/dec identical throughout) must NOT confuse stackRun
+  // detection — index 53 (the reset into it) is NEW, every frame after
+  // within it is SAME, despite raDegrees/decDegrees never changing for the
+  // entire 12-minute span.
   {
-    const staleEpisode = frames.slice(53, 64) // indices 53-63: the reset frame through the last frozen-coord frame (11 polls)
+    const staleEpisode = frames.slice(53, 64)
     const allSameRaDec = staleEpisode.every(
       (f) => f.raDegrees === staleEpisode[0].raDegrees && f.decDegrees === staleEpisode[0].decDegrees,
     )
     assert('OKU stale-astrometry episode: fixture really is coordinate-frozen across all 11 polls', allSameRaDec)
 
-    let p = { totalAccumulatedTime: frames[52].totalAccumulatedTime, raDegrees: frames[52].raDegrees, decDegrees: frames[52].decDegrees }
-    const transitions = []
-    for (const f of staleEpisode) {
-      const r = detectObservationTransition(p, { totalAccumulatedTime: f.totalAccumulatedTime, raDegrees: f.raDegrees, decDegrees: f.decDegrees })
-      transitions.push(r.transition)
-      p = { totalAccumulatedTime: f.totalAccumulatedTime, raDegrees: f.raDegrees, decDegrees: f.decDegrees }
-    }
+    const episodeResults = results.slice(53, 64)
     assert(
-      'OKU stale-astrometry episode: exactly one NEW (the reset) then all SAME, despite frozen ra/dec throughout',
-      transitions[0] === 'new' && transitions.slice(1).every((t) => t === 'same'),
-      `got [${transitions.join(', ')}]`,
+      'OKU stale-astrometry episode: exactly one stackRun NEW (the reset) then all SAME, despite frozen ra/dec throughout',
+      episodeResults[0].stackRun === 'new' && episodeResults.slice(1).every((r) => r.stackRun === 'same'),
+      `got [${episodeResults.map((r) => r.stackRun).join(', ')}]`,
+    )
+    // skyTarget: 'new_candidate' fires alongside the stackRun reset (index
+    // 53), then 'unknown' for the rest — never 'same', since this function
+    // has no positive basis to assert the target held steady without a
+    // validated freshness check (and in this specific episode, the
+    // coordinate WAS frozen/stale — 'unknown' is the honest answer either way).
+    assert(
+      'OKU stale-astrometry episode: skyTarget is new_candidate at the reset, unknown thereafter (never a false "same")',
+      episodeResults[0].skyTarget === 'new_candidate' && episodeResults.slice(1).every((r) => r.skyTarget === 'unknown'),
+      `got [${episodeResults.map((r) => r.skyTarget).join(', ')}]`,
     )
   }
 }
 
 // ---------------------------------------------------------------------------
-// 2. detectObservationTransition — replay real Astir 2026-07-06 session
+// 2. detectTransition — replay real Astir 2026-07-06 session
 // ---------------------------------------------------------------------------
 {
   const frames = loadFixture('./fixtures/astir-2026-07-06.json')
   console.log(`\n--- Astir 2026-07-06: replaying ${frames.length} real frames ---`)
+  const results = replay(frames)
 
-  let prev = null
-  let newCount = 0
-  const newIndices = []
-  for (let i = 0; i < frames.length; i++) {
-    const f = frames[i]
-    const result = detectObservationTransition(prev, {
-      totalAccumulatedTime: f.totalAccumulatedTime,
-      raDegrees: f.raDegrees,
-      decDegrees: f.decDegrees,
-    })
-    if (result.transition === 'new') {
-      newCount++
-      newIndices.push(i)
-    }
-    prev = { totalAccumulatedTime: f.totalAccumulatedTime, raDegrees: f.raDegrees, decDegrees: f.decDegrees }
-  }
-  console.log(`  NEW fired at indices: ${newIndices.join(', ')}`)
+  const newIndices = results.map((r, i) => (r.stackRun === 'new' ? i : null)).filter((i) => i !== null)
+  console.log(`  stackRun NEW fired at indices: ${newIndices.join(', ')}`)
 
-  // Frame 0 is always 'new' (no open observation). Programmatic inspection
-  // of every backward totalAccumulatedTime drop in the real Astir data
-  // (see the analysis in lib/detect-transition.ts's RESET_DROP_THRESHOLD_S
-  // comment) found exactly 7 further genuine resets after frame 0 — 8
-  // objects observed total across the ~2h session. This asserts the COUNT
-  // matches that analysis — if the underlying fixture or the detector's
-  // threshold ever changes, this is the tripwire. (An earlier version of
-  // this test asserted 7 total based on manual log reading that missed one
-  // real retarget at index 3 — corrected after the programmatic re-check.)
-  assert('Astir session: exactly 8 total observations detected (1 initial + 7 real retargets)', newCount === 8, `got ${newCount}`)
+  // Programmatic inspection of every backward totalAccumulatedTime drop in
+  // the real Astir data found exactly 7 genuine resets after frame 0 (8
+  // stack runs total across the ~2h session). None of these real resets
+  // fall within 90s of each other (the closest pair is minutes apart), so
+  // the settling window should not suppress any of them — this assertion
+  // is also a tripwire for the settling window accidentally over-suppressing.
+  assert(
+    'Astir session: exactly 8 total stack runs detected (1 initial + 7 real retargets), settling window does not over-suppress',
+    newIndices.length === 8,
+    `got ${newIndices.length}`,
+  )
 
   // The specific non-firing case flagged during log review: a long silent
   // gap (18:38:38 -> 18:48:21, ~10 real minutes) where totalAccumulatedTime
-  // continued climbing (760 -> 1310) — must NOT be treated as a new
-  // observation just because of the wall-clock gap.
+  // continued climbing (760 -> 1310) — must NOT be treated as a new stack
+  // run just because of the wall-clock gap.
   {
-    const before = frames.find((f) => f.totalAccumulatedTime === 760)
-    const after = frames.find((f) => f.totalAccumulatedTime === 1310)
-    const r = detectObservationTransition(
-      { totalAccumulatedTime: before.totalAccumulatedTime, raDegrees: before.raDegrees, decDegrees: before.decDegrees },
-      { totalAccumulatedTime: after.totalAccumulatedTime, raDegrees: after.raDegrees, decDegrees: after.decDegrees },
-    )
+    const beforeIdx = frames.findIndex((f) => f.totalAccumulatedTime === 760)
+    const afterIdx = frames.findIndex((f) => f.totalAccumulatedTime === 1310)
     assert(
-      'Astir: long wall-clock gap with clock still climbing (760s -> 1310s) -> SAME',
-      r.transition === 'same',
-      `got ${r.transition}: ${r.reason}`,
+      'Astir: long wall-clock gap with clock still climbing (760s -> 1310s) -> stackRun SAME',
+      results[afterIdx].stackRun === 'same',
+      `got ${results[afterIdx].stackRun}: ${results[afterIdx].reason}`,
     )
+    assert('fixture sanity: 760s frame precedes 1310s frame', beforeIdx < afterIdx && beforeIdx >= 0 && afterIdx >= 0)
   }
 
-  // The specific re-centering-nudge case: 20:16:30 (80s, 315.70/44.48) ->
-  // 20:17:36 (30s, 314.77/44.67) is ACTUALLY a real reset (80->30 clears the
-  // threshold) tangled with a small coordinate move — confirms the function
-  // correctly reads this as NEW via the clock, not confused by the modest
-  // (~0.9deg) coordinate distance being far below COORDINATE_JUMP_DEG.
+  // The two real resets with modest deltas (65->30 delta 35; 80->30 delta
+  // 50) — both must still be caught with margin under the 30s threshold.
   {
-    const r = detectObservationTransition(
-      { totalAccumulatedTime: 80, raDegrees: 315.7000122070312, decDegrees: 44.47722244262695 },
-      { totalAccumulatedTime: 30, raDegrees: 314.7654113769531, decDegrees: 44.66972351074219 },
+    const idx35 = frames.findIndex((f) => f.totalAccumulatedTime === 30 && f.raDegrees === 149.1566619873047)
+    const idx50 = frames.findIndex((f) => f.totalAccumulatedTime === 30 && f.raDegrees === 314.7654113769531)
+    assert(
+      'Astir: real reset 65->30 (delta 35, modest margin over 30s threshold) -> stackRun NEW',
+      results[idx35]?.stackRun === 'new',
+      `got ${results[idx35]?.stackRun}: ${results[idx35]?.reason}`,
     )
     assert(
-      'Astir: 80s->30s reset with a small coordinate move -> NEW (via clock, not coordinate)',
-      r.transition === 'new',
-      `got ${r.transition}: ${r.reason}`,
+      'Astir: real reset 80->30 (delta 50, modest margin over 30s threshold) -> stackRun NEW',
+      results[idx50]?.stackRun === 'new',
+      `got ${results[idx50]?.stackRun}: ${results[idx50]?.reason}`,
     )
   }
 }
 
 // ---------------------------------------------------------------------------
-// 3. detectObservationTransition — synthetic edge cases not present in
-//    either real session, but worth locking down explicitly
+// 3. detectTransition — synthetic edge cases not present in either real
+//    session, but worth locking down explicitly
 // ---------------------------------------------------------------------------
 {
   console.log('\n--- Synthetic edge cases ---')
+  const ctx = (nowMs, lastStackRunStartedAtMs = null) => ({ nowMs, lastStackRunStartedAtMs })
 
-  assert(
-    'no open observation -> NEW',
-    detectObservationTransition(null, { totalAccumulatedTime: 5, raDegrees: 10, decDegrees: 10 }).transition === 'new',
-  )
+  {
+    const r = detectTransition(null, { totalAccumulatedTime: 5, raDegrees: 10, decDegrees: 10 }, ctx(1000))
+    assert('no previous frame -> stackRun NEW, reason no_previous_frame', r.stackRun === 'new' && r.reason === 'no_previous_frame')
+    assert('no previous frame -> skyTarget unknown (nothing to compare against)', r.skyTarget === 'unknown')
+  }
 
-  assert(
-    'totalAccumulatedTime missing on both sides, coords identical -> uncertain (not same)',
-    detectObservationTransition(
+  {
+    // current totalAccumulatedTime unusable -> uncertain, not silently 'same'.
+    const r = detectTransition(
+      { totalAccumulatedTime: 100, raDegrees: 10, decDegrees: 10 },
       { totalAccumulatedTime: null, raDegrees: 10, decDegrees: 10 },
-      { totalAccumulatedTime: null, raDegrees: 10, decDegrees: 10 },
-    ).transition === 'uncertain',
-  )
+      ctx(2000),
+    )
+    assert('current totalAccumulatedTime null -> stackRun uncertain', r.stackRun === 'uncertain')
+  }
 
-  assert(
-    'totalAccumulatedTime missing on both sides, coords jumped >5deg -> uncertain',
-    detectObservationTransition(
-      { totalAccumulatedTime: undefined, raDegrees: 10, decDegrees: 10 },
-      { totalAccumulatedTime: undefined, raDegrees: 30, decDegrees: 10 },
-    ).transition === 'uncertain',
-  )
+  {
+    // The exact scenario from the brief: 600 -> null -> 30 must compare 30
+    // against 600 (the caller's job, per the contract — simulated here by
+    // simply never advancing `previous` past the null frame) and correctly
+    // read it as a real reset.
+    const previous = { totalAccumulatedTime: 600, raDegrees: 10, decDegrees: 10 }
+    // A null frame arrives; per the caller contract `previous` does NOT advance.
+    const nullFrameResult = detectTransition(previous, { totalAccumulatedTime: null, raDegrees: 10, decDegrees: 10 }, ctx(3000))
+    assert('600 -> null: stackRun uncertain (the null frame itself)', nullFrameResult.stackRun === 'uncertain')
+    // Next real frame is compared against the ORIGINAL previous (600), not null.
+    const afterNull = detectTransition(previous, { totalAccumulatedTime: 30, raDegrees: 10, decDegrees: 10 }, ctx(4000))
+    assert(
+      '600 -> null -> 30: compares 30 against 600 (not against null) -> stackRun NEW',
+      afterNull.stackRun === 'new',
+      `got ${afterNull.stackRun}: ${afterNull.reason}`,
+    )
+  }
 
-  assert(
-    'small monotonic increase (subExposureTime tick) -> SAME',
-    detectObservationTransition(
+  {
+    const r = detectTransition(
       { totalAccumulatedTime: 100, raDegrees: 10, decDegrees: 10 },
       { totalAccumulatedTime: 110, raDegrees: 10, decDegrees: 10 },
-    ).transition === 'same',
-  )
+      ctx(5000),
+    )
+    assert('small monotonic increase (subExposureTime tick) -> stackRun SAME', r.stackRun === 'same')
+  }
 
-  assert(
-    'tiny same-value re-read jitter under the low floor (100->98, delta 2) -> SAME, not a false reset or uncertain',
-    detectObservationTransition(
+  {
+    const r = detectTransition(
       { totalAccumulatedTime: 100, raDegrees: 10, decDegrees: 10 },
       { totalAccumulatedTime: 98, raDegrees: 10, decDegrees: 10 },
-    ).transition === 'same',
-    'delta must clear RESET_UNCERTAIN_DROP_THRESHOLD_S (5s) to count as a real drop at all',
-  )
+      ctx(6000),
+    )
+    assert(
+      'tiny same-value re-read jitter under the low floor (100->98, delta 2) -> stackRun SAME, not uncertain or new',
+      r.stackRun === 'same',
+    )
+  }
 
-  assert(
-    'a small drop under the low floor, below the reset threshold (100->95, delta 5) -> UNCERTAIN',
-    detectObservationTransition(
+  {
+    const r = detectTransition(
       { totalAccumulatedTime: 100, raDegrees: 10, decDegrees: 10 },
       { totalAccumulatedTime: 95, raDegrees: 10, decDegrees: 10 },
-    ).transition === 'uncertain',
-    'a drop this small could be device jitter rather than a genuine retarget — reported uncertain, not silently trusted as NEW (a false positive would wrongly reset the guest-facing milestone toggle mid-stack) or silently folded into SAME',
-  )
+      ctx(7000),
+    )
+    assert(
+      'a small drop under the low floor, below the reset threshold (100->95, delta 5) -> stackRun UNCERTAIN',
+      r.stackRun === 'uncertain',
+    )
+  }
 
-  assert(
-    'boundary: drop just under the reset threshold (100->71, delta 29) -> UNCERTAIN',
-    detectObservationTransition(
+  {
+    const r = detectTransition(
       { totalAccumulatedTime: 100, raDegrees: 10, decDegrees: 10 },
       { totalAccumulatedTime: 71, raDegrees: 10, decDegrees: 10 },
-    ).transition === 'uncertain',
-  )
+      ctx(8000),
+    )
+    assert('boundary: drop just under the reset threshold (100->71, delta 29) -> stackRun UNCERTAIN', r.stackRun === 'uncertain')
+  }
 
-  assert(
-    'boundary: drop exactly at the reset threshold (100->70, delta 30) -> NEW',
-    detectObservationTransition(
+  {
+    const r = detectTransition(
       { totalAccumulatedTime: 100, raDegrees: 10, decDegrees: 10 },
       { totalAccumulatedTime: 70, raDegrees: 10, decDegrees: 10 },
-    ).transition === 'new',
-  )
+      ctx(9000),
+    )
+    assert('boundary: drop exactly at the reset threshold (100->70, delta 30) -> stackRun NEW', r.stackRun === 'new')
+  }
 
-  assert(
-    'real Astir case with margin: 65->30 (delta 35) -> NEW',
-    detectObservationTransition(
-      { totalAccumulatedTime: 65, raDegrees: 10, decDegrees: 10 },
-      { totalAccumulatedTime: 30, raDegrees: 10, decDegrees: 10 },
-    ).transition === 'new',
-  )
-
-  assert(
-    'real Astir case with margin: 80->30 (delta 50) -> NEW',
-    detectObservationTransition(
-      { totalAccumulatedTime: 80, raDegrees: 10, decDegrees: 10 },
-      { totalAccumulatedTime: 30, raDegrees: 10, decDegrees: 10 },
-    ).transition === 'new',
-  )
-
-  assert(
-    'drop clears the reset threshold but lands ABOVE the low floor (500->200, delta 300) -> SAME, not a reset',
-    detectObservationTransition(
+  {
+    const r = detectTransition(
       { totalAccumulatedTime: 500, raDegrees: 10, decDegrees: 10 },
       { totalAccumulatedTime: 200, raDegrees: 10, decDegrees: 10 },
-    ).transition === 'same',
-    'a real reset lands low AND drops a lot — a big drop landing high is a stacker readjustment, not a retarget',
-  )
+      ctx(10000),
+    )
+    assert(
+      'drop clears the reset threshold but lands ABOVE the low floor (500->200, delta 300) -> stackRun SAME, not a reset',
+      r.stackRun === 'same',
+    )
+  }
 
-  assert(
-    'boundary: reset landing exactly at the low floor - 1 (119s) with a qualifying drop -> NEW',
-    detectObservationTransition(
+  {
+    const r = detectTransition(
       { totalAccumulatedTime: 500, raDegrees: 10, decDegrees: 10 },
       { totalAccumulatedTime: 119, raDegrees: 10, decDegrees: 10 },
-    ).transition === 'new',
-  )
+      ctx(11000),
+    )
+    assert('boundary: reset landing exactly at the low floor - 1 (119s) with a qualifying drop -> stackRun NEW', r.stackRun === 'new')
+  }
+
+  // --- Settling window ---
+  // Simulates a bouncy/settling stacker: 100 -> 20 (genuine reset) -> 90 (climbing
+  // again, same run) -> 40 (a SECOND apparent reset — 90->40 independently
+  // clears the 30s/120s reset rule — but it's really settling noise from the
+  // SAME restart, not a fresh retarget). This shape was not observed in
+  // either real dataset; it's the specific failure mode the settling window
+  // exists to guard against per the product brief.
+  {
+    const lastReset = 100_000
+
+    const step1 = detectTransition(
+      { totalAccumulatedTime: 100, raDegrees: 10, decDegrees: 10 },
+      { totalAccumulatedTime: 20, raDegrees: 10, decDegrees: 10 },
+      ctx(lastReset, null),
+    )
+    assert('settling: initial reset (no prior lastStackRunStartedAtMs) -> stackRun NEW', step1.stackRun === 'new')
+
+    // Climbing normally for a beat (still well inside the settling window).
+    const climbing = detectTransition(
+      { totalAccumulatedTime: 20, raDegrees: 10, decDegrees: 10 },
+      { totalAccumulatedTime: 90, raDegrees: 10, decDegrees: 10 },
+      ctx(lastReset + 20_000, lastReset),
+    )
+    assert('settling: climbing again after the reset -> stackRun SAME (unaffected by the window)', climbing.stackRun === 'same')
+
+    // A SECOND apparent reset 30s after the first (well inside the 90s
+    // window) that would independently qualify (90->40, delta 50, lands
+    // under 120s) — no coordinate jump (same ra/dec) -> suppressed to SAME
+    // (settling noise from the same restart).
+    const step2 = detectTransition(
+      { totalAccumulatedTime: 90, raDegrees: 10, decDegrees: 10 },
+      { totalAccumulatedTime: 40, raDegrees: 10, decDegrees: 10 },
+      ctx(lastReset + 30_000, lastReset),
+    )
+    assert(
+      'settling: bouncy second reset 30s later (90->40, independently qualifying), no coordinate jump -> suppressed to stackRun SAME',
+      step2.stackRun === 'same',
+      `got ${step2.stackRun}: ${step2.reason}`,
+    )
+
+    // Same shape, but WITH a large coordinate jump -> honored as genuinely NEW.
+    const step3 = detectTransition(
+      { totalAccumulatedTime: 90, raDegrees: 10, decDegrees: 10 },
+      { totalAccumulatedTime: 40, raDegrees: 40, decDegrees: 10 },
+      ctx(lastReset + 30_000, lastReset),
+    )
+    assert(
+      'settling: same shape WITH a large coordinate jump -> honored as stackRun NEW (corroborated)',
+      step3.stackRun === 'new',
+      `got ${step3.stackRun}: ${step3.reason}`,
+    )
+
+    // Same shape, but arriving AFTER the settling window (100s later) -> honored as NEW even with no coordinate jump.
+    const step4 = detectTransition(
+      { totalAccumulatedTime: 90, raDegrees: 10, decDegrees: 10 },
+      { totalAccumulatedTime: 40, raDegrees: 10, decDegrees: 10 },
+      ctx(lastReset + 100_000, lastReset),
+    )
+    assert(
+      'settling: same shape arriving after the 90s window has elapsed -> stackRun NEW (window expired)',
+      step4.stackRun === 'new',
+      `got ${step4.stackRun}: ${step4.reason}`,
+    )
+  }
 }
 
 // ---------------------------------------------------------------------------

@@ -1,24 +1,31 @@
 // Pure detection helpers for the stacking-progression feature (see
-// docs/PHASE_2_BRIEF.md's T+0/T+60/T+180/T+300 milestones and
-// prisma/schema.prisma's Frame.stackMilestone). No I/O, no Prisma, no Redis —
-// these only fold telemetry into a decision; a caller (eventually
-// app/api/ingest/route.ts) owns persistence. Kept in two SEPARATE functions
-// on purpose, because they answer genuinely different questions and are
-// consumed differently downstream:
+// docs/PHASE_2_BRIEF.md's original T+0/T+60/T+180/T+300 design and
+// prisma/schema.prisma's Frame.stackMilestone — the milestone marks actually
+// shipping are First/2min/5min/Current, see MILESTONE_SECONDS below). No I/O,
+// no Prisma, no Redis — these only fold telemetry into a decision; a caller
+// (eventually app/api/ingest/route.ts) owns persistence and owns tracking
+// the rolling state (lastUsable, lastStackRunStartedAt) across frames.
 //
-//   - detectObservationTransition: "is this the same observation as before,
-//     or a new one?" Drives milestone tagging (First/3min/5min/Current) —
-//     trust the stack clock regardless of whether astrometry is fresh.
+//   - detectTransition: is the STACK RUN the same or new, and is the SKY
+//     TARGET the same or a new candidate? Two separate axes on one result
+//     (see TransitionResult below) — a stack restart does not imply a new
+//     object (an operator can restart a stack on the same target), and a
+//     target CAN change without a clock reset (seen in real OKU data: a
+//     small correction where totalAccumulatedTime kept climbing). The
+//     milestone toggle (First/2min/5min/Current) keys ONLY off stackRun;
+//     object naming is a stackRun-independent concern that additionally
+//     needs assessAstrometryFreshness before trusting a coordinate jump —
+//     see skyTarget's own doc below for why it stays conservative today.
 //   - assessAstrometryFreshness: "can raDegrees/decDegrees be trusted right
-//     now?" Drives object naming/catalog matching — a stale solve must never
-//     be trusted for a guest-facing object name, even mid-observation.
+//     now?" A stale solve must never be trusted for a guest-facing object
+//     name or for confirming a sky-target change, even mid-stack-run.
 //
-// A frame can be a confident NEW OBSERVATION while simultaneously having
-// STALE astrometry (see the OKU 2026-07-07 case below) — these are
-// independent axes, not one combined signal.
+// A frame can be a confident NEW stack run while simultaneously having
+// STALE astrometry (see the OKU 2026-07-07 case in the validation script) —
+// these are independent axes, not one combined signal.
 
 // ---------------------------------------------------------------------------
-// detectObservationTransition
+// detectTransition
 // ---------------------------------------------------------------------------
 
 export type ObservationFrameInput = {
@@ -27,8 +34,13 @@ export type ObservationFrameInput = {
   decDegrees: number | null | undefined
 }
 
+export type StackRun = 'same' | 'new' | 'uncertain'
+export type SkyTarget = 'same' | 'new_candidate' | 'unknown'
+
 export type TransitionResult = {
-  transition: 'same' | 'new' | 'uncertain'
+  stackRun: StackRun
+  skyTarget: SkyTarget
+  confidence: 'high' | 'medium' | 'low'
   reason: string
 }
 
@@ -36,20 +48,26 @@ export type TransitionResult = {
 // session data, see the validation script):
 //   - A long wall-clock gap (minutes, e.g. a relay network outage) with
 //     totalAccumulatedTime continuing to climb by roughly the elapsed time —
-//     the stack kept running unattended. NOT a new observation.
+//     the stack kept running unattended. NOT a new stack run.
 //   - totalAccumulatedTime occasionally ticking by less than real elapsed
 //     time (e.g. the stacker dropped a sub-exposure) — still climbing, still
-//     the same observation.
+//     the same stack run.
 //   - A small coordinate correction (a few tenths of a degree, e.g. a
 //     re-centering nudge) with totalAccumulatedTime CONTINUING to climb —
-//     same observation; astrometry noise/refinement, not a new target.
+//     same stack run; astrometry noise/refinement, not a new target.
 //   - ra/dec staying byte-identical for 10+ minutes straight while
 //     totalAccumulatedTime climbs normally (OKU 22:49:45-23:01:50) — the
 //     astrometry is very likely stale (see assessAstrometryFreshness), but
-//     that is NOT this function's concern: the accumulated-time trajectory
-//     alone already told us this was one continuous observation.
+//     that is NOT stackRun's concern: the accumulated-time trajectory alone
+//     already told us this was one continuous stack run.
+//   - A totalAccumulatedTime reading that is null/missing/unparseable — must
+//     NOT be compared against, or become, the reset baseline. The caller is
+//     responsible for passing `previous` as the last frame with USABLE
+//     timing (see the module-level doc on ObservationFrameInput and the
+//     caller contract below), so e.g. a 600 -> null -> 30 sequence compares
+//     30 against 600 (a real reset), never against null.
 //
-// What MUST trigger 'new' (also from real data):
+// What MUST trigger stackRun 'new' (also from real data):
 //   - totalAccumulatedTime resetting from a high value to a low one
 //     (e.g. 1390 -> 20, or 80 -> 30) — the primary, load-bearing signal.
 //     Real observations reset to a small number (subExposureTime or a low
@@ -64,7 +82,7 @@ export type TransitionResult = {
 // across BOTH real sessions (Astir 2026-07-06, 7 retargets; OKU 2026-07-07,
 // 3 retargets — 10 total) landed at or under 100s, while the value being
 // reset FROM ranged 65-2010s. Checked exhaustively: not one single real
-// same-observation reading in either session ever dropped from its previous
+// same-stack-run reading in either session ever dropped from its previous
 // value AND landed under 120s — so the low-floor condition alone already
 // perfectly separates every real reset from every real non-reset in the
 // available data.
@@ -74,25 +92,36 @@ export type TransitionResult = {
 // 'same', because it would wrongly reset the guest-facing milestone toggle
 // mid-stack. Set at 30s: comfortably below both real Astir resets this must
 // still catch (65->30, delta 35; 80->30, delta 50) while excluding small
-// dips that could plausibly be jitter rather than a genuine reset. An
-// earlier version used 5s here (a near-zero noise guard); raised to 30s for
-// a stronger conservative margin against a false 'new'. Drops in
+// dips that could plausibly be jitter rather than a genuine reset. Drops in
 // [RESET_UNCERTAIN_DROP_THRESHOLD_S, RESET_DROP_THRESHOLD_S) that land under
-// the low floor are reported 'uncertain' rather than silently folded into
-// either 'same' or 'new' — see the branch below.
+// the low floor are reported stackRun 'uncertain' rather than silently
+// folded into either 'same' or 'new' — see the branch below.
 const RESET_DROP_THRESHOLD_S = 30
 // Any drop at all (a same-value re-read must not count) landing under the
 // low floor, but too small to confidently call a reset (< RESET_DROP_THRESHOLD_S),
-// is reported 'uncertain' — neither confidently the same observation nor
+// is reported 'uncertain' — neither confidently the same stack run nor
 // confidently a new one.
 const RESET_UNCERTAIN_DROP_THRESHOLD_S = 5
 const RESET_LOW_FLOOR_S = 120
 
-// A coordinate move at least this large is treated as informative (see
-// coordinateJumpDeg below) — chosen well above real re-centering noise seen
-// in the data (largest same-observation nudge: ~0.6deg between two Astir
-// polls 66s apart) and well under a genuine cross-sky retarget (the OKU log's
-// real target changes were all >15deg apart).
+// Settling window: once a stackRun 'new' fires, further time-reset-based
+// 'new' calls are suppressed for this long UNLESS a fresh, large coordinate
+// jump corroborates a genuine second retarget in quick succession. This
+// exists for a failure mode not seen in either real dataset but plausible in
+// principle: a bouncy/settling stacker reporting totalAccumulatedTime as
+// e.g. 100 -> 90 -> 40 -> 20 while genuinely restarting only once — each
+// step alone can look like a fresh small reset and would otherwise fire
+// 'new' repeatedly, thrashing the guest-facing milestone toggle. 90s is
+// chosen to comfortably span the relay's real ~30-40s poll cadence (2-3
+// polls) without being so long it would suppress a genuine fast back-to-back
+// retarget (an operator deliberately slewing twice within a few seconds).
+const SETTLING_WINDOW_MS = 90 * 1000
+
+// A coordinate move at least this large is treated as informative enough to
+// override the settling window (see SETTLING_WINDOW_MS) — chosen well above
+// real re-centering noise seen in the data (largest same-stack-run nudge:
+// ~0.9deg between two Astir polls) and well under a genuine cross-sky
+// retarget (the OKU log's real target changes were all >15deg apart).
 const COORDINATE_JUMP_DEG = 5
 
 // Angular separation in degrees between two ra/dec points (small-angle
@@ -107,110 +136,191 @@ function angularSeparationDeg(ra1: number, dec1: number, ra2: number, dec2: numb
   return Math.sqrt(dRa * dRa + dDec * dDec)
 }
 
-// detectObservationTransition decides whether `current`'s telemetry belongs
-// to the SAME observation as `previous`, or starts a NEW one.
+function isUsableNumber(v: unknown): v is number {
+  return typeof v === 'number' && Number.isFinite(v)
+}
+
+function haveUsableCoords(f: ObservationFrameInput): boolean {
+  return isUsableNumber(f.raDegrees) && isUsableNumber(f.decDegrees)
+}
+
+// detectTransition decides, for `current`'s telemetry relative to `previous`
+// (the last frame with USABLE totalAccumulatedTime — see the caller contract
+// below), whether the STACK RUN is the same/new/uncertain, and separately
+// whether there's any basis to suspect the SKY TARGET changed.
 //
-// previous === null means "no open observation" (session start, or the prior
-// observation was already closed by other logic, e.g. a rawTargetName
-// change per app/api/ingest/route.ts's existing string-compare path) — always
-// 'new' in that case, trivially.
+// === Caller contract for `previous` ===
+// `previous` must be the last frame this function was told had usable
+// telemetry — NOT simply "the immediately prior frame regardless of
+// validity." If a frame's totalAccumulatedTime is null/missing/unparseable,
+// the caller must skip updating its rolling `previous` reference (continue
+// carrying forward the last known-usable frame) so a 600 -> null -> 30
+// sequence compares 30 against 600 (correctly reading it as a real reset),
+// never against null. This function has no memory across calls by design
+// (kept pure/stateless) — maintaining that rolling reference, and the
+// `lastStackRunStartedAt` timestamp used for the settling window, is the
+// caller's responsibility.
 //
+// previous === null means "no open stack run at all" (session start, or the
+// prior stack run was already closed by other logic) — always stackRun
+// 'new' in that case, trivially, with skyTarget 'unknown' (nothing to
+// compare against yet).
+//
+// === stackRun ===
 // Primary signal: totalAccumulatedTime reset from high to low (see
-// RESET_DROP_THRESHOLD_S/RESET_LOW_FLOOR_S). This is checked FIRST and alone
-// is sufficient — do not require corroboration from the coordinate signal,
+// RESET_DROP_THRESHOLD_S/RESET_LOW_FLOOR_S). Checked first and alone is
+// sufficient — do not require corroboration from the coordinate signal,
 // because astrometry can be independently stale (frozen) exactly when a
 // fresh solve is what would otherwise confirm the retarget; requiring both
-// signals to agree would make this function blind to a new observation
-// during exactly the failure mode it needs to survive (see the OKU case).
+// signals to agree would make this blind to a new stack run during exactly
+// the failure mode it needs to survive (see the OKU case).
 //
-// Supporting signal: a large coordinate jump (>= COORDINATE_JUMP_DEG) is
-// evidence of a retarget too, but is only used to break a genuine AMBIGUITY
-// (accumulated-time data missing/unusable) — never to override what the
-// accumulated-time trajectory already said. A coordinate jump alongside an
-// UNCHANGED or still-climbing accumulated-time reading is deliberately
-// ignored: real re-centering nudges move the coordinate without resetting
-// the clock (see the Astir 20:16:30->20:17:36 case, ~0.9deg apart, clock kept
-// climbing — that stayed the SAME observation in the real session).
-export function detectObservationTransition(
+// A stackRun 'new' verdict is suppressed back down to 'same' if it falls
+// inside the settling window since `context.lastStackRunStartedAtMs` (see
+// SETTLING_WINDOW_MS) — UNLESS a fresh coordinate jump (>= COORDINATE_JUMP_DEG)
+// corroborates it, in which case the settling window does not apply and the
+// reset is still honored as genuinely 'new'.
+//
+// === skyTarget ===
+// Deliberately conservative for now: 'new_candidate' is reported ONLY
+// alongside a confirmed stackRun 'new' (a coordinate jump without ANY clock
+// reset is NOT treated as a target change here — astrometry can be stale
+// exactly when it would matter most, so a coordinate-only signal is not
+// trusted for object naming yet; this needs assessAstrometryFreshness
+// wired in first, which is deferred). Otherwise 'unknown' — never 'same',
+// because without a validated freshness check this function has no positive
+// basis to assert the target DIDN'T change either (a target change without a
+// clock reset was observed in real OKU data — see the small-correction case
+// in the validation script). Callers must not read 'unknown' as "safe to
+// keep showing the current object name" — that policy call belongs to
+// whatever wires assessAstrometryFreshness in.
+export function detectTransition(
   previous: ObservationFrameInput | null,
   current: ObservationFrameInput,
+  context: { nowMs: number; lastStackRunStartedAtMs: number | null } = { nowMs: Date.now(), lastStackRunStartedAtMs: null },
 ): TransitionResult {
   if (previous === null) {
-    return { transition: 'new', reason: 'no open observation' }
+    return { stackRun: 'new', skyTarget: 'unknown', confidence: 'high', reason: 'no_previous_frame' }
   }
 
   const prevTime = previous.totalAccumulatedTime
   const curTime = current.totalAccumulatedTime
-  const haveBothTimes =
-    typeof prevTime === 'number' && Number.isFinite(prevTime) &&
-    typeof curTime === 'number' && Number.isFinite(curTime)
+  const haveBothTimes = isUsableNumber(prevTime) && isUsableNumber(curTime)
 
-  if (haveBothTimes) {
-    const drop = prevTime - curTime
-    const lowEnough = curTime < RESET_LOW_FLOOR_S
+  if (!haveBothTimes) {
+    // Unusable timing data on one or both sides — the CALLER is responsible
+    // for not having advanced `previous` past a null/unusable reading (see
+    // the caller contract above), so reaching this branch means `current`
+    // itself is the unusable one. Report uncertain rather than guessing;
+    // never silently treat this as either 'same' or 'new'.
+    return {
+      stackRun: 'uncertain',
+      skyTarget: 'unknown',
+      confidence: 'low',
+      reason: 'current totalAccumulatedTime missing or unparseable',
+    }
+  }
 
-    if (lowEnough && drop >= RESET_DROP_THRESHOLD_S) {
+  const drop = (prevTime as number) - (curTime as number)
+  const lowEnough = (curTime as number) < RESET_LOW_FLOOR_S
+  const resetQualifies = lowEnough && drop >= RESET_DROP_THRESHOLD_S
+
+  if (resetQualifies) {
+    const withinSettlingWindow =
+      context.lastStackRunStartedAtMs !== null &&
+      context.nowMs - context.lastStackRunStartedAtMs < SETTLING_WINDOW_MS
+
+    if (withinSettlingWindow) {
+      const coordJump = coordinateJumpDeg(previous, current)
+      if (coordJump !== null && coordJump >= COORDINATE_JUMP_DEG) {
+        // Fresh reset inside the settling window, but corroborated by a
+        // large coordinate jump — honored as a genuine second retarget in
+        // quick succession, not settling noise.
+        return {
+          stackRun: 'new',
+          skyTarget: 'new_candidate',
+          confidence: 'medium',
+          reason: `totalAccumulatedTime reset ${prevTime}s -> ${curTime}s inside settling window, corroborated by ${coordJump.toFixed(2)}deg coordinate jump`,
+        }
+      }
+      // Inside the settling window with no corroborating coordinate jump —
+      // treat as settling noise from the same restart, not a fresh one.
       return {
-        transition: 'new',
-        reason: `totalAccumulatedTime reset ${prevTime}s -> ${curTime}s`,
+        stackRun: 'same',
+        skyTarget: 'unknown',
+        confidence: 'medium',
+        reason: `totalAccumulatedTime reset ${prevTime}s -> ${curTime}s suppressed: within ${SETTLING_WINDOW_MS / 1000}s settling window of the last stack-run start, no corroborating coordinate jump`,
       }
     }
 
-    // Landed under the low floor via SOME drop, but too small to confidently
-    // call a reset (a real retarget always reset from a much higher value in
-    // both real sessions — see RESET_DROP_THRESHOLD_S's doc). Could be a
-    // genuine small retarget the clock hasn't fully reflected yet, or could
-    // be device jitter/a corrected re-read — genuinely ambiguous, so this is
-    // reported 'uncertain' rather than silently treated as either 'same' (a
-    // false negative would delay the milestone reset a real retarget needs)
-    // or 'new' (a false positive would wrongly reset the toggle mid-stack,
-    // which is the worse failure mode per the caller's guidance).
-    if (lowEnough && drop >= RESET_UNCERTAIN_DROP_THRESHOLD_S) {
-      return {
-        transition: 'uncertain',
-        reason: `totalAccumulatedTime dropped ${prevTime}s -> ${curTime}s (${drop}s drop, below the ${RESET_DROP_THRESHOLD_S}s reset threshold)`,
-      }
+    return {
+      stackRun: 'new',
+      skyTarget: 'new_candidate',
+      confidence: 'high',
+      reason: `totalAccumulatedTime reset ${prevTime}s -> ${curTime}s`,
     }
-
-    // Accumulated time present and did NOT reset (or dropped by less than
-    // the noise guard): same observation, full stop — this is the primary
-    // signal and it has a clear answer, so coordinates (even a large jump)
-    // are not consulted. This is what keeps the function correct through the
-    // OKU stale-astrometry episode: the clock climbing normally is trusted
-    // over the frozen coordinate.
-    return { transition: 'same', reason: 'totalAccumulatedTime did not reset' }
   }
 
-  // Accumulated-time data is missing/unusable on one or both sides — fall
-  // back to the coordinate signal as the best remaining evidence, but report
-  // 'uncertain' rather than a confident 'new'/'same': this is a genuinely
-  // weaker basis than the primary signal, and a caller (e.g. milestone
-  // tagging) may reasonably choose to wait for a clearer read rather than
-  // act on it.
-  const haveBothCoords =
-    typeof previous.raDegrees === 'number' && Number.isFinite(previous.raDegrees) &&
-    typeof previous.decDegrees === 'number' && Number.isFinite(previous.decDegrees) &&
-    typeof current.raDegrees === 'number' && Number.isFinite(current.raDegrees) &&
-    typeof current.decDegrees === 'number' && Number.isFinite(current.decDegrees)
-
-  if (!haveBothCoords) {
-    return { transition: 'uncertain', reason: 'no usable totalAccumulatedTime or coordinates' }
+  // Landed under the low floor via SOME drop, but too small to confidently
+  // call a reset (a real retarget always dropped by at least
+  // RESET_DROP_THRESHOLD_S in both real sessions). Could be a genuine small
+  // retarget the clock hasn't fully reflected yet, or could be device
+  // jitter/a corrected re-read — genuinely ambiguous, so this is reported
+  // 'uncertain' rather than silently treated as either 'same' (a false
+  // negative would delay a milestone reset a real retarget needs) or 'new'
+  // (a false positive would wrongly reset the toggle mid-stack, the worse
+  // failure mode per product guidance).
+  if (lowEnough && drop >= RESET_UNCERTAIN_DROP_THRESHOLD_S) {
+    return {
+      stackRun: 'uncertain',
+      skyTarget: 'unknown',
+      confidence: 'low',
+      reason: `totalAccumulatedTime dropped ${prevTime}s -> ${curTime}s (${drop}s drop, below the ${RESET_DROP_THRESHOLD_S}s reset threshold)`,
+    }
   }
 
-  const sep = angularSeparationDeg(
+  // Accumulated time present and did NOT reset (or dropped by less than the
+  // noise guard): same stack run, full stop — this is the primary signal
+  // and it has a clear answer, so coordinates are not consulted for
+  // stackRun. This is what keeps stackRun correct through the OKU
+  // stale-astrometry episode: the clock climbing normally is trusted over
+  // the frozen coordinate. skyTarget stays 'unknown' rather than 'same' —
+  // see the function-level doc for why a coordinate-only signal isn't
+  // trusted here yet (a real OKU frame showed a target-relevant coordinate
+  // move WITHOUT any clock reset).
+  return { stackRun: 'same', skyTarget: 'unknown', confidence: 'high', reason: 'totalAccumulatedTime did not reset' }
+}
+
+// Angular separation between `previous`/`current`'s coordinates, or null if
+// either side lacks usable ra/dec. Exposed as a small helper (not just
+// inlined) so the settling-window corroboration check and any future caller
+// share one implementation.
+function coordinateJumpDeg(previous: ObservationFrameInput, current: ObservationFrameInput): number | null {
+  if (!haveUsableCoords(previous) || !haveUsableCoords(current)) return null
+  return angularSeparationDeg(
     previous.raDegrees as number,
     previous.decDegrees as number,
     current.raDegrees as number,
     current.decDegrees as number,
   )
-  if (sep >= COORDINATE_JUMP_DEG) {
-    return {
-      transition: 'uncertain',
-      reason: `totalAccumulatedTime unusable; coordinate jumped ${sep.toFixed(2)}deg (supporting signal only)`,
-    }
-  }
-  return { transition: 'uncertain', reason: 'totalAccumulatedTime unusable; coordinates stable' }
 }
+
+// ---------------------------------------------------------------------------
+// Milestone marks
+// ---------------------------------------------------------------------------
+//
+// First (0s) / 2 min (120s) / 5 min (300s) / Current View. Deliberately NOT
+// the Phase 2 brief's original 0/60/180/300 — front-loaded instead, since
+// live stacking visually deepens fastest early (First->2min is the biggest
+// visual jump; 2min->5min still clearly deepens; 60s/180s were dropped as a
+// product decision, not a technical constraint). Frame.stackMilestone in
+// prisma/schema.prisma stores whichever of these a frame was tagged with, or
+// null for a non-milestone frame — its comment should read 0 | 120 | 300,
+// not the brief's original 0 | 60 | 180 | 300 (schema itself has no CHECK
+// constraint on the column, so this is a comment-only correction, not a
+// migration).
+export const MILESTONE_SECONDS = [0, 120, 300] as const
+export type MilestoneSeconds = (typeof MILESTONE_SECONDS)[number]
 
 // ---------------------------------------------------------------------------
 // assessAstrometryFreshness
@@ -226,7 +336,7 @@ export function detectObservationTransition(
 // treat its exact freshness thresholds or timestamp-parsing behavior as
 // trustworthy until validated against real relay output (see the fixtures in
 // scripts/test-detect-transition.mjs, which are synthetic/hand-built, not
-// replayed from a real session, unlike detectObservationTransition's).
+// replayed from a real session, unlike detectTransition's).
 
 export type AstrometryFreshnessInput = {
   // The relay-reported astrometry timestamp, in whatever form it turns out
