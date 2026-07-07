@@ -8,7 +8,7 @@ import {
   type OfflinePayload,
   type DisplayObject,
 } from '@/lib/live-status'
-import { pickFarewellVariant, formatNextSessionLabel } from '@/lib/live-farewell'
+import { pickFarewellVariant, formatNextSessionLines, NO_NEXT_SESSION_LINE } from '@/lib/live-farewell'
 import { FarewellAegeanUfo } from './FarewellAegeanUfo'
 import {
   pickFlavor,
@@ -383,7 +383,7 @@ function getDemoStatusBody(): StatusResponse | null {
       live: false,
       finished: true,
       date: today,
-      next: { date: today, hotelId: 'demo-hotel', start: '21:30', end: '23:00' },
+      next: { date: today, hotelId: 'oku-kos', start: '21:30', end: '22:30' },
     }
   }
 
@@ -741,11 +741,16 @@ function LiveViewPresentation({ state }: { state: LiveStatusState }) {
   // for how a 2nd/3rd variant slots into pickFarewellVariant's registry.
   if (uiState === 'finished' && state.finishedInfo) {
     const variant = pickFarewellVariant(state.finishedInfo.date)
-    const nextSessionLabel = formatNextSessionLabel(state.finishedInfo.next)
+    const nextSessionLines = formatNextSessionLines(state.finishedInfo.date, state.finishedInfo.next)
     switch (variant) {
       case 'aegean-ufo':
       default:
-        return <FarewellAegeanUfo nextSessionLabel={nextSessionLabel} />
+        return (
+          <FarewellAegeanUfo
+            nextSessionLead={nextSessionLines?.lead ?? (state.finishedInfo.next ? null : NO_NEXT_SESSION_LINE)}
+            nextSessionSchedule={nextSessionLines?.schedule ?? null}
+          />
+        )
     }
   }
 

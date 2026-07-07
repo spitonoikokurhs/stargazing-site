@@ -2402,6 +2402,16 @@
   margin: 0;
 }
 
+/* The real weekday/time/venue line sits just under the warm lead line —
+   slightly dimmer and a touch smaller so the lead line (the "voice") stays
+   the visual lead, and this reads as the practical detail underneath it,
+   not a second competing statement. */
+.farewell-sub--schedule {
+  color: #8f8d87;
+  font-size: 13px;
+  margin-top: 2px;
+}
+
 .farewell-flavor {
   color: #8f8d87;
   font-size: 15px;
