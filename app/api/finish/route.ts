@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createHash, timingSafeEqual } from 'crypto'
-import { redis, EVENT_FINISHED_KEY, EVENT_FINISHED_TTL_S } from '@/lib/redis'
+import { redis, EVENT_FINISHED_KEY, EVENT_FINISHED_TTL_S, eventFinishedKey, isValidSource } from '@/lib/redis'
+import { isExtraEventSlug } from '@/lib/extra-events'
 
 // Node runtime required: crypto.timingSafeEqual, createHash.
 export const runtime = 'nodejs'
@@ -35,6 +36,11 @@ function authorized(req: NextRequest, secret: string): boolean {
 // It must never close Postgres sessions, delete frames/blobs, or touch
 // relay-health state — those all remain entirely unaffected by this flag,
 // by construction (this handler has no Prisma import, no Blob import).
+//
+// ?event=<slug> (config/extra-events.json) scopes this to a single special
+// event instead of the shared hotel flag — see eventFinishedKey in
+// lib/redis.ts. An unknown/absent slug falls back to the normal hotel
+// EVENT_FINISHED_KEY, unchanged from before special events existed.
 export async function POST(req: NextRequest) {
   try {
     const secret = process.env.INGEST_SECRET
@@ -45,6 +51,12 @@ export async function POST(req: NextRequest) {
     if (!authorized(req, secret)) {
       console.warn(`/api/finish: auth failure at ${new Date().toISOString()}`)
       return json({ error: 'unauthorized' }, 401)
+    }
+
+    const eventSlug = req.nextUrl.searchParams.get('event')
+    if (eventSlug && isExtraEventSlug(eventSlug) && isValidSource(eventSlug)) {
+      await redis.set(eventFinishedKey(eventSlug), '1', { ex: EVENT_FINISHED_TTL_S })
+      return json({ finished: true, event: eventSlug })
     }
 
     await redis.set(EVENT_FINISHED_KEY, '1', { ex: EVENT_FINISHED_TTL_S })

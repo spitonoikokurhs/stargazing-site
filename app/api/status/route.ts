@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import {
   redis,
@@ -6,11 +6,15 @@ import {
   parseLatestFrame,
   ACTIVE_SOURCE_KEY,
   EVENT_FINISHED_KEY,
-  SOURCES,
+  eventFinishedKey,
+  HOTEL_SOURCES,
+  isValidSource,
+  type HotelSource,
   type Source,
   type LatestFrame,
 } from '@/lib/redis'
 import { athensToday, eventFor, nextEvent } from '@/lib/schedule'
+import { extraEventFor, isExtraEventSlug } from '@/lib/extra-events'
 import { matchCoordinates } from '@/lib/catalog'
 
 // Node runtime for the single Prisma read on the offline path (cancellation
@@ -25,6 +29,43 @@ const ACTIVE_SOURCE_TTL_S = 600 // 10-min TTL on the chosen-source key
 // Every response is uncacheable — /live polls this every 10s for current state.
 function json(body: unknown) {
   return NextResponse.json(body, { headers: { 'Cache-Control': 'no-store' } })
+}
+
+type ObjectMatch = {
+  name: string
+  confidence: 'high' | 'medium' | 'low' | 'none'
+  description: string
+  type: string
+  constellation?: string
+  distanceLy?: number
+  sizeDescription?: string
+}
+
+// Shared by the hotel dual-source path and the single-source extra-event
+// path: object-name fields are added ONLY when astrometryState is 'solved'
+// AND both coordinates are present — any other astrometryState (or missing
+// telemetry entirely, e.g. Tier-1-only frames) omits them outright, not
+// null/"Unknown", so the frontend's existing no-confident-name fallback path
+// handles it.
+function resolveObjectMatch(telemetry: LatestFrame['telemetry']): ObjectMatch | undefined {
+  if (
+    telemetry?.astrometryState !== 'solved' ||
+    typeof telemetry.raDegrees !== 'number' ||
+    typeof telemetry.decDegrees !== 'number'
+  ) {
+    return undefined
+  }
+  const result = matchCoordinates(telemetry.raDegrees, telemetry.decDegrees)
+  if (!result.match) return undefined
+  return {
+    name: result.match.primaryName,
+    confidence: result.confidence,
+    description: result.match.description,
+    type: result.match.type,
+    ...(result.match.constellation ? { constellation: result.match.constellation } : {}),
+    ...(result.match.distanceLy ? { distanceLy: result.match.distanceLy } : {}),
+    ...(result.match.sizeDescription ? { sizeDescription: result.match.sizeDescription } : {}),
+  }
 }
 
 // Current Athens wall-clock time as "HH:MM" (24h, zero-padded) for same-day
@@ -45,8 +86,86 @@ function athensTomorrow(today: string): string {
   return d.toISOString().slice(0, 10)
 }
 
-export async function GET() {
+// Single-source status for a special event (config/extra-events.json). Shaped
+// identically to the hotel path's live/offline responses (same field names —
+// see LiveView.tsx's StatusLive/StatusOffline guards) so the SAME frontend
+// state machine renders both, but with everything hotel-specific removed:
+// no hysteresis (one source, not two), no ACTIVE_SOURCE_KEY, no Postgres
+// cancellation lookup (a special event has no cancellable Session row — it's
+// not part of the weekly schedule at all), no shared EVENT_FINISHED_KEY (see
+// eventFinishedKey — a per-source flag so finishing one special event can
+// never finish a hotel's night, or another special event). The UFO farewell
+// mechanism is deliberately not wired to special events either way — a
+// finished special event gets its own simple SpecialEventFarewell screen
+// (see app/live/LiveView.tsx's 'special-event-finished' uiState). `source`
+// doubles as both the special-event slug and the ingest Source value (see
+// lib/extra-events.ts).
+async function extraEventStatus(slug: Source): Promise<NextResponse> {
+  // Finished check FIRST, same ordering discipline as the hotel path below —
+  // an explicit POST /api/finish?event=<slug> must win even over a
+  // still-fresh frame.
+  const finishedRaw = await redis.get(eventFinishedKey(slug))
+  if (finishedRaw != null) {
+    return json({ live: false, specialEventFinished: true })
+  }
+
+  const raw = await redis.get(latestFrameKey(slug))
+  const frame = parseLatestFrame(raw)
+
+  const now = Date.now()
+  const fresh = frame ? now - new Date(frame.ingestedAt).getTime() < LIVE_WINDOW_MS : false
+
+  if (frame && fresh) {
+    const objectMatch = resolveObjectMatch(frame.telemetry)
+    return json({
+      live: true,
+      source: slug,
+      frame: {
+        frameId: frame.frameId,
+        blobUrl: frame.blobUrl,
+        capturedAt: frame.capturedAt,
+        ingestedAt: frame.ingestedAt,
+      },
+      observation: { observationId: frame.observationId, objectName: frame.objectName },
+      sessionId: frame.sessionId,
+      viewers: null,
+      sources: { [slug]: { fresh: true, ageSeconds: Math.max(0, Math.round((now - new Date(frame.ingestedAt).getTime()) / 1000)) } },
+      ...(frame.telemetry
+        ? {
+            telemetry: {
+              state: frame.telemetry.state,
+              totalAccumulatedTime: frame.telemetry.totalAccumulatedTime,
+              astrometryState: frame.telemetry.astrometryState,
+            },
+          }
+        : {}),
+      ...(objectMatch ? { objectMatch } : {}),
+    })
+  }
+
+  // Offline shape: no weekly schedule applies to an extra event, so `tonight`
+  // is always null (nothing to cancel) and `next` is always null (this isn't
+  // part of the recurring rotation `nextEvent()` walks) — the offline screen
+  // falls back to its generic "no upcoming sessions" copy, which is correct
+  // here: there is no next occurrence to advertise.
+  return json({ live: false, tonight: null, next: null })
+}
+
+export async function GET(req: NextRequest) {
   try {
+    // 0. Special-event branch (?event=<slug>) — called by /live/special-event
+    //    (app/live/special-event/EventGate.tsx) with whichever slug
+    //    lib/extra-events.ts's resolveSpecialEvent picked server-side.
+    //    Entirely separate from the hotel dual-source logic below: single
+    //    fixed source, no hysteresis, no ACTIVE_SOURCE_KEY, no Postgres
+    //    cancellation/schedule lookups (a special event has no weekly
+    //    schedule). An unknown/absent slug falls through to the normal hotel
+    //    path unchanged.
+    const eventSlug = req.nextUrl.searchParams.get('event')
+    if (eventSlug && isExtraEventSlug(eventSlug) && isValidSource(eventSlug)) {
+      return await extraEventStatus(eventSlug)
+    }
+
     // 1. Redis reads in parallel, INCLUDING the finished flag — but the
     //    finished flag is READ here only for efficiency (one round trip);
     //    the DECISION to short-circuit on it happens immediately below,
@@ -90,11 +209,11 @@ export async function GET() {
       return json({ live: false, finished: true, date: today, next })
     }
 
-    const frames: Record<Source, LatestFrame | null> = {
+    const frames: Record<HotelSource, LatestFrame | null> = {
       pegasus: parseLatestFrame(pegasusRaw),
       seestar: parseLatestFrame(seestarRaw),
     }
-    const activeSource: Source | null =
+    const activeSource: HotelSource | null =
       activeRaw === 'pegasus' || activeRaw === 'seestar' ? activeRaw : null
 
     // 3. Per-source age from ingestedAt — server-receipt time, i.e. "did we hear
@@ -112,17 +231,17 @@ export async function GET() {
       pegasus: ageInfo(frames.pegasus),
       seestar: ageInfo(frames.seestar),
     }
-    const ingestedMs = (s: Source): number => new Date(frames[s]!.ingestedAt).getTime()
-    const freshSources = SOURCES.filter((s) => sources[s]?.fresh)
+    const ingestedMs = (s: HotelSource): number => new Date(frames[s]!.ingestedAt).getTime()
+    const freshSources = HOTEL_SOURCES.filter((s) => sources[s]?.fresh)
 
     // 4. LIVE if at least one source is fresh.
     if (freshSources.length > 0) {
-      let chosen: Source
+      let chosen: HotelSource
       if (activeSource && sources[activeSource]?.fresh) {
         // Hysteresis: stick with the active source unless the other is fresh AND
         // meaningfully newer (>45s), so a near-tie doesn't flap the feed.
         chosen = activeSource
-        const other: Source = activeSource === 'pegasus' ? 'seestar' : 'pegasus'
+        const other: HotelSource = activeSource === 'pegasus' ? 'seestar' : 'pegasus'
         if (sources[other]?.fresh && ingestedMs(other) - ingestedMs(activeSource) > HYSTERESIS_MS) {
           chosen = other
         }
@@ -138,41 +257,10 @@ export async function GET() {
 
       const f = frames[chosen]!
 
-      // Telemetry is best-effort passthrough; object-name fields are added
-      // ONLY when astrometryState is 'solved' AND both coordinates are
-      // present — any other astrometryState (or missing telemetry entirely,
-      // e.g. Tier-1-only frames) omits them outright, not null/"Unknown", so
-      // the frontend's existing no-confident-name fallback path handles it.
+      // Telemetry is best-effort passthrough — see resolveObjectMatch for the
+      // solved+coordinates gating.
       const telemetry = f.telemetry
-      let objectMatch:
-        | {
-            name: string
-            confidence: 'high' | 'medium' | 'low' | 'none'
-            description: string
-            type: string
-            constellation?: string
-            distanceLy?: number
-            sizeDescription?: string
-          }
-        | undefined
-      if (
-        telemetry?.astrometryState === 'solved' &&
-        typeof telemetry.raDegrees === 'number' &&
-        typeof telemetry.decDegrees === 'number'
-      ) {
-        const result = matchCoordinates(telemetry.raDegrees, telemetry.decDegrees)
-        if (result.match) {
-          objectMatch = {
-            name: result.match.primaryName,
-            confidence: result.confidence,
-            description: result.match.description,
-            type: result.match.type,
-            ...(result.match.constellation ? { constellation: result.match.constellation } : {}),
-            ...(result.match.distanceLy ? { distanceLy: result.match.distanceLy } : {}),
-            ...(result.match.sizeDescription ? { sizeDescription: result.match.sizeDescription } : {}),
-          }
-        }
-      }
+      const objectMatch = resolveObjectMatch(telemetry)
 
       return json({
         live: true,

@@ -10,6 +10,7 @@ import {
 } from '@/lib/live-status'
 import { pickFarewellVariant, formatNextSessionLabel } from '@/lib/live-farewell'
 import { FarewellAegeanUfo } from './FarewellAegeanUfo'
+import { SpecialEventFarewell } from './SpecialEventFarewell'
 import {
   pickFlavor,
   hotelDisplayName,
@@ -48,7 +49,10 @@ type ObjectMatchConfidence = 'high' | 'medium' | 'low' | 'none'
 // treated as offline. See lib/live-status.ts for the full contract notes.
 type StatusLive = {
   live: true
-  source: 'pegasus' | 'seestar'
+  // Hotel devices OR any special-event slug (config/extra-events.json) — kept
+  // as a plain string for the same reason lib/redis.ts's Source type is: the
+  // set of valid special-event sources isn't fixed at build time.
+  source: string
   frame: { frameId: string; blobUrl: string; capturedAt: string; ingestedAt: string }
   observation: { observationId: string; objectName: string }
   sessionId: string
@@ -67,6 +71,7 @@ type StatusOffline = {
   live: false
   degraded?: false
   finished?: false
+  specialEventFinished?: false
   tonight: OfflinePayload['tonight']
   next: OfflinePayload['next']
 }
@@ -74,6 +79,7 @@ type StatusDegraded = {
   live: false
   degraded: true
   finished?: false
+  specialEventFinished?: false
   tonight?: OfflinePayload['tonight']
   next?: OfflinePayload['next']
 }
@@ -90,10 +96,28 @@ type StatusFinished = {
   live: false
   finished: true
   degraded?: false
+  specialEventFinished?: false
   date: string
   next: OfflinePayload['next']
 }
-type StatusResponse = StatusLive | StatusOffline | StatusDegraded | StatusFinished
+// A special event's own finished flag (eventFinishedKey — per-source, see
+// lib/redis.ts), distinct from StatusFinished: no date/next (special events
+// have no farewell-variant seed or recurring next session — see
+// extraEventStatus in app/api/status/route.ts), and drives a different
+// uiState ('special-event-finished', not 'finished') so it never triggers
+// the hotel-specific Aegean UFO farewell.
+type StatusSpecialEventFinished = {
+  live: false
+  specialEventFinished: true
+  degraded?: false
+  finished?: false
+}
+type StatusResponse =
+  | StatusLive
+  | StatusOffline
+  | StatusDegraded
+  | StatusFinished
+  | StatusSpecialEventFinished
 
 function isObject(v: unknown): v is Record<string, unknown> {
   return typeof v === 'object' && v !== null
@@ -104,7 +128,7 @@ function isString(v: unknown): v is string {
 }
 
 function isSource(v: unknown): v is StatusLive['source'] {
-  return v === 'pegasus' || v === 'seestar'
+  return isString(v) && v.length > 0
 }
 
 function isTonightInfo(v: unknown): v is OfflinePayload['tonight'] {
@@ -177,6 +201,10 @@ function isFinishedStatus(v: Record<string, unknown>): v is StatusFinished {
   return v.live === false && v.finished === true && isString(v.date) && isNextInfo(v.next)
 }
 
+function isSpecialEventFinishedStatus(v: Record<string, unknown>): v is StatusSpecialEventFinished {
+  return v.live === false && v.specialEventFinished === true
+}
+
 function isStatusResponse(v: unknown): v is StatusResponse {
   if (!isObject(v)) return false
   // Checked BEFORE degraded/offline/live — mirrors the server's own
@@ -184,8 +212,9 @@ function isStatusResponse(v: unknown): v is StatusResponse {
   // any frame-freshness logic), so the two sides of this contract agree on
   // priority rather than just happening to agree today.
   if (v.live === false && v.finished === true) return true
+  if (v.live === false && v.specialEventFinished === true) return true
   if (v.live === false && v.degraded === true) return true
-  return isLiveStatus(v) || isOfflineStatus(v) || isFinishedStatus(v)
+  return isLiveStatus(v) || isOfflineStatus(v) || isFinishedStatus(v) || isSpecialEventFinishedStatus(v)
 }
 
 // Preload an image; resolve only once it has actually loaded (never resolve
@@ -457,7 +486,11 @@ function athensTodayDate(): string {
   }).format(new Date())
 }
 
-export default function LiveView() {
+// statusUrl defaults to the normal hotel endpoint. /live/[event] passes
+// '/api/status?event=<slug>' instead so the exact same component/state
+// machine/rendering serves a special event (see app/api/status/route.ts's
+// extraEventStatus) without any other behavioral change here.
+export default function LiveView({ statusUrl = '/api/status' }: { statusUrl?: string } = {}) {
   const [state, dispatch] = useReducer(liveStatusReducer, initialLiveStatusState)
 
   // Mutable refs for values the polling loop needs without re-subscribing
@@ -495,7 +528,7 @@ export default function LiveView() {
           // StatusLive bodies for visual review of the three display states.
           body = demoBody
         } else {
-          const res = await fetch('/api/status', { signal: controller.signal, cache: 'no-store' })
+          const res = await fetch(statusUrl, { signal: controller.signal, cache: 'no-store' })
           if (!res.ok) throw new Error(`status ${res.status}`)
           body = await res.json()
         }
@@ -513,6 +546,12 @@ export default function LiveView() {
           // somehow mid-way through rendering a fresh "live" frame; a
           // deliberate finish always overrides.
           dispatch({ type: 'POLL_FINISHED', payload: { date: body.date, next: body.next } })
+        } else if (body.live === false && body.specialEventFinished === true) {
+          // Same "always wins" priority as POLL_FINISHED, for a special
+          // event's own scoped finished flag (see extraEventStatus in
+          // app/api/status/route.ts) — routes to 'special-event-finished',
+          // never 'finished', so the UFO farewell can never render here.
+          dispatch({ type: 'POLL_SPECIAL_EVENT_FINISHED' })
         } else if (body.live === false && body.degraded === true) {
           dispatch({ type: 'POLL_DEGRADED' })
         } else if (body.live === false) {
@@ -615,6 +654,10 @@ export default function LiveView() {
         timeoutRef.current = null
       }
     }
+    // statusUrl is fixed for the lifetime of a mounted page (derived from the
+    // route, not app state) — intentionally excluded so this effect's mount/
+    // unmount semantics (polling loop, listeners) are untouched by the new prop.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // Reconnecting give-up clause driven by wall-clock time (45s since last
@@ -747,6 +790,13 @@ function LiveViewPresentation({ state }: { state: LiveStatusState }) {
       default:
         return <FarewellAegeanUfo nextSessionLabel={nextSessionLabel} />
     }
+  }
+
+  // A special event's own finished state — deliberately a separate branch
+  // from 'finished' above (see lib/live-status.ts's uiState doc): never the
+  // Aegean UFO farewell, just the plain sign-off screen.
+  if (uiState === 'special-event-finished') {
+    return <SpecialEventFarewell />
   }
 
   if (uiState === 'degraded') {

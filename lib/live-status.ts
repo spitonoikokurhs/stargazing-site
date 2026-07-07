@@ -12,6 +12,13 @@ export const UI_STATES = [
   'reconnecting',
   'degraded',
   'finished',
+  // A special event's own finished state (see
+  // app/live/special-event/EventGate.tsx and app/live/SpecialEventFarewell.tsx)
+  // — deliberately separate from
+  // 'finished', which renders the hotel-specific Aegean UFO farewell. Special
+  // events never dispatch POLL_FINISHED and hotels never dispatch
+  // POLL_SPECIAL_EVENT_FINISHED, so the two states can never cross.
+  'special-event-finished',
 ] as const
 export type UiState = (typeof UI_STATES)[number]
 
@@ -102,6 +109,7 @@ export type LiveStatusEvent =
   | { type: 'POLL_FAILED' }
   | { type: 'RECONNECT_TIMEOUT' }
   | { type: 'POLL_FINISHED'; payload: FinishedInfo }
+  | { type: 'POLL_SPECIAL_EVENT_FINISHED' }
 // FOCUS_VISIBLE / HIDDEN are not reducer events: per the transition table both
 // are "any state -> same state" (HIDDEN also stops the poll scheduler, and
 // FOCUS_VISIBLE triggers an immediate poll) — i.e. they never change uiState
@@ -179,6 +187,16 @@ export function liveStatusReducer(state: LiveStatusState, event: LiveStatusEvent
       // degraded's job), only a deliberate POST to /api/finish does, so once
       // that signal arrives it must override everything else unconditionally.
       return { ...state, uiState: 'finished', lastStatusAt: now, consecutiveFailures: 0, finishedInfo: event.payload }
+    }
+
+    case 'POLL_SPECIAL_EVENT_FINISHED': {
+      // Mirrors POLL_FINISHED's "always wins, from any state" rule, but for
+      // the special-event finished flag (eventFinishedKey, scoped per source
+      // — see lib/redis.ts) instead of the shared hotel EVENT_FINISHED_KEY.
+      // No payload: special events have no "next session" date to carry (see
+      // extraEventStatus in app/api/status/route.ts), so there's nothing
+      // beyond the state transition itself.
+      return { ...state, uiState: 'special-event-finished', lastStatusAt: now, consecutiveFailures: 0 }
     }
 
     case 'POLL_DEGRADED': {

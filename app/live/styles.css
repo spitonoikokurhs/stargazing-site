@@ -915,6 +915,34 @@
   object-fit: contain;
 }
 
+/* Special-event logo on the mystery gate — same fixed-height/auto-width
+   pattern as .status-hotel-logo (source art has inconsistent aspect ratios;
+   this keeps every logo readable at the same visual scale without
+   distorting any of them), sized a touch larger since it's the sole piece of
+   branding on an otherwise very spare screen. */
+.mystery-logo {
+  height: min(clamp(72px, 6vmin, 110px), 14svh);
+  width: auto;
+  max-width: 70vw;
+  margin-bottom: 18px;
+  object-fit: contain;
+}
+
+/* The mystery gate's big "?" — serif display face (same one the object name
+   uses on the live view) at a much larger scale, since it's the whole visual
+   here rather than a line of text. vmin-based clamp for the same reason
+   .status-heading uses it below: stays proportional on both a phone and a
+   large lobby-TV monitor. */
+.mystery-glyph {
+  font-family: var(--font-display), "Cormorant Garamond", Georgia, "Times New Roman", serif;
+  font-weight: 600;
+  font-size: clamp(72px, 16vmin, 160px);
+  line-height: 1;
+  margin: 0 0 18px;
+  color: var(--gold, #c7a869);
+  text-shadow: 0 0 34px rgba(199, 168, 105, 0.35);
+}
+
 .status-heading {
   /* clamp()'s middle term uses vmin (the smaller of viewport width/height),
      not vw: on a wide desktop monitor vw alone hits its ceiling almost

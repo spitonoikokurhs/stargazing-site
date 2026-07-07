@@ -9,9 +9,11 @@ import {
   isValidSource,
   latestFrameKey,
   EVENT_FINISHED_KEY,
+  eventFinishedKey,
   type Source,
 } from '@/lib/redis'
 import { athensToday, scheduledHotelFor } from '@/lib/schedule'
+import { extraEventFor } from '@/lib/extra-events'
 
 // Node runtime required: crypto.timingSafeEqual, createHash, Buffer.
 export const runtime = 'nodejs'
@@ -211,7 +213,17 @@ export async function POST(req: NextRequest) {
     try {
       result = await prisma.$transaction(async (tx) => {
         // 6a. Find or create today's Session.
-        const hotelId = scheduledHotelFor(date) ?? 'adhoc'
+        //
+        // A source that's also a special-event slug (config/extra-events.json,
+        // e.g. "parnonas") always resolves to that event's OWN fixed hotelId —
+        // never the date-based weekly schedule. This is deliberate: a special
+        // event's date can fall on a day the weekly grid already assigns to a
+        // real hotel (e.g. Parnonas's July 10 2026 is a Friday = caravia-beach),
+        // and without this branch the two would collide into the same Session
+        // row. Checked before the schedule lookup so a special-event source can
+        // never be shadowed by it.
+        const extraEvent = extraEventFor(source)
+        const hotelId = extraEvent?.hotelId ?? scheduledHotelFor(date) ?? 'adhoc'
         let session = await tx.session.findUnique({
           where: { date_hotelId: { date, hotelId } },
         })
@@ -362,8 +374,14 @@ export async function POST(req: NextRequest) {
       // a session that was deliberately ended.
       // Best-effort: if this delete fails, the 60min TTL still bounds how
       // long a stale flag can linger, and the next ingest retries the delete.
+      //
+      // A special-event source clears its OWN scoped flag (eventFinishedKey)
+      // rather than the shared hotel EVENT_FINISHED_KEY — a fresh Parnonas
+      // frame must never un-finish a hotel's already-ended night, or vice
+      // versa (see lib/redis.ts's eventFinishedKey doc).
       try {
-        await redis.del(EVENT_FINISHED_KEY)
+        const isSpecialEvent = extraEventFor(source) !== null
+        await redis.del(isSpecialEvent ? eventFinishedKey(source) : EVENT_FINISHED_KEY)
       } catch (e) {
         console.error('ingest: failed to clear finished flag after fresh ingest', e)
       }

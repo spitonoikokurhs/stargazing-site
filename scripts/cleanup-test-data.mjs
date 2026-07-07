@@ -60,8 +60,11 @@ function loadEnv(file) {
 loadEnv('.env.local')
 loadEnv('.env')
 
-// Keep in sync with SOURCES in lib/redis.ts (kept literal to avoid importing
-// a TS module with a path alias from a plain .mjs).
+// Deliberately restricted to the two real hotel devices (not special-event
+// slugs from config/extra-events.json) — this is a destructive cleanup
+// command, so it intentionally does NOT grow automatically as new event
+// slugs are added; keep in sync with HOTEL_SOURCES in lib/redis.ts (kept
+// literal to avoid importing a TS module with a path alias from a plain .mjs).
 const SOURCES = ['pegasus', 'seestar']
 const RECENT_MS = 60 * 60 * 1000 // live-session guard window
 const ACTIVE_SOURCE_KEY = 'live:active-source'
