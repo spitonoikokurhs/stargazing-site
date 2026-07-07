@@ -52,12 +52,16 @@ export const ACTIVE_SOURCE_KEY = 'live:active-source'
 // /api/finish (see app/api/finish/route.ts), never inferred from stale/absent
 // frames. /api/status checks this BEFORE any frame-freshness logic, so it
 // overrides an otherwise-live-looking feed (see app/api/status/route.ts).
-// The 24h TTL is a safety backstop against a forgotten flag surviving
-// forever — it is NOT the primary reset mechanism. The primary reset is
-// /api/ingest deleting this key on the next successful fresh-frame ingest,
-// so a new session just works with no manual un-finish step.
+// The 60min TTL is a safety backstop, NOT the primary reset mechanism — the
+// primary reset is /api/ingest deleting this key on the next successful
+// fresh-frame ingest, so a new session just works with no manual un-finish
+// step. Deliberately short (not e.g. 24h): the farewell is a send-off for
+// the hour after finishing (guests leaving, lobby TV wind-down, late QR
+// scans), not a screen that should still be showing before a DIFFERENT
+// event the next day on a hotel that shares this /live — a stale farewell
+// lingering into tomorrow's session would look broken, not intentional.
 export const EVENT_FINISHED_KEY = 'live:event:finished'
-export const EVENT_FINISHED_TTL_S = 24 * 60 * 60
+export const EVENT_FINISHED_TTL_S = 60 * 60
 
 // Telemetry subset carried in the Redis payload (see latestFrameKey doc
 // above). Every field is independently optional/nullable — a device can omit
