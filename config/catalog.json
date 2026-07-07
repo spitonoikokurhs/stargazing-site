@@ -185,7 +185,7 @@
       "decDeg": 30.6600,
       "displayRadiusDeg": 1.0,
       "priority": 88,
-      "description": "A whole other galaxy of hundreds of billions of stars, quietly spiraling nearby.",
+      "description": "A whole other galaxy of tens of billions of stars, quietly spiraling nearby.",
       "constellation": "Triangulum",
       "distanceLy": 2730000,
       "sizeDescription": "about twice the full Moon"
@@ -582,7 +582,7 @@
       "requiresEphemeris": true,
       "displayRadiusDeg": null,
       "priority": 88,
-      "description": "The rusty red planet, close enough at times to make out its polar ice cap and dark surface markings."
+      "description": "The rusty red planet. At favorable oppositions, telescopes can reveal its polar cap and dark surface markings."
     },
     {
       "id": "NGC7293",
@@ -915,7 +915,7 @@
       "decDeg": 61.5922,
       "displayRadiusDeg": 0.15,
       "priority": 55,
-      "description": "A rich, young cluster of stars near the Bubble Nebula, easy to sweep up along the winter Milky Way.",
+      "description": "A rich, young cluster of stars near the Bubble Nebula, easy to sweep up along the rich northern Milky Way.",
       "constellation": "Cassiopeia",
       "distanceLy": 5000,
       "sizeDescription": "about half the full Moon"
