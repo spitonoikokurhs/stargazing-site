@@ -264,6 +264,51 @@ function assert(label, cond, detail) {
   assert('M52 exact coords -> high confidence', rM52.confidence === 'high', `got ${rM52.confidence}`)
 }
 
+// 7. M101 (Pinwheel Galaxy) — was entirely ABSENT from the catalog until this
+//    test was added (confirmed via `grep M101 config/catalog.json` returning
+//    nothing), unlike the NGC 7000 bug (2c above), which was a confidence-
+//    threshold issue on an object that WAS present. A real target platesolved
+//    cleanly at RA 210.85 / Dec 54.35 during a live session and fell back to
+//    "Deep-sky field" because there was nothing in the catalog to match.
+{
+  const m101 = byId('M101')
+  assert('catalog contains M101', m101 !== undefined)
+
+  const rExact = matchCoordinates(m101.raDeg, m101.decDeg)
+  assert('M101 exact coords -> match M101', rExact.match?.id === 'M101', `got ${rExact.match?.id ?? 'null'}`)
+  assert('M101 exact coords -> high confidence', rExact.confidence === 'high', `got ${rExact.confidence}`)
+
+  // The actual field-reported coordinates from the live session that
+  // exposed this gap — regression guard, same pattern as 2c's NGC 7000
+  // dry-run using the exact numbers that were live-observed, not just the
+  // catalog's own center.
+  const rField = matchCoordinates(210.85, 54.35)
+  assert(
+    'M101 live-session coords (210.85, 54.35) -> match M101',
+    rField.match?.id === 'M101',
+    `got ${rField.match?.id ?? 'null'}`,
+  )
+  assert(
+    'M101 live-session coords -> high confidence',
+    rField.confidence === 'high',
+    `got ${rField.confidence}`,
+  )
+}
+
+// 8. M104 (Sombrero Galaxy) — added alongside M101 after a sanity pass found
+//    it was the other clear gap against a standard "famous showpiece"
+//    checklist (fame + visual distinctiveness comparable to M51/M81/M101
+//    already in the catalog, as opposed to e.g. M97/M106/NGC891, which are
+//    real but meaningfully more niche/dim — not added).
+{
+  const m104 = byId('M104')
+  assert('catalog contains M104', m104 !== undefined)
+
+  const r = matchCoordinates(m104.raDeg, m104.decDeg)
+  assert('M104 exact coords -> match M104', r.match?.id === 'M104', `got ${r.match?.id ?? 'null'}`)
+  assert('M104 exact coords -> high confidence', r.confidence === 'high', `got ${r.confidence}`)
+}
+
 console.log('')
 if (failures > 0) {
   console.log(`${failures} assertion(s) failed.`)

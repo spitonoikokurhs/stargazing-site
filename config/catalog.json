@@ -149,6 +149,20 @@
       "sizeDescription": "the three span ~1.5× the full Moon"
     },
     {
+      "id": "M104",
+      "primaryName": "Sombrero Galaxy",
+      "aliases": ["M104", "NGC 4594", "Sombrero Galaxy"],
+      "type": "Spiral Galaxy",
+      "raDeg": 189.9976,
+      "decDeg": -11.6231,
+      "displayRadiusDeg": 0.07,
+      "priority": 81,
+      "description": "A galaxy seen edge-on, wrapped in a dark dust lane that gives it its namesake wide-brimmed-hat shape.",
+      "constellation": "Virgo",
+      "distanceLy": 29000000,
+      "sizeDescription": "a tiny bright sliver — telescope only"
+    },
+    {
       "id": "M81",
       "primaryName": "Bode's Galaxy",
       "aliases": ["M81", "NGC 3031", "Bode's Galaxy"],
@@ -175,6 +189,20 @@
       "constellation": "Ursa Major",
       "distanceLy": 12000000,
       "sizeDescription": "a third of the full Moon"
+    },
+    {
+      "id": "M101",
+      "primaryName": "Pinwheel Galaxy",
+      "aliases": ["M101", "NGC 5457", "Pinwheel Galaxy"],
+      "type": "Spiral Galaxy",
+      "raDeg": 210.8023,
+      "decDeg": 54.3487,
+      "displayRadiusDeg": 0.24,
+      "priority": 83,
+      "description": "A vast, face-on spiral seen in full — sweeping arms laid out flat, like a photo from directly above.",
+      "constellation": "Ursa Major",
+      "distanceLy": 21000000,
+      "sizeDescription": "nearly the full Moon"
     },
     {
       "id": "M33",
