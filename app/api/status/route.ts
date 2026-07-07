@@ -67,8 +67,27 @@ export async function GET() {
     //    app/api/ingest/route.ts, which deletes it on the next successful
     //    fresh ingest — the key existing at all IS the signal, so its value
     //    doesn't matter).
+    //
+    //    date + next are included so every viewer (every guest phone AND the
+    //    lobby TV) can independently derive the SAME farewell animation
+    //    variant and the SAME "next session" line without a second request:
+    //    - date (today's Athens calendar date) is the deterministic seed for
+    //      picking a farewell variant (see lib/live-farewell.ts) — every
+    //      client computes the same pick from the same date string, so
+    //      everyone at tonight's event sees the same closer, and it changes
+    //      automatically on the next scheduled night with no server-side
+    //      state beyond the date itself.
+    //    - next reuses the exact same nextEvent() lookup the offline path
+    //      already uses below, so "Next session: Monday, 21:30" on the
+    //      finished screen is never a second source of truth.
     if (finishedRaw != null) {
-      return json({ live: false, finished: true })
+      const today = athensToday()
+      const tonightEvent = eventFor(today)
+      const next =
+        tonightEvent && athensNowHHMM() < tonightEvent.end
+          ? { date: today, ...tonightEvent }
+          : nextEvent(athensTomorrow(today))
+      return json({ live: false, finished: true, date: today, next })
     }
 
     const frames: Record<Source, LatestFrame | null> = {

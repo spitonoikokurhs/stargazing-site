@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>UFO sign-off — escalating tap secret</title>
+<style>
+  html,body{margin:0;height:100%;background:#0a0a0f;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;}
+  .stage{position:relative;width:100%;height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;}
+  .stars{position:absolute;inset:0;background-image:
+    radial-gradient(1px 1px at 20% 24%, rgba(255,255,255,.5), transparent),
+    radial-gradient(1px 1px at 70% 16%, rgba(255,255,255,.4), transparent),
+    radial-gradient(1px 1px at 40% 40%, rgba(255,255,255,.5), transparent),
+    radial-gradient(1px 1px at 85% 30%, rgba(255,255,255,.35), transparent),
+    radial-gradient(1px 1px at 15% 46%, rgba(255,255,255,.45), transparent),
+    radial-gradient(1px 1px at 55% 22%, rgba(255,255,255,.3), transparent),
+    radial-gradient(1px 1px at 90% 44%, rgba(255,255,255,.4), transparent),
+    radial-gradient(1px 1px at 30% 12%, rgba(255,255,255,.35), transparent);}
+
+  /* Newtonian stars: diffraction spikes + glowing core, real stellar colors, twinkle */
+  .bgstars{position:absolute;inset:0;pointer-events:none;}
+  .bgstar{position:absolute;width:var(--s);height:var(--s);
+    margin-left:calc(var(--s)/-2);margin-top:calc(var(--s)/-2);
+    background:radial-gradient(circle, #fff 0 .8px, var(--sc,#fff) 1.6px, transparent 3.4px);
+    animation:twinkle var(--td,3s) ease-in-out infinite;animation-delay:var(--tl,0s);}
+  .bgstar::before{content:'';position:absolute;left:0;right:0;top:50%;height:1px;margin-top:-.5px;opacity:.8;
+    background:linear-gradient(to right, transparent, var(--sc,#fff), transparent);}
+  .bgstar::after{content:'';position:absolute;top:0;bottom:0;left:50%;width:1px;margin-left:-.5px;opacity:.8;
+    background:linear-gradient(to bottom, transparent, var(--sc,#fff), transparent);}
+  @keyframes twinkle{0%,100%{opacity:.5}50%{opacity:1}}
+
+  /* the patient watcher's reward: a comet drifting slowly across.
+     anatomy per reality: green C2 coma around the nucleus, pale-yellow dust tail, blue ion tail */
+  .comet{position:absolute;left:0;top:0;opacity:0;pointer-events:none;will-change:transform;}
+  .comet .ctail{position:absolute;right:2px;top:-2.5px;width:230px;height:5px;border-radius:5px;filter:blur(2.2px);
+    background:linear-gradient(to right, rgba(255,248,225,0), rgba(255,246,220,.4) 55%, rgba(255,252,240,.9));}
+  .comet .ctail2{position:absolute;right:0;top:-1px;width:150px;height:2px;filter:blur(1px);
+    transform:rotate(4deg);transform-origin:right center;
+    background:linear-gradient(to right, rgba(120,190,255,0), rgba(140,205,255,.85));}
+  .comet .chead{position:absolute;left:-4.5px;top:-4.5px;width:9px;height:9px;border-radius:50%;
+    background:#f2fff9;box-shadow:0 0 7px 4px rgba(140,240,190,.85),0 0 20px 10px rgba(120,230,180,.3);}
+
+  /* JS-driven shooting stars: glowing core + tail, lingering trail, sea reflection & splash */
+  .skyLayer,.reflLayer{position:absolute;inset:0;pointer-events:none;}
+  .reflLayer{z-index:1;}
+  .sstar{position:absolute;left:0;top:0;opacity:0;will-change:transform;}
+  .sstar .tail{position:absolute;right:0;top:-1px;width:110px;height:2px;border-radius:2px;
+    background:linear-gradient(to right, rgba(255,255,255,0), var(--sc,#fff));}
+  .sstar .head{position:absolute;left:-3.5px;top:-3.5px;width:7px;height:7px;border-radius:50%;
+    background:#fff;box-shadow:0 0 6px 2px var(--sc,#fff),0 0 16px 5px rgba(255,255,255,.25);}
+  .tdot{position:absolute;left:-1.5px;top:-1.5px;width:3px;height:3px;border-radius:50%;
+    background:var(--sc,#fff);filter:blur(1px);animation:tfade .6s linear forwards;}
+  @keyframes tfade{to{opacity:0}}
+
+  .srefl{position:absolute;left:0;top:0;opacity:0;display:none;will-change:transform;filter:blur(2.6px);}
+  .srefl .rtail{position:absolute;right:0;top:-1.5px;width:80px;height:3px;border-radius:3px;filter:blur(2px);
+    background:linear-gradient(to right, rgba(255,255,255,0), var(--sc,#fff));}
+  .srefl .rhead{position:absolute;left:-4px;top:-3px;width:8px;height:6px;border-radius:50%;filter:blur(3.5px);
+    background:var(--sc,#fff);}
+
+  .splash{position:absolute;left:0;top:0;}
+  .splash i{position:absolute;left:0;top:0;display:block;}
+  .splash .glow{width:10px;height:10px;margin:-5px 0 0 -5px;border-radius:50%;background:var(--sc,#fff);
+    filter:blur(3px);animation:spglow .5s ease-out forwards;}
+  @keyframes spglow{0%{opacity:1;transform:scale(1.6)}100%{opacity:0;transform:scale(.4)}}
+  .splash .ring{width:16px;height:6px;margin:-3px 0 0 -8px;border:1.5px solid var(--sc,#fff);border-radius:50%;
+    animation:spring .8s ease-out forwards;}
+  @keyframes spring{0%{opacity:.9;transform:scale(.4)}100%{opacity:0;transform:scale(3.4)}}
+  .splash .d1,.splash .d2,.splash .d3{width:3px;height:3px;margin:-1px 0 0 -1px;border-radius:50%;
+    background:var(--sc,#fff);animation:spd .55s ease-out forwards;}
+  .splash .d1{--dx:-11px}.splash .d2{--dx:2px;animation-delay:.04s}.splash .d3{--dx:12px;animation-delay:.07s}
+  @keyframes spd{0%{opacity:1;transform:translate(0,0)}60%{opacity:1;transform:translate(var(--dx),-13px)}
+    100%{opacity:0;transform:translate(var(--dx),-4px)}}
+
+  .sea{position:absolute;left:0;right:0;bottom:0;height:26vh;
+    background:linear-gradient(to bottom, rgba(20,34,54,0), rgba(18,40,60,.55) 55%, rgba(14,32,50,.8));
+    border-top:1px solid rgba(126,180,200,.14);}
+  .shimmer{position:absolute;left:0;right:0;bottom:0;height:26vh;opacity:.5;
+    background-image:linear-gradient(to right, transparent 0%, rgba(150,210,230,.10) 20%, transparent 40%),
+      linear-gradient(to right, transparent 30%, rgba(150,210,230,.08) 55%, transparent 75%);
+    animation:shimmer 9s ease-in-out infinite;}
+  @keyframes shimmer{0%,100%{opacity:.35}50%{opacity:.6}}
+  .sail{position:absolute;bottom:calc(26vh - 20px);left:50%;transform:translateX(-140px);opacity:.5;animation:bob 6s ease-in-out infinite;}
+  @keyframes bob{0%,100%{transform:translateX(-140px) translateY(0) rotate(-1deg)}50%{transform:translateX(-140px) translateY(-3px) rotate(1deg)}}
+
+  .card{position:relative;text-align:center;z-index:2;margin-bottom:8vh;}
+  .ufo-slot{position:relative;height:150px;width:240px;margin:0 auto 6px;}
+
+  .ufo-unit{position:absolute;left:0;right:0;top:14px;margin:auto;width:130px;height:auto;cursor:pointer;
+    transform-origin:50% 55%;animation:teleport 7s cubic-bezier(.5,.1,.3,1) infinite;
+    filter:drop-shadow(0 0 12px rgba(126,224,196,.3));}
+  .ufo-unit.spin{animation:spin 1.4s ease-in-out;}
+  .ufo-unit.spinfast{animation:spinfast 1s ease-in-out;}
+  @keyframes teleport{
+    0%{opacity:0;transform:translateY(-32px) scaleY(.04) scaleX(1.2)}
+    5%{opacity:1;transform:translateY(-10px) scaleY(.4) scaleX(1.12)}
+    9%{opacity:1;transform:translateY(3px) scaleY(1.08) scaleX(.95)}
+    12%{opacity:1;transform:translateY(0) scaleY(1) scaleX(1)}
+    24%{transform:translateY(-10px) rotate(2.5deg)}42%{transform:translateY(0) rotate(-2.5deg)}
+    60%{transform:translateY(-10px) rotate(2.5deg)}72%{opacity:1;transform:translateY(0) scaleY(1) scaleX(1) rotate(0)}
+    78%{opacity:1;transform:translateY(-10px) scaleY(.4) scaleX(1.12)}84%{opacity:0;transform:translateY(-32px) scaleY(.04) scaleX(1.2)}
+    100%{opacity:0;transform:translateY(-32px) scaleY(.04) scaleX(1.2)}}
+  @keyframes spin{0%{transform:translateY(0) rotate(0) scale(1)}50%{transform:translateY(-14px) rotate(360deg) scale(1.1)}100%{transform:translateY(0) rotate(720deg) scale(1)}}
+  @keyframes spinfast{0%{transform:translateY(0) rotate(0) scale(1)}30%{transform:translateY(-20px) rotate(360deg) scale(1.18)}60%{transform:translateY(-6px) rotate(720deg) scale(1.1)}100%{transform:translateY(0) rotate(1080deg) scale(1)}}
+
+  .flash{position:absolute;left:50%;top:0;transform:translateX(-50%);width:5px;height:150px;border-radius:5px;
+    background:linear-gradient(to bottom,rgba(126,224,196,0),rgba(190,255,240,1),rgba(126,224,196,0));
+    opacity:0;filter:blur(.5px);animation:flash 7s ease-in-out infinite;}
+  @keyframes flash{0%{opacity:0;transform:translateX(-50%) scaleY(.15) scaleX(1)}
+    3%{opacity:1;transform:translateX(-50%) scaleY(1) scaleX(2.4)}9%{opacity:0;transform:translateX(-50%) scaleY(1) scaleX(1)}
+    75%{opacity:0;transform:translateX(-50%) scaleY(1) scaleX(1)}79%{opacity:1;transform:translateX(-50%) scaleY(1) scaleX(2.4)}
+    85%{opacity:0;transform:translateX(-50%) scaleY(.15) scaleX(1)}100%{opacity:0}}
+  .spark{position:absolute;left:50%;top:60px;width:4px;height:4px;border-radius:50%;background:#bff7ea;opacity:0;}
+  .spark.s1{animation:sp1 7s ease-out infinite}.spark.s2{animation:sp2 7s ease-out infinite}
+  .spark.s3{animation:sp3 7s ease-out infinite}.spark.s4{animation:sp4 7s ease-out infinite}
+  .spark.s5{animation:sp5 7s ease-out infinite}.spark.s6{animation:sp6 7s ease-out infinite}
+  @keyframes sp1{0%,4%{opacity:0;transform:translate(0,0)}6%{opacity:1}14%{opacity:0;transform:translate(-40px,-24px)}76%{opacity:0;transform:translate(0,0)}80%{opacity:1}88%{opacity:0;transform:translate(-40px,-24px)}100%{opacity:0}}
+  @keyframes sp2{0%,4%{opacity:0;transform:translate(0,0)}6%{opacity:1}14%{opacity:0;transform:translate(38px,-30px)}76%{opacity:0;transform:translate(0,0)}80%{opacity:1}88%{opacity:0;transform:translate(38px,-30px)}100%{opacity:0}}
+  @keyframes sp3{0%,4%{opacity:0;transform:translate(0,0)}6%{opacity:1}14%{opacity:0;transform:translate(-30px,22px)}76%{opacity:0;transform:translate(0,0)}80%{opacity:1}88%{opacity:0;transform:translate(-30px,22px)}100%{opacity:0}}
+  @keyframes sp4{0%,4%{opacity:0;transform:translate(0,0)}6%{opacity:1}14%{opacity:0;transform:translate(44px,18px)}76%{opacity:0;transform:translate(0,0)}80%{opacity:1}88%{opacity:0;transform:translate(44px,18px)}100%{opacity:0}}
+  @keyframes sp5{0%,4%{opacity:0;transform:translate(0,0)}6%{opacity:1}14%{opacity:0;transform:translate(-52px,4px)}76%{opacity:0;transform:translate(0,0)}80%{opacity:1}88%{opacity:0;transform:translate(-52px,4px)}100%{opacity:0}}
+  @keyframes sp6{0%,4%{opacity:0;transform:translate(0,0)}6%{opacity:1}14%{opacity:0;transform:translate(30px,-8px)}76%{opacity:0;transform:translate(0,0)}80%{opacity:1}88%{opacity:0;transform:translate(30px,-8px)}100%{opacity:0}}
+  /* burst of extra sparkles on excited taps */
+  .burst{position:absolute;left:50%;top:60px;width:5px;height:5px;border-radius:50%;background:#f4c775;opacity:0;pointer-events:none;}
+  .burst.go{animation:burst .9s ease-out;}
+  @keyframes burst{0%{opacity:1;transform:translate(0,0) scale(1)}100%{opacity:0;transform:var(--bt) scale(.3)}}
+
+  .arm{transform-origin:78px 40px;animation:armwave 7s ease-in-out infinite;}
+  @keyframes armwave{0%,15%{transform:rotate(60deg)}19%{transform:rotate(-28deg)}24%{transform:rotate(8deg)}
+    30%{transform:rotate(-28deg)}36%{transform:rotate(8deg)}42%{transform:rotate(-28deg)}48%{transform:rotate(8deg)}
+    54%{transform:rotate(-28deg)}60%{transform:rotate(8deg)}66%{transform:rotate(-20deg)}72%,100%{transform:rotate(60deg)}}
+
+  .goodnight{position:relative;height:34px;}
+  .goodnight .line{position:absolute;left:0;right:0;opacity:0;display:none;animation:gnfade 7s ease-in-out infinite;}
+  .goodnight .line.active{display:block;}
+  .goodnight .gr{display:block;color:#EDEAE3;font-size:23px;letter-spacing:1px;font-weight:400;}
+  @keyframes gnfade{0%,16%{opacity:0}24%{opacity:1}66%{opacity:1}72%,100%{opacity:0}}
+
+  .bubble{position:absolute;left:50%;top:-24px;transform:translateX(-50%) scale(.4);opacity:0;
+    color:#bff7ea;font-size:16px;white-space:nowrap;pointer-events:none;text-shadow:0 0 8px rgba(126,224,196,.6);}
+  .bubble.show{animation:pop 1.8s ease-out;}
+  @keyframes pop{0%{opacity:0;transform:translateX(-50%) translateY(-2px) scale(.4)}
+    20%{opacity:1;transform:translateX(-50%) translateY(-12px) scale(1.1)}35%{transform:translateX(-50%) translateY(-14px) scale(1)}
+    80%{opacity:1;transform:translateX(-50%) translateY(-26px) scale(1)}100%{opacity:0;transform:translateX(-50%) translateY(-40px) scale(1)}}
+
+  /* the tier-10 fleet flyby */
+  .fleet{position:absolute;inset:0;pointer-events:none;z-index:5;}
+  .mini{position:absolute;font-size:26px;opacity:0;}
+  .fleet.go .mini{animation:fly 2.6s ease-in-out;}
+  .fleet.go .m1{animation-delay:0s}.fleet.go .m2{animation-delay:.18s}.fleet.go .m3{animation-delay:.36s}
+  .fleet.go .m4{animation-delay:.54s}.fleet.go .m5{animation-delay:.72s}
+  @keyframes fly{0%{opacity:0;left:-12%;top:30%}10%{opacity:1}90%{opacity:1}100%{opacity:0;left:110%;top:22%}}
+
+  /* tier-10 alien formation — the Greek flag */
+  .flag{position:absolute;left:50%;top:5%;transform:translateX(-50%);z-index:6;pointer-events:none;
+    width:min(70vw,360px);display:none;grid-template-columns:repeat(13,1fr);gap:2px;
+    filter:drop-shadow(0 0 18px rgba(59,130,208,.5));}
+  .flag.go{display:grid;}
+  .flag .cell{opacity:0;border-radius:2.5px;padding:1px;}
+  .flag .cell.b{background:linear-gradient(#2f7fd8,#1b5cae);}
+  .flag .cell.w{background:linear-gradient(#ffffff,#dde5ee);}
+  .flag .cell svg{display:block;width:100%;height:auto;}
+  .flag .stepper{display:block;animation:stepbob .55s ease-in-out infinite;animation-delay:var(--d);}
+  .flag.go .cell{animation:marchin 1.15s cubic-bezier(.3,.85,.4,1) forwards;animation-delay:var(--d);}
+  .flag.bye .cell{animation:flyoff .8s ease-in forwards;animation-delay:var(--e);}
+  @keyframes marchin{0%{opacity:0;transform:translateX(-70vw)}12%{opacity:1}100%{opacity:1;transform:translateX(0)}}
+  @keyframes stepbob{0%,100%{transform:translateY(0)}50%{transform:translateY(-2.5px)}}
+  @keyframes flyoff{0%{opacity:1;transform:translateY(0) scale(1)}100%{opacity:0;transform:translateY(-46px) scale(.5)}}
+
+  /* the warm reward message */
+  .reward{position:absolute;left:0;right:0;top:42%;text-align:center;z-index:6;opacity:0;pointer-events:none;}
+  .reward.show{animation:reward 4.5s ease-in-out;}
+  .reward .big{display:block;color:#EDEAE3;font-size:22px;letter-spacing:.4px;}
+  .reward .small{display:block;color:#7ee0c4;font-size:14px;margin-top:6px;letter-spacing:1px;}
+  @keyframes reward{0%{opacity:0;transform:translateY(10px)}12%{opacity:1;transform:translateY(0)}85%{opacity:1}100%{opacity:0}}
+
+  .heading{color:#EDEAE3;font-size:25px;font-weight:400;margin:14px 0 6px;letter-spacing:.3px;}
+  .sub{color:#A8A6A0;font-size:15px;margin:0;}
+  .flavor{color:#8f8d87;font-size:15px;font-style:italic;margin-top:20px;line-height:1.5;}
+  .caption{position:absolute;bottom:8px;left:0;right:0;text-align:center;color:#44433f;font-size:12px;z-index:3;}
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="stars"></div>
+
+  <div class="fleet" id="fleet">
+    <span class="mini m1" style="top:30%">🛸</span><span class="mini m2" style="top:26%">🛸</span>
+    <span class="mini m3" style="top:34%">🛸</span><span class="mini m4" style="top:28%">🛸</span>
+    <span class="mini m5" style="top:32%">🛸</span>
+  </div>
+  <div class="flag" id="flag"></div>
+  <div class="reward" id="reward"><span class="big">You really looked up tonight.</span><span class="small">Thank you for stargazing with us ✨</span></div>
+
+  <div class="card">
+    <div class="ufo-slot">
+      <div class="flash"></div>
+      <div class="spark s1"></div><div class="spark s2"></div><div class="spark s3"></div>
+      <div class="spark s4"></div><div class="spark s5"></div><div class="spark s6"></div>
+      <div class="burst" id="b1"></div><div class="burst" id="b2"></div><div class="burst" id="b3"></div>
+      <div class="bubble" id="bubble"></div>
+      <svg class="ufo-unit" id="ufo" viewBox="0 0 130 78" xmlns="http://www.w3.org/2000/svg">
+        <ellipse cx="60" cy="32" rx="25" ry="21" fill="#2a3550"/>
+        <ellipse cx="60" cy="30" rx="21" ry="16" fill="#3d4d72"/>
+        <ellipse cx="55" cy="24" rx="6" ry="4" fill="#5b6d95" opacity=".6"/>
+        <ellipse cx="60" cy="32" rx="7.5" ry="8.5" fill="#7ee0c4"/>
+        <circle cx="56.5" cy="31" r="1.7" fill="#0a0a0f"/><circle cx="63.5" cy="31" r="1.7" fill="#0a0a0f"/>
+        <path d="M57.5 36 q2.5 2 5 0" stroke="#0a0a0f" stroke-width="1" fill="none" stroke-linecap="round"/>
+        <g class="arm">
+          <path d="M78 40 q10 -6 15 -16" stroke="#7ee0c4" stroke-width="3" fill="none" stroke-linecap="round"/>
+          <circle cx="93" cy="24" r="3.4" fill="#7ee0c4"/>
+        </g>
+        <ellipse cx="60" cy="50" rx="55" ry="16" fill="#3f4d6c"/>
+        <ellipse cx="60" cy="48" rx="55" ry="14" fill="#5d6d92"/>
+        <ellipse cx="60" cy="46" rx="46" ry="10" fill="#6f80a8"/>
+        <circle cx="30" cy="50" r="3.2" fill="#f4c775"><animate attributeName="opacity" values="1;.25;1" dur="1.4s" repeatCount="indefinite"/></circle>
+        <circle cx="45" cy="53" r="3.2" fill="#7ee0c4"><animate attributeName="opacity" values=".25;1;.25" dur="1.4s" repeatCount="indefinite"/></circle>
+        <circle cx="60" cy="54" r="3.2" fill="#e88a8a"><animate attributeName="opacity" values="1;.25;1" dur="1.4s" begin=".3s" repeatCount="indefinite"/></circle>
+        <circle cx="75" cy="53" r="3.2" fill="#7ee0c4"><animate attributeName="opacity" values=".25;1;.25" dur="1.4s" repeatCount="indefinite"/></circle>
+        <circle cx="90" cy="50" r="3.2" fill="#f4c775"><animate attributeName="opacity" values="1;.25;1" dur="1.4s" begin=".5s" repeatCount="indefinite"/></circle>
+      </svg>
+    </div>
+
+    <div class="goodnight" id="gn">
+      <div class="line active"><span class="gr">Gute Nacht</span></div>
+      <div class="line"><span class="gr">Goodnight</span></div>
+      <div class="line"><span class="gr">Buonanotte</span></div>
+      <div class="line"><span class="gr">Bonne nuit</span></div>
+      <div class="line"><span class="gr">İyi geceler</span></div>
+      <div class="line"><span class="gr">Καληνύχτα</span></div>
+    </div>
+
+    <div class="heading">Tonight's session has ended</div>
+    <div class="sub">Next session: Monday, 21:30</div>
+    <div class="flavor">The photons have gone home.<br>Same time, next star.</div>
+  </div>
+
+  <div class="sea"></div>
+  <div class="shimmer"></div>
+  <svg class="sail" width="46" height="40" viewBox="0 0 46 40" xmlns="http://www.w3.org/2000/svg">
+    <path d="M23 4 L23 30" stroke="#9fc4d4" stroke-width="1.2"/>
+    <path d="M23 6 Q34 14 32 28 L23 28 Z" fill="#9fc4d4" opacity=".7"/>
+    <path d="M23 8 Q14 16 16 28 L23 28 Z" fill="#c6dde6" opacity=".55"/>
+    <path d="M14 30 L32 30 L28 36 L18 36 Z" fill="#7f9fb0"/>
+  </svg>
+  <div class="caption">tap the UFO 👽 keep tapping…</div>
+</div>
+
+<script>
+(function(){
+  var lines=document.querySelectorAll('#gn .line');var li=0;
+  setInterval(function(){lines[li].classList.remove('active');li=(li+1)%lines.length;lines[li].classList.add('active');},7000);
+
+  var ufo=document.getElementById('ufo'),bubble=document.getElementById('bubble');
+  var fleet=document.getElementById('fleet'),reward=document.getElementById('reward');
+  var flag=document.getElementById('flag');
+
+  // build the alien formation: 13x9 grid = Greek flag (solid color chips, aliens on top)
+  (function(){
+    var cols=13,rows=9;
+    function alien(col,eye){
+      return '<svg viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">'
+        +'<line x1="10" y1="5" x2="10" y2="2.2" stroke="'+col+'" stroke-width="1.4"/>'
+        +'<circle cx="10" cy="1.8" r="1.4" fill="'+col+'"/>'
+        +'<ellipse cx="10" cy="12.5" rx="6.2" ry="7" fill="'+col+'"/>'
+        +'<circle cx="7.7" cy="11" r="1.2" fill="'+eye+'"/>'
+        +'<circle cx="12.3" cy="11" r="1.2" fill="'+eye+'"/>'
+        +'</svg>';
+    }
+    var html='';
+    for(var r=0;r<rows;r++){
+      for(var c=0;c<cols;c++){
+        var inCanton=(r<5&&c<5);
+        var white=inCanton ? (r===2||c===2) : (r%2===1); // cross in canton, stripes elsewhere
+        var d=(c*0.08 + r*0.025 + Math.random()*0.05).toFixed(2);
+        var e=((rows-r)*0.04 + Math.random()*0.18).toFixed(2);
+        html+='<span class="cell '+(white?'w':'b')+'" style="--d:'+d+'s;--e:'+e+'s">'
+             +'<span class="stepper">'
+             +(white ? alien('#1b5cae','#eaf2fb') : alien('#eaf4ff','#123c73'))
+             +'</span></span>';
+      }
+    }
+    flag.innerHTML=html;
+  })();
+  var bursts=[document.getElementById('b1'),document.getElementById('b2'),document.getElementById('b3')];
+  var greet=['καληνύχτα ✨','beam me up! 🛸','see you soon ⭐','stardust ✦','buonanotte 🌙','made of starlight 🌠'];
+  var excited=['whee! 🛸','again! ✨','so many stars! ⭐','you\'re fun 🌙','more! 🌠'];
+  var count=0,busy=false,resetTimer;
+
+  // escalating shooting stars: doubles each tap, max 8 concurrent, resets with the streak.
+  // JS-driven physics: glowing core + tail, lingering trail, reflection converging on the
+  // horizon, brightness rising near the water, and a splash when a star hits the sea.
+  var stage=document.querySelector('.stage');
+  var skyLayer=document.createElement('div');skyLayer.className='skyLayer';
+  stage.insertBefore(skyLayer,stage.children[1]); // paints below the sea plane
+  var reflLayer=document.createElement('div');reflLayer.className='reflLayer';
+  stage.appendChild(reflLayer);                   // paints above the sea plane
+
+  // Newtonian night sky: diffraction-spike stars in real stellar colors
+  // (old gradient dots stay underneath as a faint distant-star depth layer)
+  var bgLayer=document.createElement('div');bgLayer.className='bgstars';
+  stage.insertBefore(bgLayer,stage.children[1]);
+  (function(){
+    // weighted like a real sky: mostly white/blue-white, a few orange-red giants
+    var SC=[['#cfe2ff',2.5],['#f8f7ff',3.5],['#fff3e0',2],['#ffe9c4',1.4],['#ffd2a1',1],['#ffb9a6',.7]];
+    var totW=SC.reduce(function(a,c){return a+c[1];},0);
+    function pick(){var r=Math.random()*totW;for(var i=0;i<SC.length;i++){r-=SC[i][1];if(r<=0)return SC[i][0];}return SC[0][0];}
+    for(var i=0;i<26;i++){
+      var x,y,tries=0;
+      do{x=2+Math.random()*96;y=2+Math.random()*64;tries++;}
+      while(tries<12 && x>27&&x<73&&y>20&&y<64);   // keep the card area clean
+      var r=Math.random();
+      var s=r<.14 ? 14+Math.random()*8 : r<.5 ? 9+Math.random()*4 : 5+Math.random()*3; // bright stars = long spikes
+      var st=document.createElement('span');
+      st.className='bgstar';
+      st.style.left=x.toFixed(1)+'%';st.style.top=y.toFixed(1)+'%';
+      st.style.setProperty('--s',s.toFixed(1)+'px');
+      st.style.setProperty('--sc',pick());
+      st.style.setProperty('--td',(2.5+Math.random()*4).toFixed(1)+'s');
+      st.style.setProperty('--tl',(-Math.random()*4).toFixed(1)+'s');
+      bgLayer.appendChild(st);
+    }
+  })();
+
+  // the comet: a slow reward for whoever keeps watching
+  var comet={el:document.createElement('div'),flying:false,timer:null};
+  comet.el.className='comet';
+  comet.el.innerHTML='<span class="ctail"></span><span class="ctail2"></span><span class="chead"></span>';
+  skyLayer.appendChild(comet.el);
+  function launchComet(){
+    comet.y0=5+Math.random()*22;
+    comet.dy=-4+Math.random()*10;               // gentle drift up or down
+    comet.dur=22000+Math.random()*10000;        // 22–32s crossing: unmistakably not a meteor
+    comet.ang=Math.atan2(comet.dy*innerHeight/100,1.24*innerWidth)*180/Math.PI;
+    comet.t0=performance.now();
+    comet.flying=true;
+  }
+  function scheduleComet(first){
+    comet.timer=setTimeout(launchComet,(first?20000:70000)+Math.random()*(first?25000:70000));
+  }
+  scheduleComet(true); // first appearance after 20–45s of watching
+
+  var COLORS=['#ff9ad5','#c39aff','#9dffc9','#ffe89a','#9ad9ff']; // pink, purple, green, yellow, ice-blue
+  var HORIZON=74; // sea surface, in vh
+  function randColor(){return COLORS[Math.floor(Math.random()*COLORS.length)];}
+  var pool=[];
+
+  function dropDot(x,y,color,prox){
+    var d=document.createElement('span');
+    d.className='tdot';
+    d.style.setProperty('--sc',color);
+    d.style.opacity=(.4+prox*.35).toFixed(2);
+    d.style.transform='translate('+x.toFixed(2)+'vw,'+y.toFixed(2)+'vh)';
+    skyLayer.appendChild(d);
+    d.addEventListener('animationend',function(){d.remove();});
+    setTimeout(function(){if(d.parentNode)d.remove();},900); // safety net
+  }
+
+  function splash(x,color,f){
+    var s=document.createElement('div');
+    s.className='splash';
+    s.style.setProperty('--sc',color);
+    // f = impact scale from the star's speed; splash grows around the impact point
+    s.style.transform='translate('+x.toFixed(2)+'vw,'+HORIZON+'vh) scale('+f.toFixed(2)+')';
+    s.innerHTML='<i class="glow"></i><i class="ring"></i><i class="d1"></i><i class="d2"></i><i class="d3"></i>';
+    reflLayer.appendChild(s);
+    setTimeout(function(){s.remove();},950);
+  }
+
+  function launch(p){
+    if(p.dead) return;
+    p.color=randColor();
+    p.el.style.setProperty('--sc',p.color);
+    p.rf.style.setProperty('--sc',p.color);
+    p.y0=2+Math.random()*64;                 // anywhere in the sky
+    p.dur=900+Math.random()*2300;            // 0.9s–3.2s per crossing, every star different
+    p.ang=Math.atan2(.38*innerHeight,1.2*innerWidth)*180/Math.PI;
+    // if the path reaches the sea, the flight ends there — in a splash
+    p.tEnd=(p.y0+38>HORIZON) ? (HORIZON-p.y0)/38 : 1;
+    p.t0=performance.now();
+    p.lastDot=0;
+    p.flying=true;
+  }
+
+  function finish(p){
+    p.flying=false;
+    p.el.style.opacity=0;
+    p.rf.style.display='none';
+    if(p.tEnd<1){ // it entered the water — faster star, much bigger splash
+      var f=0.6+((3200-p.dur)/2300)*1.5;      // dur 3200ms → 0.6x … dur 900ms → 2.1x
+      splash(-8+120*p.tEnd,p.color,f);
+    }
+    if(!p.dead) p.timer=setTimeout(function(){launch(p);},300+Math.random()*3200);
+  }
+
+  function tick(now){
+    for(var i=0;i<pool.length;i++){
+      var p=pool[i];
+      if(!p.flying) continue;
+      var t=(now-p.t0)/p.dur;
+      if(t>=p.tEnd){finish(p);continue;}
+      var x=-8+120*t, y=p.y0+38*t;
+      var prox=Math.min(1,Math.max(0,(y-46)/(HORIZON-46))); // 0 high in the sky — 1 at the water
+      var fadein=Math.min(1,t/0.07);
+      p.el.style.transform='translate('+x.toFixed(2)+'vw,'+y.toFixed(2)+'vh) rotate('+p.ang.toFixed(1)+'deg)';
+      p.el.style.opacity=fadein.toFixed(2);
+      p.el.style.filter='brightness('+(1+prox*.9).toFixed(2)+')'; // glows harder as it nears the sea
+      if(now-p.lastDot>42){p.lastDot=now;dropDot(x,y,p.color,prox);} // the lingering trail
+      if(y>38){ // low star — reflection, converging on the horizon as the star descends
+        var yr=HORIZON+(HORIZON-y)*0.55;
+        if(yr<HORIZON+0.4) yr=HORIZON+0.4;    // never climbs out of the water
+        p.rf.style.display='block';
+        p.rf.style.transform='translate('+x.toFixed(2)+'vw,'+yr.toFixed(2)+'vh) rotate('+(-p.ang*0.55).toFixed(1)+'deg) scaleY(1.9)';
+        p.rf.style.opacity=((.09+prox*.34)*fadein).toFixed(2);
+      }else{
+        p.rf.style.display='none';
+      }
+    }
+    if(comet.flying){
+      var ct=(now-comet.t0)/comet.dur;
+      if(ct>=1){
+        comet.flying=false;comet.el.style.opacity=0;scheduleComet(false);
+      }else{
+        var cx=-12+124*ct, cy=comet.y0+comet.dy*ct;
+        var cop=Math.min(1,ct/0.12,(1-ct)/0.12); // slowly appears, slowly goes
+        comet.el.style.transform='translate('+cx.toFixed(2)+'vw,'+cy.toFixed(2)+'vh) rotate('+comet.ang.toFixed(1)+'deg)';
+        comet.el.style.opacity=cop.toFixed(2);
+      }
+    }
+    requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+
+  function makeStar(){
+    var el=document.createElement('div');
+    el.className='sstar';
+    el.innerHTML='<span class="tail"></span><span class="head"></span>';
+    skyLayer.appendChild(el);
+    var rf=document.createElement('div');
+    rf.className='srefl';
+    rf.innerHTML='<span class="rtail"></span><span class="rhead"></span>';
+    reflLayer.appendChild(rf);
+    var p={el:el,rf:rf,dead:false,flying:false,timer:null,lastDot:0};
+    p.timer=setTimeout(function(){launch(p);},Math.random()*1500); // staggered first appearance
+    pool.push(p);
+  }
+  function setStars(total){
+    var want=Math.min(8,Math.max(0,total));
+    while(pool.length<want) makeStar();
+    while(pool.length>want){
+      var p=pool.pop();p.dead=true;p.flying=false;clearTimeout(p.timer);
+      p.el.remove();p.rf.remove();
+    }
+  }
+  setStars(2); // calm baseline sky
+
+  function fireBursts(){
+    bursts.forEach(function(b,idx){
+      var ang=(Math.random()*360)*Math.PI/180, d=40+Math.random()*30;
+      b.style.setProperty('--bt','translate('+Math.cos(ang)*d+'px,'+Math.sin(ang)*d+'px)');
+      b.classList.remove('go'); void b.offsetWidth; b.classList.add('go');
+    });
+  }
+  function say(txt){bubble.textContent=txt;bubble.classList.remove('show');void bubble.offsetWidth;bubble.classList.add('show');}
+
+  ufo.addEventListener('click',function(){
+    if(busy && count<10) return;
+    count++;
+    setStars(Math.pow(2,count)); // 2 → 4 → 8, capped at 8
+    clearTimeout(resetTimer);
+    resetTimer=setTimeout(function(){count=0;setStars(2);},4000); // idle resets the streak
+
+    if(count>=10){
+      // TIER 3 — the payoff
+      busy=true;
+      ufo.classList.remove('spin','spinfast');void ufo.offsetWidth;ufo.classList.add('spinfast');
+      fireBursts();
+      fleet.classList.remove('go');void fleet.offsetWidth;fleet.classList.add('go');
+      // aliens march in and assemble into the Greek flag
+      flag.classList.remove('go','bye');void flag.offsetWidth;flag.classList.add('go');
+      setTimeout(function(){reward.classList.remove('show');void reward.offsetWidth;reward.classList.add('show');},2600);
+      setTimeout(function(){flag.classList.add('bye');},5800);
+      setTimeout(function(){flag.classList.remove('go','bye');busy=false;count=0;setStars(2);},7000);
+      return;
+    }
+    busy=true;
+    if(count>=5){
+      // TIER 2 — excited
+      ufo.classList.remove('spin','spinfast');void ufo.offsetWidth;ufo.classList.add('spinfast');
+      fireBursts();
+      say(excited[Math.floor(Math.random()*excited.length)]);
+      setTimeout(function(){busy=false;},1000);
+    }else{
+      // TIER 1 — happy greeting
+      ufo.classList.remove('spin','spinfast');void ufo.offsetWidth;ufo.classList.add('spin');
+      say(greet[Math.floor(Math.random()*greet.length)]);
+      setTimeout(function(){busy=false;},1400);
+    }
+  });
+})();
+</script>
+</body>
+</html>

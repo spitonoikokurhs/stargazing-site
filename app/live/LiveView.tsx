@@ -8,6 +8,8 @@ import {
   type OfflinePayload,
   type DisplayObject,
 } from '@/lib/live-status'
+import { pickFarewellVariant, formatNextSessionLabel } from '@/lib/live-farewell'
+import { FarewellAegeanUfo } from './FarewellAegeanUfo'
 import {
   pickFlavor,
   hotelDisplayName,
@@ -84,7 +86,13 @@ type StatusDegraded = {
 // (and finished?: false on the other two variants) is what lets TypeScript
 // narrow body.finished/body.degraded safely across the whole union below,
 // the same pattern StatusOffline already uses for degraded.
-type StatusFinished = { live: false; finished: true; degraded?: false }
+type StatusFinished = {
+  live: false
+  finished: true
+  degraded?: false
+  date: string
+  next: OfflinePayload['next']
+}
 type StatusResponse = StatusLive | StatusOffline | StatusDegraded | StatusFinished
 
 function isObject(v: unknown): v is Record<string, unknown> {
@@ -166,7 +174,7 @@ function isOfflineStatus(v: Record<string, unknown>): v is StatusOffline {
 }
 
 function isFinishedStatus(v: Record<string, unknown>): v is StatusFinished {
-  return v.live === false && v.finished === true
+  return v.live === false && v.finished === true && isString(v.date) && isNextInfo(v.next)
 }
 
 function isStatusResponse(v: unknown): v is StatusResponse {
@@ -370,7 +378,13 @@ function getDemoStatusBody(): StatusResponse | null {
   // live:true) — handled first and separately so the rest of this function
   // can stay focused on constructing StatusLive bodies.
   if (mode === 'finished') {
-    return { live: false, finished: true }
+    const today = new Date().toISOString().slice(0, 10)
+    return {
+      live: false,
+      finished: true,
+      date: today,
+      next: { date: today, hotelId: 'demo-hotel', start: '21:30', end: '23:00' },
+    }
   }
 
   const knownKey = mode === 'known' ? 'known-nebula' : mode
@@ -498,7 +512,7 @@ export default function LiveView() {
           // server's own ordering. This must win even if the client were
           // somehow mid-way through rendering a fresh "live" frame; a
           // deliberate finish always overrides.
-          dispatch({ type: 'POLL_FINISHED' })
+          dispatch({ type: 'POLL_FINISHED', payload: { date: body.date, next: body.next } })
         } else if (body.live === false && body.degraded === true) {
           dispatch({ type: 'POLL_DEGRADED' })
         } else if (body.live === false) {
@@ -717,18 +731,22 @@ function LiveViewPresentation({ state }: { state: LiveStatusState }) {
 
   // Checked early, ahead of degraded/offline/live — matches the reducer's
   // own "wins from any state" handling of POLL_FINISHED (see
-  // lib/live-status.ts). Deliberately its own distinct farewell copy/tone,
-  // NOT reused from offline-event-tonight or degraded: a stale/quiet feed
-  // must never look like this, only the explicit /api/finish flag does, so
-  // guests need a visibly different screen to trust the difference.
-  if (uiState === 'finished') {
-    return (
-      <StatusScreen
-        heading="That's a wrap for tonight"
-        sub="Thanks for stargazing with us — see you at the next session."
-        tone="finished"
-      />
-    )
+  // lib/live-status.ts). Renders its own full-screen farewell scene rather
+  // than StatusScreen: FarewellAegeanUfo is a self-contained stage with its
+  // own heading/sub/background, so nesting it inside StatusScreen's steady
+  // block would duplicate/conflict with that scene rather than complement
+  // it. Variant is picked once per event night (seeded on the Athens
+  // calendar date from /api/status, NOT per page-load) so every guest phone
+  // and the lobby TV show the same closer tonight — see lib/live-farewell.ts
+  // for how a 2nd/3rd variant slots into pickFarewellVariant's registry.
+  if (uiState === 'finished' && state.finishedInfo) {
+    const variant = pickFarewellVariant(state.finishedInfo.date)
+    const nextSessionLabel = formatNextSessionLabel(state.finishedInfo.next)
+    switch (variant) {
+      case 'aegean-ufo':
+      default:
+        return <FarewellAegeanUfo nextSessionLabel={nextSessionLabel} />
+    }
   }
 
   if (uiState === 'degraded') {

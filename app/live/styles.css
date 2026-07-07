@@ -1204,3 +1204,1204 @@
     animation: none;
   }
 }
+
+/* ===========================================================================
+   Farewell animation (finished state) — ported from docs/ufo-escalatev1.html.
+   Class names are prefixed farewell- throughout (the prototype's bare names
+   like .card/.sea/.stars would collide with unrelated rules already in this
+   file). Behavior/design preserved as-is; the one deliberate change from the
+   prototype is height: 100vh -> 100dvh below, for the same iOS Safari
+   toolbar reason as .live-root--fullscreen earlier in this file — the
+   prototype's plain 100vh would get cut off behind Safari's address bar.
+   =========================================================================== */
+.farewell-stage {
+  position: relative;
+  width: 100%;
+  height: 100vh;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background: #0a0a0f;
+}
+
+.farewell-stars {
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(1px 1px at 20% 24%, rgba(255, 255, 255, 0.5), transparent),
+    radial-gradient(1px 1px at 70% 16%, rgba(255, 255, 255, 0.4), transparent),
+    radial-gradient(1px 1px at 40% 40%, rgba(255, 255, 255, 0.5), transparent),
+    radial-gradient(1px 1px at 85% 30%, rgba(255, 255, 255, 0.35), transparent),
+    radial-gradient(1px 1px at 15% 46%, rgba(255, 255, 255, 0.45), transparent),
+    radial-gradient(1px 1px at 55% 22%, rgba(255, 255, 255, 0.3), transparent),
+    radial-gradient(1px 1px at 90% 44%, rgba(255, 255, 255, 0.4), transparent),
+    radial-gradient(1px 1px at 30% 12%, rgba(255, 255, 255, 0.35), transparent);
+}
+
+/* Newtonian stars: diffraction spikes + glowing core, real stellar colors, twinkle. */
+.farewell-bgstars {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.farewell-bgstar {
+  position: absolute;
+  width: var(--s);
+  height: var(--s);
+  margin-left: calc(var(--s) / -2);
+  margin-top: calc(var(--s) / -2);
+  background: radial-gradient(circle, #fff 0 0.8px, var(--sc, #fff) 1.6px, transparent 3.4px);
+  animation: farewell-twinkle var(--td, 3s) ease-in-out infinite;
+  animation-delay: var(--tl, 0s);
+}
+
+.farewell-bgstar::before {
+  content: '';
+  position: absolute;
+  /* Spikes overhang the star's own box by 15% on each side (diffraction
+     spikes read as "spiky" mainly by how far past the glowing core they
+     reach) rather than stopping exactly at its edge. */
+  left: -15%;
+  right: -15%;
+  top: 50%;
+  height: 1px;
+  margin-top: -0.5px;
+  opacity: 0.92;
+  background: linear-gradient(to right, transparent, var(--sc, #fff), transparent);
+}
+
+.farewell-bgstar::after {
+  content: '';
+  position: absolute;
+  top: -15%;
+  bottom: -15%;
+  left: 50%;
+  width: 1px;
+  margin-left: -0.5px;
+  opacity: 0.92;
+  background: linear-gradient(to bottom, transparent, var(--sc, #fff), transparent);
+}
+
+@keyframes farewell-twinkle {
+  0%,
+  100% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+/* The comet: a slow reward for patient watchers. Green C2 coma, pale-yellow
+   dust tail, blue ion tail — matches real comet anatomy. */
+.farewell-comet {
+  position: absolute;
+  left: 0;
+  top: 0;
+  opacity: 0;
+  pointer-events: none;
+  will-change: transform;
+}
+
+.farewell-comet-tail {
+  position: absolute;
+  right: 2px;
+  top: -2.5px;
+  width: 230px;
+  height: 5px;
+  border-radius: 5px;
+  filter: blur(2.2px);
+  background: linear-gradient(to right, rgba(255, 248, 225, 0), rgba(255, 246, 220, 0.4) 55%, rgba(255, 252, 240, 0.9));
+}
+
+.farewell-comet-tail2 {
+  position: absolute;
+  right: 0;
+  top: -1px;
+  width: 150px;
+  height: 2px;
+  filter: blur(1px);
+  transform: rotate(4deg);
+  transform-origin: right center;
+  background: linear-gradient(to right, rgba(120, 190, 255, 0), rgba(140, 205, 255, 0.85));
+}
+
+.farewell-comet-head {
+  position: absolute;
+  left: -4.5px;
+  top: -4.5px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #f2fff9;
+  box-shadow: 0 0 7px 4px rgba(140, 240, 190, 0.85), 0 0 20px 10px rgba(120, 230, 180, 0.3);
+}
+
+/* JS-driven shooting stars: glowing core + tail, lingering trail, sea reflection & splash. */
+.farewell-skyLayer,
+.farewell-reflLayer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.farewell-reflLayer {
+  z-index: 1;
+}
+
+.farewell-sstar {
+  position: absolute;
+  left: 0;
+  top: 0;
+  opacity: 0;
+  will-change: transform;
+}
+
+.farewell-sstar-tail {
+  position: absolute;
+  right: 0;
+  top: -1px;
+  width: 110px;
+  height: 2px;
+  border-radius: 2px;
+  background: linear-gradient(to right, rgba(255, 255, 255, 0), var(--sc, #fff));
+}
+
+.farewell-sstar-head {
+  position: absolute;
+  left: -3.5px;
+  top: -3.5px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 6px 2px var(--sc, #fff), 0 0 16px 5px rgba(255, 255, 255, 0.25);
+}
+
+.farewell-tdot {
+  position: absolute;
+  left: -1.5px;
+  top: -1.5px;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: var(--sc, #fff);
+  filter: blur(1px);
+  animation: farewell-tfade 0.6s linear forwards;
+}
+
+@keyframes farewell-tfade {
+  to {
+    opacity: 0;
+  }
+}
+
+.farewell-srefl {
+  position: absolute;
+  left: 0;
+  top: 0;
+  opacity: 0;
+  display: none;
+  will-change: transform;
+  filter: blur(2.6px);
+}
+
+.farewell-srefl-tail {
+  position: absolute;
+  right: 0;
+  top: -1.5px;
+  width: 80px;
+  height: 3px;
+  border-radius: 3px;
+  filter: blur(2px);
+  background: linear-gradient(to right, rgba(255, 255, 255, 0), var(--sc, #fff));
+}
+
+.farewell-srefl-head {
+  position: absolute;
+  left: -4px;
+  top: -3px;
+  width: 8px;
+  height: 6px;
+  border-radius: 50%;
+  filter: blur(3.5px);
+  background: var(--sc, #fff);
+}
+
+.farewell-splash {
+  position: absolute;
+  left: 0;
+  top: 0;
+}
+
+.farewell-splash i {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: block;
+}
+
+.farewell-splash-glow {
+  width: 10px;
+  height: 10px;
+  margin: -5px 0 0 -5px;
+  border-radius: 50%;
+  background: var(--sc, #fff);
+  filter: blur(3px);
+  animation: farewell-spglow 0.5s ease-out forwards;
+}
+
+@keyframes farewell-spglow {
+  0% {
+    opacity: 1;
+    transform: scale(1.6);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+}
+
+.farewell-splash-ring {
+  width: 16px;
+  height: 6px;
+  margin: -3px 0 0 -8px;
+  border: 1.5px solid var(--sc, #fff);
+  border-radius: 50%;
+  animation: farewell-spring 0.8s ease-out forwards;
+}
+
+@keyframes farewell-spring {
+  0% {
+    opacity: 0.9;
+    transform: scale(0.4);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(3.4);
+  }
+}
+
+.farewell-splash-d1,
+.farewell-splash-d2,
+.farewell-splash-d3 {
+  width: 3px;
+  height: 3px;
+  margin: -1px 0 0 -1px;
+  border-radius: 50%;
+  background: var(--sc, #fff);
+  animation: farewell-spd 0.55s ease-out forwards;
+}
+
+.farewell-splash-d1 {
+  --dx: -11px;
+}
+
+.farewell-splash-d2 {
+  --dx: 2px;
+  animation-delay: 0.04s;
+}
+
+.farewell-splash-d3 {
+  --dx: 12px;
+  animation-delay: 0.07s;
+}
+
+@keyframes farewell-spd {
+  0% {
+    opacity: 1;
+    transform: translate(0, 0);
+  }
+  60% {
+    opacity: 1;
+    transform: translate(var(--dx), -13px);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--dx), -4px);
+  }
+}
+
+.farewell-sea {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 26vh;
+  background: linear-gradient(to bottom, rgba(20, 34, 54, 0), rgba(18, 40, 60, 0.55) 55%, rgba(14, 32, 50, 0.8));
+  border-top: 1px solid rgba(126, 180, 200, 0.14);
+}
+
+.farewell-shimmer {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 26vh;
+  opacity: 0.5;
+  background-image: linear-gradient(to right, transparent 0%, rgba(150, 210, 230, 0.1) 20%, transparent 40%),
+    linear-gradient(to right, transparent 30%, rgba(150, 210, 230, 0.08) 55%, transparent 75%);
+  animation: farewell-shimmer 9s ease-in-out infinite;
+}
+
+@keyframes farewell-shimmer {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 0.6;
+  }
+}
+
+.farewell-sail {
+  position: absolute;
+  bottom: calc(26vh - 20px);
+  left: 50%;
+  transform: translateX(-140px);
+  opacity: 0.5;
+  animation: farewell-bob 6s ease-in-out infinite;
+}
+
+@keyframes farewell-bob {
+  0%,
+  100% {
+    transform: translateX(-140px) translateY(0) rotate(-1deg);
+  }
+  50% {
+    transform: translateX(-140px) translateY(-3px) rotate(1deg);
+  }
+}
+
+.farewell-card {
+  position: relative;
+  text-align: center;
+  z-index: 2;
+  margin-bottom: 8vh;
+}
+
+.farewell-ufo-slot {
+  position: relative;
+  height: 150px;
+  width: 240px;
+  margin: 0 auto 6px;
+  transition: transform 0.5s ease;
+}
+
+/* Tap-10 finale: the Greek-flag formation flies in near the top of the
+   stage, right where the UFO normally sits — nudge the whole slot (UFO +
+   its flash/sparks/bursts/bubble, so they all move together) down out of
+   the way for the duration of the finale. See onUfoClick's TAP_TIER_3
+   branch for exactly when this is toggled. */
+.farewell-ufo-slot--finale {
+  transform: translateY(38px);
+}
+
+/* Wraps goodnight/heading/next-session/flavor — hidden for the duration of
+   the tap-10 finale (see onUfoClick's TAP_TIER_3 branch) so the reward
+   message has clean, unobstructed space where this text normally sits,
+   instead of the two overlapping. Fades rather than snapping, both ways. */
+.farewell-card-text {
+  transition: opacity 0.4s ease;
+}
+
+.farewell-card-text--hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.farewell-ufo-unit {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 14px;
+  margin: auto;
+  width: 130px;
+  height: auto;
+  cursor: pointer;
+  transform-origin: 50% 55%;
+  animation: farewell-teleport 7s cubic-bezier(0.5, 0.1, 0.3, 1) infinite;
+  filter: drop-shadow(0 0 12px rgba(126, 224, 196, 0.3));
+  /* The only reaction to a tap should be the spin/bubble animation the click
+     handler triggers — not the browser's default tap-highlight flash or a
+     focus ring (this is a decorative easter egg, not a real interactive
+     control that needs a visible focus state). */
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  user-select: none;
+  outline: none;
+}
+
+.farewell-ufo-unit:focus,
+.farewell-ufo-unit:focus-visible {
+  outline: none;
+}
+
+.farewell-ufo-unit--static {
+  position: static;
+  margin: 0 auto;
+  animation: none;
+  opacity: 1;
+  transform: none;
+}
+
+.farewell-ufo-unit.spin {
+  animation: farewell-spin 1.4s ease-in-out;
+}
+
+.farewell-ufo-unit.spinfast {
+  animation: farewell-spinfast 1s ease-in-out;
+}
+
+@keyframes farewell-teleport {
+  0% {
+    opacity: 0;
+    transform: translateY(-32px) scaleY(0.04) scaleX(1.2);
+  }
+  5% {
+    opacity: 1;
+    transform: translateY(-10px) scaleY(0.4) scaleX(1.12);
+  }
+  9% {
+    opacity: 1;
+    transform: translateY(3px) scaleY(1.08) scaleX(0.95);
+  }
+  12% {
+    opacity: 1;
+    transform: translateY(0) scaleY(1) scaleX(1);
+  }
+  24% {
+    transform: translateY(-10px) rotate(2.5deg);
+  }
+  42% {
+    transform: translateY(0) rotate(-2.5deg);
+  }
+  60% {
+    transform: translateY(-10px) rotate(2.5deg);
+  }
+  72% {
+    opacity: 1;
+    transform: translateY(0) scaleY(1) scaleX(1) rotate(0);
+  }
+  78% {
+    opacity: 1;
+    transform: translateY(-10px) scaleY(0.4) scaleX(1.12);
+  }
+  84% {
+    opacity: 0;
+    transform: translateY(-32px) scaleY(0.04) scaleX(1.2);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-32px) scaleY(0.04) scaleX(1.2);
+  }
+}
+
+@keyframes farewell-spin {
+  0% {
+    transform: translateY(0) rotate(0) scale(1);
+  }
+  50% {
+    transform: translateY(-14px) rotate(360deg) scale(1.1);
+  }
+  100% {
+    transform: translateY(0) rotate(720deg) scale(1);
+  }
+}
+
+@keyframes farewell-spinfast {
+  0% {
+    transform: translateY(0) rotate(0) scale(1);
+  }
+  30% {
+    transform: translateY(-20px) rotate(360deg) scale(1.18);
+  }
+  60% {
+    transform: translateY(-6px) rotate(720deg) scale(1.1);
+  }
+  100% {
+    transform: translateY(0) rotate(1080deg) scale(1);
+  }
+}
+
+.farewell-flash {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  transform: translateX(-50%);
+  width: 5px;
+  height: 150px;
+  border-radius: 5px;
+  background: linear-gradient(to bottom, rgba(126, 224, 196, 0), rgba(190, 255, 240, 1), rgba(126, 224, 196, 0));
+  opacity: 0;
+  filter: blur(0.5px);
+  animation: farewell-flash 7s ease-in-out infinite;
+}
+
+@keyframes farewell-flash {
+  0% {
+    opacity: 0;
+    transform: translateX(-50%) scaleY(0.15) scaleX(1);
+  }
+  3% {
+    opacity: 1;
+    transform: translateX(-50%) scaleY(1) scaleX(2.4);
+  }
+  9% {
+    opacity: 0;
+    transform: translateX(-50%) scaleY(1) scaleX(1);
+  }
+  75% {
+    opacity: 0;
+    transform: translateX(-50%) scaleY(1) scaleX(1);
+  }
+  79% {
+    opacity: 1;
+    transform: translateX(-50%) scaleY(1) scaleX(2.4);
+  }
+  85% {
+    opacity: 0;
+    transform: translateX(-50%) scaleY(0.15) scaleX(1);
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+.farewell-spark {
+  position: absolute;
+  left: 50%;
+  top: 60px;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #bff7ea;
+  opacity: 0;
+}
+
+.farewell-spark--1 {
+  animation: farewell-sp1 7s ease-out infinite;
+}
+.farewell-spark--2 {
+  animation: farewell-sp2 7s ease-out infinite;
+}
+.farewell-spark--3 {
+  animation: farewell-sp3 7s ease-out infinite;
+}
+.farewell-spark--4 {
+  animation: farewell-sp4 7s ease-out infinite;
+}
+.farewell-spark--5 {
+  animation: farewell-sp5 7s ease-out infinite;
+}
+.farewell-spark--6 {
+  animation: farewell-sp6 7s ease-out infinite;
+}
+
+@keyframes farewell-sp1 {
+  0%,
+  4% {
+    opacity: 0;
+    transform: translate(0, 0);
+  }
+  6% {
+    opacity: 1;
+  }
+  14% {
+    opacity: 0;
+    transform: translate(-40px, -24px);
+  }
+  76% {
+    opacity: 0;
+    transform: translate(0, 0);
+  }
+  80% {
+    opacity: 1;
+  }
+  88% {
+    opacity: 0;
+    transform: translate(-40px, -24px);
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes farewell-sp2 {
+  0%,
+  4% {
+    opacity: 0;
+    transform: translate(0, 0);
+  }
+  6% {
+    opacity: 1;
+  }
+  14% {
+    opacity: 0;
+    transform: translate(38px, -30px);
+  }
+  76% {
+    opacity: 0;
+    transform: translate(0, 0);
+  }
+  80% {
+    opacity: 1;
+  }
+  88% {
+    opacity: 0;
+    transform: translate(38px, -30px);
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes farewell-sp3 {
+  0%,
+  4% {
+    opacity: 0;
+    transform: translate(0, 0);
+  }
+  6% {
+    opacity: 1;
+  }
+  14% {
+    opacity: 0;
+    transform: translate(-30px, 22px);
+  }
+  76% {
+    opacity: 0;
+    transform: translate(0, 0);
+  }
+  80% {
+    opacity: 1;
+  }
+  88% {
+    opacity: 0;
+    transform: translate(-30px, 22px);
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes farewell-sp4 {
+  0%,
+  4% {
+    opacity: 0;
+    transform: translate(0, 0);
+  }
+  6% {
+    opacity: 1;
+  }
+  14% {
+    opacity: 0;
+    transform: translate(44px, 18px);
+  }
+  76% {
+    opacity: 0;
+    transform: translate(0, 0);
+  }
+  80% {
+    opacity: 1;
+  }
+  88% {
+    opacity: 0;
+    transform: translate(44px, 18px);
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes farewell-sp5 {
+  0%,
+  4% {
+    opacity: 0;
+    transform: translate(0, 0);
+  }
+  6% {
+    opacity: 1;
+  }
+  14% {
+    opacity: 0;
+    transform: translate(-52px, 4px);
+  }
+  76% {
+    opacity: 0;
+    transform: translate(0, 0);
+  }
+  80% {
+    opacity: 1;
+  }
+  88% {
+    opacity: 0;
+    transform: translate(-52px, 4px);
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes farewell-sp6 {
+  0%,
+  4% {
+    opacity: 0;
+    transform: translate(0, 0);
+  }
+  6% {
+    opacity: 1;
+  }
+  14% {
+    opacity: 0;
+    transform: translate(30px, -8px);
+  }
+  76% {
+    opacity: 0;
+    transform: translate(0, 0);
+  }
+  80% {
+    opacity: 1;
+  }
+  88% {
+    opacity: 0;
+    transform: translate(30px, -8px);
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+/* Burst of extra sparkles on excited taps. */
+.farewell-burst {
+  position: absolute;
+  left: 50%;
+  top: 60px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #f4c775;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.farewell-burst.go {
+  animation: farewell-burst 0.9s ease-out;
+}
+
+@keyframes farewell-burst {
+  0% {
+    opacity: 1;
+    transform: translate(0, 0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: var(--bt) scale(0.3);
+  }
+}
+
+.farewell-arm {
+  transform-origin: 78px 40px;
+  animation: farewell-armwave 7s ease-in-out infinite;
+}
+
+@keyframes farewell-armwave {
+  0%,
+  15% {
+    transform: rotate(60deg);
+  }
+  19% {
+    transform: rotate(-28deg);
+  }
+  24% {
+    transform: rotate(8deg);
+  }
+  30% {
+    transform: rotate(-28deg);
+  }
+  36% {
+    transform: rotate(8deg);
+  }
+  42% {
+    transform: rotate(-28deg);
+  }
+  48% {
+    transform: rotate(8deg);
+  }
+  54% {
+    transform: rotate(-28deg);
+  }
+  60% {
+    transform: rotate(8deg);
+  }
+  66% {
+    transform: rotate(-20deg);
+  }
+  72%,
+  100% {
+    transform: rotate(60deg);
+  }
+}
+
+.farewell-goodnight {
+  position: relative;
+  height: 34px;
+}
+
+.farewell-goodnight-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  opacity: 0;
+  display: none;
+  animation: farewell-gnfade 7s ease-in-out infinite;
+}
+
+.farewell-goodnight-line.is-active {
+  display: block;
+}
+
+.farewell-goodnight-text {
+  display: block;
+  color: #edeae3;
+  font-size: 23px;
+  letter-spacing: 1px;
+  font-weight: 400;
+}
+
+.farewell-goodnight-static {
+  color: #edeae3;
+  font-size: 23px;
+  letter-spacing: 1px;
+  font-weight: 400;
+  margin: 8px 0 0;
+}
+
+@keyframes farewell-gnfade {
+  0%,
+  16% {
+    opacity: 0;
+  }
+  24% {
+    opacity: 1;
+  }
+  66% {
+    opacity: 1;
+  }
+  72%,
+  100% {
+    opacity: 0;
+  }
+}
+
+.farewell-bubble {
+  position: absolute;
+  left: 50%;
+  top: -24px;
+  transform: translateX(-50%) scale(0.4);
+  opacity: 0;
+  color: #bff7ea;
+  font-size: 16px;
+  white-space: nowrap;
+  pointer-events: none;
+  text-shadow: 0 0 8px rgba(126, 224, 196, 0.6);
+}
+
+.farewell-bubble.show {
+  animation: farewell-pop 1.8s ease-out;
+}
+
+@keyframes farewell-pop {
+  0% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-2px) scale(0.4);
+  }
+  20% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(-12px) scale(1.1);
+  }
+  35% {
+    transform: translateX(-50%) translateY(-14px) scale(1);
+  }
+  80% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(-26px) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-40px) scale(1);
+  }
+}
+
+/* The tier-3 fleet flyby. */
+.farewell-fleet {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 5;
+}
+
+.farewell-mini {
+  position: absolute;
+  font-size: 26px;
+  opacity: 0;
+}
+
+.farewell-fleet.go .farewell-mini {
+  animation: farewell-fly 2.6s ease-in-out;
+}
+
+.farewell-fleet.go .farewell-mini--1 {
+  animation-delay: 0s;
+}
+.farewell-fleet.go .farewell-mini--2 {
+  animation-delay: 0.18s;
+}
+.farewell-fleet.go .farewell-mini--3 {
+  animation-delay: 0.36s;
+}
+.farewell-fleet.go .farewell-mini--4 {
+  animation-delay: 0.54s;
+}
+.farewell-fleet.go .farewell-mini--5 {
+  animation-delay: 0.72s;
+}
+
+@keyframes farewell-fly {
+  0% {
+    opacity: 0;
+    left: -12%;
+    top: 30%;
+  }
+  10% {
+    opacity: 1;
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    left: 110%;
+    top: 22%;
+  }
+}
+
+/* Tier-3 alien formation — the Greek flag. */
+.farewell-flag {
+  position: absolute;
+  left: 50%;
+  top: 5%;
+  transform: translateX(-50%);
+  z-index: 6;
+  pointer-events: none;
+  width: min(70vw, 360px);
+  display: none;
+  grid-template-columns: repeat(13, 1fr);
+  gap: 2px;
+  filter: drop-shadow(0 0 18px rgba(59, 130, 208, 0.5));
+}
+
+.farewell-flag.go {
+  display: grid;
+}
+
+.farewell-flag-cell {
+  opacity: 0;
+  border-radius: 2.5px;
+  padding: 1px;
+}
+
+.farewell-flag-cell.is-blue {
+  background: linear-gradient(#2f7fd8, #1b5cae);
+}
+
+.farewell-flag-cell.is-white {
+  background: linear-gradient(#ffffff, #dde5ee);
+}
+
+.farewell-flag-cell svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.farewell-flag-stepper {
+  display: block;
+  animation: farewell-stepbob 0.55s ease-in-out infinite;
+  animation-delay: var(--d);
+}
+
+.farewell-flag.go .farewell-flag-cell {
+  animation: farewell-marchin 1.15s cubic-bezier(0.3, 0.85, 0.4, 1) forwards;
+  animation-delay: var(--d);
+}
+
+.farewell-flag.bye .farewell-flag-cell {
+  animation: farewell-flyoff 0.8s ease-in forwards;
+  animation-delay: var(--e);
+}
+
+@keyframes farewell-marchin {
+  0% {
+    opacity: 0;
+    transform: translateX(-70vw);
+  }
+  12% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes farewell-stepbob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-2.5px);
+  }
+}
+
+@keyframes farewell-flyoff {
+  0% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-46px) scale(0.5);
+  }
+}
+
+/* The warm reward message. */
+.farewell-reward {
+  position: absolute;
+  left: 0;
+  right: 0;
+  /* 15% lower than the original 42% (42 * 1.15 ~= 48.3), so it sits further
+     down the now-cleared card-text space instead of crowding just under the
+     flag/UFO. */
+  top: 48.3%;
+  text-align: center;
+  z-index: 6;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.farewell-reward.show {
+  animation: farewell-reward 4.5s ease-in-out;
+}
+
+/* Full-tier finale only: the reward appears alongside the flag and must stay
+   up for its whole extended hold (see the ~9s hold in the tap handler's
+   TAP_TIER_3 branch) instead of the shorter reduced-tier-only 4.5s life —
+   otherwise it would fade out and leave a blank gap well before the flag
+   scatters. Same keyframe shape as farewell-reward, just stretched to match. */
+.farewell-reward.show.farewell-reward--long {
+  animation: farewell-reward-long 9.9s ease-in-out;
+}
+
+@keyframes farewell-reward-long {
+  0% {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  6% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  92% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+.farewell-reward-big {
+  display: block;
+  color: #edeae3;
+  font-size: 22px;
+  letter-spacing: 0.4px;
+}
+
+.farewell-reward-small {
+  display: block;
+  color: #7ee0c4;
+  font-size: 14px;
+  margin-top: 6px;
+  letter-spacing: 1px;
+}
+
+@keyframes farewell-reward {
+  0% {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  12% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  85% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+.farewell-heading {
+  color: #edeae3;
+  font-size: 25px;
+  font-weight: 400;
+  margin: 14px 0 6px;
+  letter-spacing: 0.3px;
+}
+
+.farewell-sub {
+  color: #a8a6a0;
+  font-size: 15px;
+  margin: 0;
+}
+
+.farewell-flavor {
+  color: #8f8d87;
+  font-size: 15px;
+  font-style: italic;
+  margin-top: 20px;
+  line-height: 1.5;
+}
+
+.farewell-caption {
+  position: absolute;
+  bottom: 8px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  color: #44433f;
+  font-size: 12px;
+  z-index: 3;
+}
+
+/* Static tier (prefers-reduced-motion): no keyframe animation on the UFO or
+   the sparkle/flash effects around it — those elements simply aren't
+   rendered in this tier (see FarewellAegeanUfo.tsx's 'static' branch), so
+   there is little extra CSS needed here beyond .farewell-ufo-unit--static
+   and .farewell-goodnight-static above. The sea/shimmer/sail/background
+   star-dot texture are all plain CSS with their own animations — shimmer's
+   gentle opacity pulse and the sail's slow bob are subtle enough to leave
+   running even in the static tier (matching how .red-dot's pulse etc. are
+   handled elsewhere on /live), but disabled below for guests who've
+   explicitly asked for no motion at all, same as .fullscreen-image--animating.  */
+@media (prefers-reduced-motion: reduce) {
+  .farewell-shimmer,
+  .farewell-sail {
+    animation: none;
+  }
+}

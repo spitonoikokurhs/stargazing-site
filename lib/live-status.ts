@@ -56,6 +56,14 @@ export type TonightInfo = { hotelId: string; start: string; end: string; cancell
 export type NextInfo = { date: string; hotelId: string; start: string; end: string }
 export type OfflinePayload = { tonight: TonightInfo | null; next: NextInfo | null }
 
+// Carried alongside the 'finished' uiState — date is the deterministic seed
+// every viewer uses to independently pick the SAME farewell animation
+// variant for tonight (see lib/live-farewell.ts); next is the same
+// next-session lookup the offline state already uses, so the farewell
+// screen's "Next session: Monday, 21:30" line is never a second source of
+// truth. Both come straight through from /api/status's finished response.
+export type FinishedInfo = { date: string; next: NextInfo | null }
+
 export type LiveStatusState = {
   uiState: UiState
   lastLiveFrame: LiveFrame | null
@@ -63,6 +71,7 @@ export type LiveStatusState = {
   lastLiveStatusAt: number | null // last time a live:true payload was actually confirmed live (image loaded)
   consecutiveFailures: number
   lastOfflinePayload: OfflinePayload | null
+  finishedInfo: FinishedInfo | null
 }
 
 export const initialLiveStatusState: LiveStatusState = {
@@ -72,6 +81,7 @@ export const initialLiveStatusState: LiveStatusState = {
   lastLiveStatusAt: null,
   consecutiveFailures: 0,
   lastOfflinePayload: null,
+  finishedInfo: null,
 }
 
 // Only the fields the reducer needs from a raw /api/status "live" body.
@@ -91,7 +101,7 @@ export type LiveStatusEvent =
   | { type: 'POLL_DEGRADED' }
   | { type: 'POLL_FAILED' }
   | { type: 'RECONNECT_TIMEOUT' }
-  | { type: 'POLL_FINISHED' }
+  | { type: 'POLL_FINISHED'; payload: FinishedInfo }
 // FOCUS_VISIBLE / HIDDEN are not reducer events: per the transition table both
 // are "any state -> same state" (HIDDEN also stops the poll scheduler, and
 // FOCUS_VISIBLE triggers an immediate poll) — i.e. they never change uiState
@@ -168,7 +178,7 @@ export function liveStatusReducer(state: LiveStatusState, event: LiveStatusEvent
       // quiet feed alone must NEVER produce this state (that's reconnecting/
       // degraded's job), only a deliberate POST to /api/finish does, so once
       // that signal arrives it must override everything else unconditionally.
-      return { ...state, uiState: 'finished', lastStatusAt: now, consecutiveFailures: 0 }
+      return { ...state, uiState: 'finished', lastStatusAt: now, consecutiveFailures: 0, finishedInfo: event.payload }
     }
 
     case 'POLL_DEGRADED': {

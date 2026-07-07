@@ -121,6 +121,17 @@ body:has(.status-root) .cookie-consent-banner {
   position: fixed;
 }
 
+/* The finished/farewell screen (FarewellAegeanUfo) is a full-screen takeover
+   with its own dark scene and its own copy about the session ending — the
+   cookie banner has no visual room here and breaks the illusion of a clean
+   closing screen. Fully hidden, not just repositioned like the rule above:
+   consent can still be granted/rejected the next time a guest lands on a
+   non-immersive page, so this is a display concession, not a compliance
+   change (see .live-root/.status-root's cases above, which still show it). */
+body:has(.farewell-stage) .cookie-consent-banner {
+  display: none;
+}
+
 @media (max-width: 760px) {
   .cookie-consent-banner {
     left: 12px;
