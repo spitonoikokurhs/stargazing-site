@@ -16,19 +16,15 @@
   .hud.top{top:18px;} .hud.bottom{bottom:16px;}
   .title{font-size:13px;letter-spacing:3px;text-transform:uppercase;color:#8fa3b8;opacity:.85;}
   .hint{margin-top:6px;font-size:12px;color:#6b7d90;opacity:.9;text-align:center;padding:0 12px;}
-  #enterVR{
-    pointer-events:auto;margin-top:14px;
-    background:rgba(226,96,76,.16);color:#f0b6aa;
-    border:1px solid rgba(226,96,76,.5);border-radius:10px;
-    padding:12px 26px;font-size:14px;letter-spacing:2px;text-transform:uppercase;cursor:pointer;
-  }
+  #enterVR{pointer-events:auto;margin-top:14px;background:rgba(226,96,76,.16);color:#f0b6aa;
+    border:1px solid rgba(226,96,76,.5);border-radius:10px;padding:12px 26px;font-size:14px;
+    letter-spacing:2px;text-transform:uppercase;cursor:pointer;}
   #enterVR:disabled{opacity:.4;cursor:default;}
-  .panel{pointer-events:auto;background:rgba(10,16,24,.72);
-    border:1px solid rgba(120,150,180,.18);border-radius:12px;padding:10px 16px;
-    display:flex;align-items:center;gap:14px;flex-wrap:wrap;justify-content:center;
-    backdrop-filter:blur(6px);max-width:92vw;}
+  .panel{pointer-events:auto;background:rgba(10,16,24,.72);border:1px solid rgba(120,150,180,.18);
+    border-radius:12px;padding:10px 16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+    justify-content:center;backdrop-filter:blur(6px);max-width:94vw;}
   .panel label{font-size:12px;color:#9fb2c5;white-space:nowrap;}
-  .panel input[type=range]{width:120px;accent-color:#e2604c;}
+  .panel input[type=range]{width:110px;accent-color:#e2604c;}
   .panel .val{font-size:12px;color:#e2604c;width:46px;text-align:right;font-variant-numeric:tabular-nums;}
   .panel button{pointer-events:auto;background:rgba(226,96,76,.12);color:#e8a294;
     border:1px solid rgba(226,96,76,.35);border-radius:8px;padding:6px 12px;font-size:12px;cursor:pointer;}
@@ -47,11 +43,13 @@
 
 <div class="hud bottom">
   <div class="panel">
-    <label>Relief depth</label>
-    <input type="range" id="relief" min="0" max="100" value="35">
-    <div class="val" id="reliefVal">0.28&nbsp;m</div>
-    <label style="margin-left:6px">Stars fwd</label>
-    <input type="range" id="starz" min="0" max="100" value="50">
+    <label>Relief</label>
+    <input type="range" id="relief" min="0" max="100" value="25">
+    <div class="val" id="reliefVal">0.20&nbsp;m</div>
+    <label style="margin-left:4px">Stars fwd</label>
+    <input type="range" id="starz" min="0" max="100" value="55">
+    <label style="margin-left:4px">Wrap</label>
+    <input type="range" id="wrap" min="0" max="100" value="60">
     <button id="starsBtn">Stars: ON</button>
   </div>
 </div>
@@ -69,7 +67,7 @@ window.addEventListener('load', function(){
     frameCanvas.width=IW; frameCanvas.height=IH;
     frameCanvas.getContext('2d').drawImage(srcImg,0,0);
 
-    // depth map
+    // ---- depth map: downsample -> luminance ----
     var DW=256, DH=Math.round(256/ASPECT);
     var dCanvas=document.createElement('canvas'); dCanvas.width=DW; dCanvas.height=DH;
     var dctx=dCanvas.getContext('2d'); dctx.drawImage(frameCanvas,0,0,DW,DH);
@@ -77,13 +75,14 @@ window.addEventListener('load', function(){
     var lum=new Float32Array(DW*DH);
     for(var i=0;i<DW*DH;i++) lum[i]=(dd[i*4]*0.35+dd[i*4+1]*0.5+dd[i*4+2]*0.15)/255;
 
+    // star detection on SHARP luminance
     var stars=[];
     for(var y=2;y<DH-2;y++)for(var x=2;x<DW-2;x++){
       var L=lum[y*DW+x];
       if(L>0.5 && L>lum[y*DW+x-1]&&L>lum[y*DW+x+1]&&L>lum[(y-1)*DW+x]&&L>lum[(y+1)*DW+x]
          &&L>lum[y*DW+x-2]+0.02&&L>lum[y*DW+x+2]+0.02) stars.push({x:x/DW,y:y/DH,b:L});
     }
-    stars.sort(function(a,b){return b.b-a.b;}); stars=stars.slice(0,220);
+    stars.sort(function(a,b){return b.b-a.b;}); stars=stars.slice(0,200);
 
     function boxBlur(src,w,h,r){var tmp=new Float32Array(w*h),out=new Float32Array(w*h),n=1/(2*r+1),k;
       for(var yy=0;yy<h;yy++){var a=0;for(k=-r;k<=r;k++)a+=src[yy*w+Math.min(w-1,Math.max(0,k))];
@@ -91,16 +90,26 @@ window.addEventListener('load', function(){
       for(var xx2=0;xx2<w;xx2++){var a2=0;for(k=-r;k<=r;k++)a2+=tmp[Math.min(h-1,Math.max(0,k))*w+xx2];
         for(var yy2=0;yy2<h;yy2++){out[yy2*w+xx2]=a2*n;a2+=tmp[Math.min(h-1,yy2+r+1)*w+xx2]-tmp[Math.max(0,yy2-r)*w+xx2];}}
       return out;}
-    var blur=boxBlur(boxBlur(lum,DW,DH,5),DW,DH,5);
+    // HEAVY blur so the core is a broad mound, not a spike
+    var blur=boxBlur(boxBlur(boxBlur(lum,DW,DH,8),DW,DH,8),DW,DH,8);
+
+    // normalize + COMPRESS highlights (kills the core "nipple")
+    var mx=0; for(var m=0;m<DW*DH;m++) if(blur[m]>mx) mx=blur[m];
+    var T=0.45, K=0.35;                 // soft knee: everything above T is compressed
+    var maxAfter=T+(1-T)*K, gain=1/maxAfter;
     var depthCanvas=document.createElement('canvas'); depthCanvas.width=DW; depthCanvas.height=DH;
     var dc2=depthCanvas.getContext('2d'); var out=dc2.createImageData(DW,DH);
-    for(var j=0;j<DW*DH;j++){var g=Math.min(255,blur[j]*255*1.7);
-      out.data[j*4]=g;out.data[j*4+1]=g;out.data[j*4+2]=g;out.data[j*4+3]=255;}
+    for(var j=0;j<DW*DH;j++){
+      var d=mx>0?blur[j]/mx:0;
+      if(d>T) d=T+(d-T)*K;
+      var g=Math.min(255,d*gain*255);
+      out.data[j*4]=g;out.data[j*4+1]=g;out.data[j*4+2]=g;out.data[j*4+3]=255;
+    }
     dc2.putImageData(out,0,0);
 
-    // renderer + XR
+    // ---- scene + XR ----
     var scene=new THREE.Scene(); scene.background=new THREE.Color(0x000000);
-    var camera=new THREE.PerspectiveCamera(55,innerWidth/innerHeight,0.05,200);
+    var camera=new THREE.PerspectiveCamera(60,innerWidth/innerHeight,0.05,200);
     camera.position.set(0,1.5,0);
     var renderer=new THREE.WebGLRenderer({antialias:true});
     renderer.setPixelRatio(Math.min(devicePixelRatio,2));
@@ -109,8 +118,8 @@ window.addEventListener('load', function(){
     try{ renderer.xr.setReferenceSpaceType('local-floor'); }catch(e){}
     document.getElementById('scene').appendChild(renderer.domElement);
 
-    // background void stars (centered near viewer)
-    (function(){var g=new THREE.BufferGeometry(),N=1600,p=new Float32Array(N*3),sz=new Float32Array(N);
+    // surrounding void stars
+    (function(){var g=new THREE.BufferGeometry(),N=1800,p=new Float32Array(N*3),sz=new Float32Array(N);
       for(var i=0;i<N;i++){var th=Math.random()*6.2832,ph=Math.acos(2*Math.random()-1),R=70;
         p[i*3]=R*Math.sin(ph)*Math.cos(th);p[i*3+1]=1.5+R*Math.cos(ph);p[i*3+2]=R*Math.sin(ph)*Math.sin(th);
         sz[i]=0.4+Math.pow(Math.random(),3)*1.8;}
@@ -121,30 +130,53 @@ window.addEventListener('load', function(){
         fragmentShader:'void main(){vec2 c=gl_PointCoord-0.5;gl_FragColor=vec4(0.7,0.75,0.85,smoothstep(0.5,0.05,length(c))*0.4);}'})));
     })();
 
-    // ---- WORLD-ANCHORED object group: 3m ahead, eye height ----
-    var group=new THREE.Group();
-    group.position.set(0,1.5,-3);
-    scene.add(group);
+    // ---- world-anchored group, 3 m ahead, eye height ----
+    var DIST=3.0;
+    var group=new THREE.Group(); group.position.set(0,1.5,-DIST); scene.add(group);
 
-    var PW=3.2, PH=PW/ASPECT;
+    // BIG panel; curve baked into geometry (shallow bowl) -> wraps into periphery, no flat edge
+    var PW=6.0, PH=PW/ASPECT;
+    var segX=200, segY=Math.max(60,Math.round(200/ASPECT));
+    var nebGeo=new THREE.PlaneGeometry(PW,PH,segX,segY);
+    var basePos=nebGeo.attributes.position.array.slice(0); // keep flat copy for wrap slider
+    var Rc=DIST; // sphere radius = viewing distance
+    function applyWrap(frac){
+      var pos=nebGeo.attributes.position.array;
+      for(var i=0;i<basePos.length;i+=3){
+        var x=basePos[i], yv=basePos[i+1];
+        var nx=(x/Rc)*frac, ny=(yv/Rc)*frac;
+        // blend flat<->spherical by frac
+        var sx=Rc*Math.sin(nx), sy=Rc*Math.sin(ny), sz=Rc*(Math.cos(nx)*Math.cos(ny)-1);
+        pos[i]   = x*(1-frac)+sx*frac;
+        pos[i+1] = yv*(1-frac)+sy*frac;
+        pos[i+2] = sz;
+      }
+      nebGeo.attributes.position.needsUpdate=true;
+      nebGeo.computeVertexNormals();
+    }
+    applyWrap(0.6);
+
     var frameTex=new THREE.CanvasTexture(frameCanvas), depthTex=new THREE.CanvasTexture(depthCanvas);
     frameTex.minFilter=THREE.LinearFilter; depthTex.minFilter=THREE.LinearFilter;
     if(THREE.SRGBColorSpace) frameTex.colorSpace=THREE.SRGBColorSpace;
 
-    var uni={uMap:{value:frameTex},uDepth:{value:depthTex},uScale:{value:0.28}};
-    var nebGeo=new THREE.PlaneGeometry(PW,PH,220,Math.round(220/ASPECT));
-    var neb=new THREE.Mesh(nebGeo,new THREE.ShaderMaterial({uniforms:uni,
+    var uni={uMap:{value:frameTex},uDepth:{value:depthTex},uScale:{value:0.20}};
+    var neb=new THREE.Mesh(nebGeo,new THREE.ShaderMaterial({uniforms:uni,transparent:true,
       vertexShader:'uniform sampler2D uDepth;uniform float uScale;varying vec2 vUv;'+
-        'void main(){vUv=uv;float d=texture2D(uDepth,uv).r;vec3 p=position+normal*d*uScale;'+
-        'gl_Position=projectionMatrix*modelViewMatrix*vec4(p,1.0);}',
+        'void main(){vUv=uv;float d=texture2D(uDepth,uv).r;'+
+        'vec3 p=position+normal*d*uScale;gl_Position=projectionMatrix*modelViewMatrix*vec4(p,1.0);}',
       fragmentShader:'uniform sampler2D uMap;varying vec2 vUv;'+
-        'void main(){vec4 c=texture2D(uMap,vUv);gl_FragColor=vec4(c.rgb,1.0);}'}));
+        'void main(){vec4 c=texture2D(uMap,vUv);'+
+        // feather outer 12% to transparent so the rectangle dissolves into the void
+        'float fx=smoothstep(0.0,0.12,vUv.x)*smoothstep(1.0,0.88,vUv.x);'+
+        'float fy=smoothstep(0.0,0.12,vUv.y)*smoothstep(1.0,0.88,vUv.y);'+
+        'gl_FragColor=vec4(c.rgb, fx*fy);}'}));
     group.add(neb);
 
+    // foreground star layer (this carries the real parallax)
     var N=stars.length, sp=new Float32Array(N*3), sizeAttr=new Float32Array(N);
     for(var i2=0;i2<N;i2++){var st=stars[i2];
-      sp[i2*3]=(st.x-0.5)*PW; sp[i2*3+1]=(0.5-st.y)*PH; sp[i2*3+2]=0;
-      sizeAttr[i2]=6+st.b*16;}
+      sp[i2*3]=(st.x-0.5)*PW; sp[i2*3+1]=(0.5-st.y)*PH; sp[i2*3+2]=0; sizeAttr[i2]=5+st.b*13;}
     var starGeo=new THREE.BufferGeometry();
     starGeo.setAttribute('position',new THREE.BufferAttribute(sp,3));
     starGeo.setAttribute('aSize',new THREE.BufferAttribute(sizeAttr,1));
@@ -159,36 +191,35 @@ window.addEventListener('load', function(){
       for(var i=0;i<N;i++){var sc=((Math.sin(i*12.9898)*43758.5453)%1+1)%1;
         pos[i*3+2]=frac*(0.12+sc*0.30);}
       starGeo.attributes.position.needsUpdate=true;}
-    setStarZ(0.5);
+    setStarZ(0.55);
 
     // controls
     var reliefEl=document.getElementById('relief'),reliefVal=document.getElementById('reliefVal');
     reliefEl.oninput=function(){var v=(reliefEl.value/100)*0.8;uni.uScale.value=v;reliefVal.innerHTML=v.toFixed(2)+'&nbsp;m';};
     document.getElementById('starz').oninput=function(){setStarZ(this.value/100);};
+    document.getElementById('wrap').oninput=function(){applyWrap(this.value/100);};
     var starsOn=true,sBtn=document.getElementById('starsBtn');
     sBtn.onclick=function(){starsOn=!starsOn;starPoints.visible=starsOn;
       sBtn.textContent='Stars: '+(starsOn?'ON':'OFF');sBtn.classList.toggle('off',!starsOn);};
 
-    // desktop mouse parallax (only when NOT in VR)
+    // desktop parallax
     var tX=0,tY=0,cX=0,cY=0;
     addEventListener('pointermove',function(e){tX=((e.clientX/innerWidth)*2-1)*0.8;tY=-((e.clientY/innerHeight)*2-1)*0.4;});
-
     addEventListener('resize',function(){camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);});
 
-    // ---- Enter VR button ----
+    // Enter VR
     var btn=document.getElementById('enterVR');
     if(navigator.xr && navigator.xr.isSessionSupported){
       navigator.xr.isSessionSupported('immersive-vr').then(function(ok){
-        if(ok){ btn.disabled=false; btn.textContent='Enter VR';
+        if(ok){btn.disabled=false;btn.textContent='Enter VR';
           btn.onclick=function(){
             navigator.xr.requestSession('immersive-vr',{optionalFeatures:['local-floor','bounded-floor']})
-              .then(function(session){ renderer.xr.setSession(session); btn.textContent='In VR'; btn.disabled=true;
-                session.addEventListener('end',function(){btn.textContent='Enter VR';btn.disabled=false;});
-              });
+              .then(function(session){renderer.xr.setSession(session);btn.textContent='In VR';btn.disabled=true;
+                session.addEventListener('end',function(){btn.textContent='Enter VR';btn.disabled=false;});});
           };
-        } else { btn.textContent='No VR here — open on Quest'; }
+        } else btn.textContent='No VR here — open on Quest';
       });
-    } else { btn.textContent='WebXR not available in this browser'; }
+    } else btn.textContent='WebXR not available in this browser';
 
     document.getElementById('loading').style.display='none';
     var t0=performance.now();
@@ -197,7 +228,7 @@ window.addEventListener('load', function(){
         cX+=(tX-cX)*0.06; cY+=(tY-cY)*0.06;
         var t=(performance.now()-t0)/1000;
         camera.position.set(cX+Math.sin(t*0.4)*0.09, 1.5+cY, 0);
-        camera.lookAt(0,1.5,-3+0.15);
+        camera.lookAt(0,1.5,-DIST+0.15);
       }
       renderer.render(scene,camera);
     });
