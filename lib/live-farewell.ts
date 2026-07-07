@@ -12,7 +12,7 @@
 // new server-side state. Deliberately NOT Math.random() per render, which
 // would flicker between variants on every refresh.
 
-import { hotelDisplayName } from '@/lib/live-copy'
+import { hotelDisplayName, hotelLogoSrc } from '@/lib/live-copy'
 
 export type FarewellVariantId = 'aegean-ufo'
 
@@ -66,7 +66,7 @@ function pickNextSessionLeadLine(seed: string): string {
   return lines[hashString(`${seed}|lead`) % lines.length]
 }
 
-export type NextSessionLines = { lead: string; schedule: string } | null
+export type NextSessionLines = { lead: string; schedule: string; logoSrc: string | null } | null
 
 // Two-line "next session" copy for the farewell screen: a rotating warm lead
 // line, and underneath it the real schedule — weekday, start–end time (24h,
@@ -76,6 +76,11 @@ export type NextSessionLines = { lead: string; schedule: string } | null
 // `next` is always the REAL computed next occurrence, not a recurring-
 // pattern promise; the line states that one specific date truthfully rather
 // than implying a fixed weekly slot.
+//
+// logoSrc reuses the SAME hotelId -> logo mapping as the offline/status
+// screen's badge (hotelLogoSrc in lib/live-copy.ts) — null for a hotel with
+// no logo asset yet, in which case the caller renders text only, same
+// graceful-absence pattern the status screen already uses.
 //
 // seed should be the SAME per-event-night seed passed to pickFarewellVariant
 // (today's Athens calendar date), so the lead line is stable across every
@@ -94,6 +99,7 @@ export function formatNextSessionLines(
   return {
     lead: pickNextSessionLeadLine(seed),
     schedule: `${weekday}, ${next.start}–${next.end} here at ${venue}.`,
+    logoSrc: hotelLogoSrc(next.hotelId),
   }
 }
 

@@ -2409,7 +2409,35 @@
 .farewell-sub--schedule {
   color: #8f8d87;
   font-size: 13px;
-  margin-top: 2px;
+  margin: 0;
+}
+
+/* Wraps the optional hotel logo + schedule line as a small centered column.
+   The logo sits ABOVE the text (not inline before it) — these are real
+   wordmark-style logos (full hotel name, sometimes a tagline; see
+   HOTEL_LOGOS in lib/live-copy.ts and the actual PNG/SVG assets), not
+   simple icon marks, so squeezing one into a single inline text row at
+   icon size would blur into illegible noise. A small standalone badge stays
+   legible while still reading as a quiet detail, not the headline the way
+   tonight's much larger .status-hotel-logo is on the offline screen. */
+.farewell-next-venue {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+/* object-fit: contain + fixed height (not width) so the wildly inconsistent
+   logo aspect ratios (near-square to wide wordmarks) never distort. Sized to
+   actually be legible — small enough to read as a quiet accent, not a
+   second competing headline. */
+.farewell-next-logo {
+  height: 30px;
+  width: auto;
+  max-width: 60vw;
+  object-fit: contain;
+  opacity: 0.9;
 }
 
 .farewell-flavor {
