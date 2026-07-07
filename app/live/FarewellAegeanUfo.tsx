@@ -156,7 +156,19 @@ type ShootingStarParticle = {
   depth: number
 }
 
-export function FarewellAegeanUfo({ nextSessionLabel }: { nextSessionLabel: string | null }) {
+export function FarewellAegeanUfo({
+  nextSessionLead,
+  nextSessionSchedule,
+}: {
+  // "See you again — the stars will be waiting" style line, picked from a
+  // pool (see lib/live-farewell.ts) — or the graceful no-next-session
+  // fallback when there's nothing scheduled at all.
+  nextSessionLead: string | null
+  // The real weekday/time/venue sentence, e.g. "Tuesday, 21:30–22:30 here
+  // at OKU Kos." — null when there's no known next session (in which case
+  // only nextSessionLead's fallback line renders).
+  nextSessionSchedule: string | null
+}) {
   const tier = usePerformanceTier()
   const stageRef = useRef<HTMLDivElement>(null)
   const skyLayerRef = useRef<HTMLDivElement>(null)
@@ -603,7 +615,8 @@ export function FarewellAegeanUfo({ nextSessionLabel }: { nextSessionLabel: stri
           </div>
           <p className="farewell-goodnight-static">{GOODNIGHT_LINES[goodnightIndex]}</p>
           <div className="farewell-heading">Tonight’s session has ended</div>
-          {nextSessionLabel ? <div className="farewell-sub">{nextSessionLabel}</div> : null}
+          {nextSessionLead ? <div className="farewell-sub">{nextSessionLead}</div> : null}
+          {nextSessionSchedule ? <div className="farewell-sub farewell-sub--schedule">{nextSessionSchedule}</div> : null}
           <div className="farewell-flavor">
             The photons have gone home.
             <br />
@@ -681,7 +694,8 @@ export function FarewellAegeanUfo({ nextSessionLabel }: { nextSessionLabel: stri
           </div>
 
           <div className="farewell-heading">Tonight’s session has ended</div>
-          {nextSessionLabel ? <div className="farewell-sub">{nextSessionLabel}</div> : null}
+          {nextSessionLead ? <div className="farewell-sub">{nextSessionLead}</div> : null}
+          {nextSessionSchedule ? <div className="farewell-sub farewell-sub--schedule">{nextSessionSchedule}</div> : null}
           <div className="farewell-flavor">
             The photons have gone home.
             <br />

@@ -12,9 +12,31 @@
 // new server-side state. Deliberately NOT Math.random() per render, which
 // would flicker between variants on every refresh.
 
+import { hotelDisplayName } from '@/lib/live-copy'
+
 export type FarewellVariantId = 'aegean-ufo'
 
 export const FAREWELL_VARIANT_IDS: FarewellVariantId[] = ['aegean-ufo']
+
+// A short, warm sentence that sits above the real schedule line (see
+// formatNextSessionLines below) — pure atmosphere, no facts, so it can be
+// picked from a pool without any of them needing to stay accurate over time.
+// Picked from the SAME per-event-night seed as pickFarewellVariant (not
+// per-render/Math.random()), so every guest phone and the lobby TV show the
+// same line together, and it naturally rotates to a different one on the
+// next scheduled night with no new server-side state.
+const NEXT_SESSION_LEAD_LINES = [
+  'Same sky, same place.',
+  'The stars will be waiting.',
+  'We’ll meet under the stars again.',
+  'This sky has more stories to tell.',
+  'Same island, new stars.',
+  'The telescope will be waiting.',
+  'Another night, another universe.',
+  'Come back when the stars return.',
+  'Kos has more sky to show you.',
+  'Your next window to the universe is set.',
+]
 
 // Small, stable string hash (djb2) — good enough for picking an index out of
 // a short array, not a cryptographic requirement. Deterministic across every
@@ -33,16 +55,50 @@ export function pickFarewellVariant(seed: string): FarewellVariantId {
   return ids[hashString(seed) % ids.length]
 }
 
-// "Monday, 21:30" — human weekday + 24h start time, computed in Athens time
-// so it matches the schedule's own timezone regardless of the guest's
-// device locale/timezone. Separate from the offline state's raw-ISO-date
-// "Next session: 2026-07-13, 21:30" line (lib/live-status.ts callers) —
-// this is deliberately friendlier copy for the farewell screen specifically.
-export function formatNextSessionLabel(next: { date: string; start: string } | null): string | null {
+// Deliberately a SEPARATE hash call from pickFarewellVariant (not reusing its
+// result/index) — the two pools are different lengths, and mixing indices
+// across them would create an artificial correlation between which farewell
+// variant plays and which lead line shows, for no reason. A distinct seed
+// suffix ("|lead") keeps the two picks independent while still being stable
+// and per-event-night.
+function pickNextSessionLeadLine(seed: string): string {
+  const lines = NEXT_SESSION_LEAD_LINES
+  return lines[hashString(`${seed}|lead`) % lines.length]
+}
+
+export type NextSessionLines = { lead: string; schedule: string } | null
+
+// Two-line "next session" copy for the farewell screen: a rotating warm lead
+// line, and underneath it the real schedule — weekday, start–end time (24h,
+// Athens-local), and the venue name (via hotelDisplayName). Deliberately NOT
+// "Every Tuesday..." — the actual schedule only runs on dark-of-moon weeks
+// and can shift week to week (a hotel occasionally swaps its night), so
+// `next` is always the REAL computed next occurrence, not a recurring-
+// pattern promise; the line states that one specific date truthfully rather
+// than implying a fixed weekly slot.
+//
+// seed should be the SAME per-event-night seed passed to pickFarewellVariant
+// (today's Athens calendar date), so the lead line is stable across every
+// guest's phone and the lobby TV for the whole night, per this file's
+// seeding convention.
+export function formatNextSessionLines(
+  seed: string,
+  next: { date: string; hotelId: string; start: string; end: string } | null,
+): NextSessionLines {
   if (!next) return null
   const weekday = new Intl.DateTimeFormat('en-US', {
     timeZone: 'Europe/Athens',
     weekday: 'long',
   }).format(new Date(`${next.date}T00:00:00Z`))
-  return `Next session: ${weekday}, ${next.start}`
+  const venue = hotelDisplayName(next.hotelId)
+  return {
+    lead: pickNextSessionLeadLine(seed),
+    schedule: `${weekday}, ${next.start}–${next.end} here at ${venue}.`,
+  }
 }
+
+// Warm, calm fallback for when there's no known next session at all (e.g.
+// outside the season, or none found within the lookup window) — vague but
+// true, matching the screen's poetic tone rather than leaving a blank gap
+// or an awkward "next session: unknown."
+export const NO_NEXT_SESSION_LINE = 'We’ll be back under these skies soon.'
