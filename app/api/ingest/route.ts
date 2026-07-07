@@ -3,7 +3,14 @@ import { createHash, timingSafeEqual } from 'crypto'
 import { put } from '@vercel/blob'
 import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/db'
-import { redis, ingestRatelimit, isValidSource, latestFrameKey, type Source } from '@/lib/redis'
+import {
+  redis,
+  ingestRatelimit,
+  isValidSource,
+  latestFrameKey,
+  EVENT_FINISHED_KEY,
+  type Source,
+} from '@/lib/redis'
 import { athensToday, scheduledHotelFor } from '@/lib/schedule'
 
 // Node runtime required: crypto.timingSafeEqual, createHash, Buffer.
@@ -344,6 +351,21 @@ export async function POST(req: NextRequest) {
         ...(telemetry ? { telemetry } : {}),
       })
       await redis.set(latestFrameKey(source), payload, { ex: 600 })
+
+      // Auto-clear "finished" on the next successful FRESH ingest — this is
+      // the PRIMARY reset mechanism (the 24h TTL on the flag itself is only
+      // a safety backstop, not how this is meant to clear in practice). We
+      // only reach this line for a genuinely new frame: both the pre-write
+      // dedup check (step 5) and the DB-transaction P2002 dedup path above
+      // return early before this point, so a deduped/repeated frame can
+      // never accidentally un-finish a session that was deliberately ended.
+      // Best-effort: if this delete fails, the 24h TTL still bounds how long
+      // a stale flag can linger, and the next ingest retries the delete.
+      try {
+        await redis.del(EVENT_FINISHED_KEY)
+      } catch (e) {
+        console.error('ingest: failed to clear finished flag after fresh ingest', e)
+      }
     } catch (e) {
       redisWarning = true
       console.error('ingest: Redis set failed after DB commit', e)

@@ -64,11 +64,28 @@ type StatusLive = {
 type StatusOffline = {
   live: false
   degraded?: false
+  finished?: false
   tonight: OfflinePayload['tonight']
   next: OfflinePayload['next']
 }
-type StatusDegraded = { live: false; degraded: true; tonight?: OfflinePayload['tonight']; next?: OfflinePayload['next'] }
-type StatusResponse = StatusLive | StatusOffline | StatusDegraded
+type StatusDegraded = {
+  live: false
+  degraded: true
+  finished?: false
+  tonight?: OfflinePayload['tonight']
+  next?: OfflinePayload['next']
+}
+// The explicit "tonight is finished" flag from /api/finish (see
+// app/api/status/route.ts, which checks this BEFORE any frame-freshness
+// logic). Deliberately its own narrow shape — not a variant of
+// StatusOffline/StatusDegraded — so isStatusResponse can recognize it before
+// (and independently of) the tonight/next offline fields, which /api/status
+// never includes on this branch. degraded?: false alongside finished:true
+// (and finished?: false on the other two variants) is what lets TypeScript
+// narrow body.finished/body.degraded safely across the whole union below,
+// the same pattern StatusOffline already uses for degraded.
+type StatusFinished = { live: false; finished: true; degraded?: false }
+type StatusResponse = StatusLive | StatusOffline | StatusDegraded | StatusFinished
 
 function isObject(v: unknown): v is Record<string, unknown> {
   return typeof v === 'object' && v !== null
@@ -148,10 +165,19 @@ function isOfflineStatus(v: Record<string, unknown>): v is StatusOffline {
   return v.live === false && v.degraded !== true && isTonightInfo(v.tonight) && isNextInfo(v.next)
 }
 
+function isFinishedStatus(v: Record<string, unknown>): v is StatusFinished {
+  return v.live === false && v.finished === true
+}
+
 function isStatusResponse(v: unknown): v is StatusResponse {
   if (!isObject(v)) return false
+  // Checked BEFORE degraded/offline/live — mirrors the server's own
+  // ordering in app/api/status/route.ts (finished-check runs first, before
+  // any frame-freshness logic), so the two sides of this contract agree on
+  // priority rather than just happening to agree today.
+  if (v.live === false && v.finished === true) return true
   if (v.live === false && v.degraded === true) return true
-  return isLiveStatus(v) || isOfflineStatus(v)
+  return isLiveStatus(v) || isOfflineStatus(v) || isFinishedStatus(v)
 }
 
 // Preload an image; resolve only once it has actually loaded (never resolve
@@ -235,6 +261,7 @@ type DemoMode =
   | 'moving'
   | 'fallback'
   | 'new-target'
+  | 'finished'
 
 const DEMO_MODES: DemoMode[] = [
   'known',
@@ -247,6 +274,7 @@ const DEMO_MODES: DemoMode[] = [
   'moving',
   'fallback',
   'new-target',
+  'finished',
 ]
 
 // DEMO-MOCK ONLY (see SnapshotToggle). 'current' always exists; the others
@@ -334,9 +362,16 @@ const KNOWN_DEMOS: Record<
 // live telescope frame in demo mode — cache-busted per call so the "new
 // frame" preload path runs identically to production instead of always
 // short-circuiting on the same-frameId branch.
-function getDemoStatusBody(): StatusLive | null {
+function getDemoStatusBody(): StatusResponse | null {
   const mode = getDemoMode()
   if (!mode) return null
+
+  // Finished is a live:false shape (unlike every other demo mode, which is
+  // live:true) — handled first and separately so the rest of this function
+  // can stay focused on constructing StatusLive bodies.
+  if (mode === 'finished') {
+    return { live: false, finished: true }
+  }
 
   const knownKey = mode === 'known' ? 'known-nebula' : mode
   const known = KNOWN_DEMOS[knownKey]
@@ -458,7 +493,13 @@ export default function LiveView() {
         clearTimeout(fetchTimeout)
         if (cancelled) return
 
-        if (body.live === false && body.degraded === true) {
+        if (body.live === false && body.finished === true) {
+          // Checked FIRST — before degraded/offline/live — mirroring the
+          // server's own ordering. This must win even if the client were
+          // somehow mid-way through rendering a fresh "live" frame; a
+          // deliberate finish always overrides.
+          dispatch({ type: 'POLL_FINISHED' })
+        } else if (body.live === false && body.degraded === true) {
           dispatch({ type: 'POLL_DEGRADED' })
         } else if (body.live === false) {
           dispatch({ type: 'POLL_OFFLINE', payload: { tonight: body.tonight, next: body.next } })
@@ -672,6 +713,22 @@ function LiveViewPresentation({ state }: { state: LiveStatusState }) {
 
   if (uiState === 'checking') {
     return <StatusScreen heading="Checking…" loader />
+  }
+
+  // Checked early, ahead of degraded/offline/live — matches the reducer's
+  // own "wins from any state" handling of POLL_FINISHED (see
+  // lib/live-status.ts). Deliberately its own distinct farewell copy/tone,
+  // NOT reused from offline-event-tonight or degraded: a stale/quiet feed
+  // must never look like this, only the explicit /api/finish flag does, so
+  // guests need a visibly different screen to trust the difference.
+  if (uiState === 'finished') {
+    return (
+      <StatusScreen
+        heading="That's a wrap for tonight"
+        sub="Thanks for stargazing with us — see you at the next session."
+        tone="finished"
+      />
+    )
   }
 
   if (uiState === 'degraded') {
@@ -1982,15 +2039,16 @@ function StatusScreen({
 }: {
   heading: string
   sub?: string
-  tone?: 'cancelled'
+  tone?: 'cancelled' | 'finished'
   loader?: boolean
   logoSrc?: string | null
   logoAlt?: string
   flavorContext?: FlavorContext
 }) {
   const cancelled = tone === 'cancelled'
+  const finished = tone === 'finished'
   return (
-    <div className={`status-root${cancelled ? ' status-root--cancelled' : ''}`}>
+    <div className={`status-root${cancelled ? ' status-root--cancelled' : ''}${finished ? ' status-root--finished' : ''}`}>
       <div className="shooting-stars" aria-hidden="true">
         <span className="shooting-star shooting-star--one" />
         <span className="shooting-star shooting-star--two" />
@@ -2006,13 +2064,30 @@ function StatusScreen({
           // eslint-disable-next-line @next/next/no-img-element -- local /public asset, fixed-height badge, no next/image sizing needed for v1
           <img src={logoSrc} alt={logoAlt ?? ''} className="status-hotel-logo" />
         ) : null}
+        {/* PLACEHOLDER slot for the custom "closing" animation (a UFO
+            departure, per the plan) — built separately later. For now just
+            a static glyph so the finished state reads as visually distinct
+            and deliberate rather than empty; swapping this span's contents
+            for a real animated component is the only change needed once
+            that's built (no restructuring of StatusScreen required). */}
+        {finished ? (
+          <span className="status-finished-icon" aria-hidden="true">
+            🛸
+          </span>
+        ) : null}
         <div className="status-heading-row">
-          <p className={`status-heading${cancelled ? ' status-heading--cancelled' : ''}`}>{heading}</p>
+          <p className={`status-heading${cancelled ? ' status-heading--cancelled' : ''}${finished ? ' status-heading--finished' : ''}`}>
+            {heading}
+          </p>
           {loader ? <TelescopeLoader /> : null}
         </div>
-        {sub ? <p className={`status-sub${cancelled ? ' status-sub--cancelled' : ''}`}>{sub}</p> : null}
+        {sub ? (
+          <p className={`status-sub${cancelled ? ' status-sub--cancelled' : ''}${finished ? ' status-sub--finished' : ''}`}>
+            {sub}
+          </p>
+        ) : null}
       </div>
-      {flavorContext ? <FlavorLine context={flavorContext} secondary={cancelled} /> : null}
+      {flavorContext ? <FlavorLine context={flavorContext} secondary={cancelled || finished} /> : null}
     </div>
   )
 }

@@ -5,6 +5,7 @@ import {
   latestFrameKey,
   parseLatestFrame,
   ACTIVE_SOURCE_KEY,
+  EVENT_FINISHED_KEY,
   SOURCES,
   type Source,
   type LatestFrame,
@@ -46,13 +47,30 @@ function athensTomorrow(today: string): string {
 
 export async function GET() {
   try {
-    // 1. Redis reads in parallel. Malformed payloads parse to null (absent),
-    //    never a 500.
-    const [pegasusRaw, seestarRaw, activeRaw] = await Promise.all([
+    // 1. Redis reads in parallel, INCLUDING the finished flag — but the
+    //    finished flag is READ here only for efficiency (one round trip);
+    //    the DECISION to short-circuit on it happens immediately below,
+    //    strictly before any frame-freshness logic runs. This ordering is
+    //    the whole point of the feature: an explicit "tonight is finished"
+    //    must win even when the last frame is only seconds old. Malformed
+    //    frame payloads parse to null (absent), never a 500.
+    const [pegasusRaw, seestarRaw, activeRaw, finishedRaw] = await Promise.all([
       redis.get(latestFrameKey('pegasus')),
       redis.get(latestFrameKey('seestar')),
       redis.get(ACTIVE_SOURCE_KEY),
+      redis.get(EVENT_FINISHED_KEY),
     ])
+
+    // 2. Finished check FIRST — before touching frame freshness at all. A
+    //    stale or quiet feed alone must NEVER produce this state; only an
+    //    explicit POST to /api/finish sets this key (see that route and
+    //    app/api/ingest/route.ts, which deletes it on the next successful
+    //    fresh ingest — the key existing at all IS the signal, so its value
+    //    doesn't matter).
+    if (finishedRaw != null) {
+      return json({ live: false, finished: true })
+    }
+
     const frames: Record<Source, LatestFrame | null> = {
       pegasus: parseLatestFrame(pegasusRaw),
       seestar: parseLatestFrame(seestarRaw),
@@ -60,7 +78,7 @@ export async function GET() {
     const activeSource: Source | null =
       activeRaw === 'pegasus' || activeRaw === 'seestar' ? activeRaw : null
 
-    // 2. Per-source age from ingestedAt — server-receipt time, i.e. "did we hear
+    // 3. Per-source age from ingestedAt — server-receipt time, i.e. "did we hear
     //    from a telescope recently?" (capturedAt is a device clock, display-only).
     //    An unparseable ingestedAt collapses to null: treated as absent.
     const now = Date.now()
@@ -78,7 +96,7 @@ export async function GET() {
     const ingestedMs = (s: Source): number => new Date(frames[s]!.ingestedAt).getTime()
     const freshSources = SOURCES.filter((s) => sources[s]?.fresh)
 
-    // 3. LIVE if at least one source is fresh.
+    // 4. LIVE if at least one source is fresh.
     if (freshSources.length > 0) {
       let chosen: Source
       if (activeSource && sources[activeSource]?.fresh) {
@@ -166,7 +184,7 @@ export async function GET() {
       })
     }
 
-    // 4. OFFLINE. The only remaining DB access is the single cancellation
+    // 5. OFFLINE. The only remaining DB access is the single cancellation
     //    read below — session closing moved to the /api/cron/close-sessions
     //    cron (see lib/sessions.ts) so this endpoint is never on the hot path
     //    for a Postgres write. That read is individually guarded (see b)
@@ -220,7 +238,7 @@ export async function GET() {
       return json({ live: false, tonight: null, next: null, degraded: true })
     }
   } catch (e) {
-    // 5. Any unexpected throw still answers 200. Contract: this endpoint never
+    // 6. Any unexpected throw still answers 200. Contract: this endpoint never
     //    fails — if status goes down, /live goes down with it, gracefully.
     console.error('/api/status unexpected error', e)
     return json({ live: false, degraded: true })

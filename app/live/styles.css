@@ -992,6 +992,38 @@
   color: #ddd;
 }
 
+/* Finished state ("that's a wrap for tonight" — set ONLY by an explicit
+   POST to /api/finish, never inferred from a stale/quiet feed). Deliberately
+   a warm gold/brass tone (matching the rest of /live's palette) rather than
+   the cancelled state's alert red — this is a calm, intentional close, not
+   a problem. Visually distinct from every other status screen so a guest
+   can trust the difference between "the telescope reconnected" and
+   "the event is genuinely over." */
+.status-heading--finished {
+  font-size: clamp(21px, 6.5vw, 26px);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: #c7a869;
+  margin-bottom: 10px;
+  max-width: 20ch;
+  overflow-wrap: break-word;
+}
+
+.status-sub--finished {
+  font-size: 17px;
+  color: #b8b6b0;
+}
+
+/* Placeholder icon slot — see StatusScreen's doc comment in LiveView.tsx.
+   Sized generously so a future animated component (the planned UFO closing
+   animation) can drop in without needing new layout rules. */
+.status-finished-icon {
+  display: block;
+  font-size: clamp(40px, 10vmin, 64px);
+  line-height: 1;
+  margin-bottom: 14px;
+}
+
 /* Demoted flavor line for the cancelled state — small and dim so it can never
    read as the primary message. */
 .status-flavor--secondary {

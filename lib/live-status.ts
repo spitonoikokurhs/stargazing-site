@@ -11,6 +11,7 @@ export const UI_STATES = [
   'offline-nothing',
   'reconnecting',
   'degraded',
+  'finished',
 ] as const
 export type UiState = (typeof UI_STATES)[number]
 
@@ -90,6 +91,7 @@ export type LiveStatusEvent =
   | { type: 'POLL_DEGRADED' }
   | { type: 'POLL_FAILED' }
   | { type: 'RECONNECT_TIMEOUT' }
+  | { type: 'POLL_FINISHED' }
 // FOCUS_VISIBLE / HIDDEN are not reducer events: per the transition table both
 // are "any state -> same state" (HIDDEN also stops the poll scheduler, and
 // FOCUS_VISIBLE triggers an immediate poll) — i.e. they never change uiState
@@ -157,6 +159,16 @@ export function liveStatusReducer(state: LiveStatusState, event: LiveStatusEvent
         consecutiveFailures: 0,
         lastOfflinePayload: event.payload,
       }
+    }
+
+    case 'POLL_FINISHED': {
+      // The explicit "tonight is finished" flag always wins, reachable from
+      // ANY state — including straight out of 'live' with a frame that's
+      // only seconds old. This is the entire point of the feature: a stale/
+      // quiet feed alone must NEVER produce this state (that's reconnecting/
+      // degraded's job), only a deliberate POST to /api/finish does, so once
+      // that signal arrives it must override everything else unconditionally.
+      return { ...state, uiState: 'finished', lastStatusAt: now, consecutiveFailures: 0 }
     }
 
     case 'POLL_DEGRADED': {

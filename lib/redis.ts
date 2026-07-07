@@ -48,6 +48,17 @@ export function latestFrameKey(source: Source): string {
 // feed. Read + rewritten (with a TTL) on every live poll for source hysteresis.
 export const ACTIVE_SOURCE_KEY = 'live:active-source'
 
+// Explicit "tonight is over" flag — set ONLY by a deliberate POST to
+// /api/finish (see app/api/finish/route.ts), never inferred from stale/absent
+// frames. /api/status checks this BEFORE any frame-freshness logic, so it
+// overrides an otherwise-live-looking feed (see app/api/status/route.ts).
+// The 24h TTL is a safety backstop against a forgotten flag surviving
+// forever — it is NOT the primary reset mechanism. The primary reset is
+// /api/ingest deleting this key on the next successful fresh-frame ingest,
+// so a new session just works with no manual un-finish step.
+export const EVENT_FINISHED_KEY = 'live:event:finished'
+export const EVENT_FINISHED_TTL_S = 24 * 60 * 60
+
 // Telemetry subset carried in the Redis payload (see latestFrameKey doc
 // above). Every field is independently optional/nullable — a device can omit
 // any of them, and astrometryState governs whether ra/decDegrees are
