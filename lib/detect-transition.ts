@@ -69,14 +69,23 @@ export type TransitionResult = {
 // perfectly separates every real reset from every real non-reset in the
 // available data.
 //
-// The drop-threshold is kept only as a minimal noise guard (a same-value
-// re-read, or a 1-2s jitter, must not itself register as a "drop") — set
-// low enough that it never excludes a real reset. An earlier version of this
-// used 60s here, which silently missed TWO real retargets in the Astir data
-// (65->30, delta 35; 80->30, delta 50) — both genuine retargets confirmed by
-// large accompanying coordinate jumps (145.35/72.66 -> 149.16/69.10, and
-// 315.70/44.48 -> 314.77/44.67). Lowered after that finding.
-const RESET_DROP_THRESHOLD_S = 5
+// The drop-threshold guards against device jitter/a corrected re-read being
+// misread as a real retarget — a false 'new' here is worse than a false
+// 'same', because it would wrongly reset the guest-facing milestone toggle
+// mid-stack. Set at 30s: comfortably below both real Astir resets this must
+// still catch (65->30, delta 35; 80->30, delta 50) while excluding small
+// dips that could plausibly be jitter rather than a genuine reset. An
+// earlier version used 5s here (a near-zero noise guard); raised to 30s for
+// a stronger conservative margin against a false 'new'. Drops in
+// [RESET_UNCERTAIN_DROP_THRESHOLD_S, RESET_DROP_THRESHOLD_S) that land under
+// the low floor are reported 'uncertain' rather than silently folded into
+// either 'same' or 'new' — see the branch below.
+const RESET_DROP_THRESHOLD_S = 30
+// Any drop at all (a same-value re-read must not count) landing under the
+// low floor, but too small to confidently call a reset (< RESET_DROP_THRESHOLD_S),
+// is reported 'uncertain' — neither confidently the same observation nor
+// confidently a new one.
+const RESET_UNCERTAIN_DROP_THRESHOLD_S = 5
 const RESET_LOW_FLOOR_S = 120
 
 // A coordinate move at least this large is treated as informative (see
@@ -137,19 +146,38 @@ export function detectObservationTransition(
     typeof curTime === 'number' && Number.isFinite(curTime)
 
   if (haveBothTimes) {
-    const droppedEnough = prevTime - curTime >= RESET_DROP_THRESHOLD_S
+    const drop = prevTime - curTime
     const lowEnough = curTime < RESET_LOW_FLOOR_S
-    if (droppedEnough && lowEnough) {
+
+    if (lowEnough && drop >= RESET_DROP_THRESHOLD_S) {
       return {
         transition: 'new',
         reason: `totalAccumulatedTime reset ${prevTime}s -> ${curTime}s`,
       }
     }
-    // Accumulated time present and did NOT reset: same observation, full
-    // stop — this is the primary signal and it has a clear answer, so
-    // coordinates (even a large jump) are not consulted. This is what keeps
-    // the function correct through the OKU stale-astrometry episode: the
-    // clock climbing normally is trusted over the frozen coordinate.
+
+    // Landed under the low floor via SOME drop, but too small to confidently
+    // call a reset (a real retarget always reset from a much higher value in
+    // both real sessions — see RESET_DROP_THRESHOLD_S's doc). Could be a
+    // genuine small retarget the clock hasn't fully reflected yet, or could
+    // be device jitter/a corrected re-read — genuinely ambiguous, so this is
+    // reported 'uncertain' rather than silently treated as either 'same' (a
+    // false negative would delay the milestone reset a real retarget needs)
+    // or 'new' (a false positive would wrongly reset the toggle mid-stack,
+    // which is the worse failure mode per the caller's guidance).
+    if (lowEnough && drop >= RESET_UNCERTAIN_DROP_THRESHOLD_S) {
+      return {
+        transition: 'uncertain',
+        reason: `totalAccumulatedTime dropped ${prevTime}s -> ${curTime}s (${drop}s drop, below the ${RESET_DROP_THRESHOLD_S}s reset threshold)`,
+      }
+    }
+
+    // Accumulated time present and did NOT reset (or dropped by less than
+    // the noise guard): same observation, full stop — this is the primary
+    // signal and it has a clear answer, so coordinates (even a large jump)
+    // are not consulted. This is what keeps the function correct through the
+    // OKU stale-astrometry episode: the clock climbing normally is trusted
+    // over the frozen coordinate.
     return { transition: 'same', reason: 'totalAccumulatedTime did not reset' }
   }
 

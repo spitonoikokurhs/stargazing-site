@@ -201,25 +201,57 @@ function loadFixture(path) {
   )
 
   assert(
-    'tiny same-value re-read jitter under the low floor (100->98, delta 2) -> SAME, not a false reset',
+    'tiny same-value re-read jitter under the low floor (100->98, delta 2) -> SAME, not a false reset or uncertain',
     detectObservationTransition(
       { totalAccumulatedTime: 100, raDegrees: 10, decDegrees: 10 },
       { totalAccumulatedTime: 98, raDegrees: 10, decDegrees: 10 },
     ).transition === 'same',
-    'delta must clear RESET_DROP_THRESHOLD_S (5s) to count as a real drop at all',
+    'delta must clear RESET_UNCERTAIN_DROP_THRESHOLD_S (5s) to count as a real drop at all',
   )
 
   assert(
-    'a real (if modest) drop under the low floor (100->95, delta 5) -> NEW',
+    'a small drop under the low floor, below the reset threshold (100->95, delta 5) -> UNCERTAIN',
     detectObservationTransition(
       { totalAccumulatedTime: 100, raDegrees: 10, decDegrees: 10 },
       { totalAccumulatedTime: 95, raDegrees: 10, decDegrees: 10 },
-    ).transition === 'new',
-    'both real sessions showed every genuine reset landing under the low floor, with no exceptions — even a modest drop into that zone is trusted',
+    ).transition === 'uncertain',
+    'a drop this small could be device jitter rather than a genuine retarget — reported uncertain, not silently trusted as NEW (a false positive would wrongly reset the guest-facing milestone toggle mid-stack) or silently folded into SAME',
   )
 
   assert(
-    'drop clears the delta threshold but lands ABOVE the low floor (500->200) -> SAME, not a reset',
+    'boundary: drop just under the reset threshold (100->71, delta 29) -> UNCERTAIN',
+    detectObservationTransition(
+      { totalAccumulatedTime: 100, raDegrees: 10, decDegrees: 10 },
+      { totalAccumulatedTime: 71, raDegrees: 10, decDegrees: 10 },
+    ).transition === 'uncertain',
+  )
+
+  assert(
+    'boundary: drop exactly at the reset threshold (100->70, delta 30) -> NEW',
+    detectObservationTransition(
+      { totalAccumulatedTime: 100, raDegrees: 10, decDegrees: 10 },
+      { totalAccumulatedTime: 70, raDegrees: 10, decDegrees: 10 },
+    ).transition === 'new',
+  )
+
+  assert(
+    'real Astir case with margin: 65->30 (delta 35) -> NEW',
+    detectObservationTransition(
+      { totalAccumulatedTime: 65, raDegrees: 10, decDegrees: 10 },
+      { totalAccumulatedTime: 30, raDegrees: 10, decDegrees: 10 },
+    ).transition === 'new',
+  )
+
+  assert(
+    'real Astir case with margin: 80->30 (delta 50) -> NEW',
+    detectObservationTransition(
+      { totalAccumulatedTime: 80, raDegrees: 10, decDegrees: 10 },
+      { totalAccumulatedTime: 30, raDegrees: 10, decDegrees: 10 },
+    ).transition === 'new',
+  )
+
+  assert(
+    'drop clears the reset threshold but lands ABOVE the low floor (500->200, delta 300) -> SAME, not a reset',
     detectObservationTransition(
       { totalAccumulatedTime: 500, raDegrees: 10, decDegrees: 10 },
       { totalAccumulatedTime: 200, raDegrees: 10, decDegrees: 10 },
