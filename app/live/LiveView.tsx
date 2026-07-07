@@ -914,6 +914,7 @@ function LiveViewPresentation({ state }: { state: LiveStatusState }) {
           <FarewellAegeanUfo
             nextSessionLead={nextSessionLines?.lead ?? (state.finishedInfo.next ? null : NO_NEXT_SESSION_LINE)}
             nextSessionSchedule={nextSessionLines?.schedule ?? null}
+            nextSessionLogoSrc={nextSessionLines?.logoSrc ?? null}
           />
         )
     }

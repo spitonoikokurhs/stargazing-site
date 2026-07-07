@@ -159,6 +159,7 @@ type ShootingStarParticle = {
 export function FarewellAegeanUfo({
   nextSessionLead,
   nextSessionSchedule,
+  nextSessionLogoSrc,
 }: {
   // "See you again — the stars will be waiting" style line, picked from a
   // pool (see lib/live-farewell.ts) — or the graceful no-next-session
@@ -168,6 +169,12 @@ export function FarewellAegeanUfo({
   // at OKU Kos." — null when there's no known next session (in which case
   // only nextSessionLead's fallback line renders).
   nextSessionSchedule: string | null
+  // The next session's hotel logo (same hotelId -> logo mapping as the
+  // offline/status screen's badge — see hotelLogoSrc in lib/live-copy.ts).
+  // null when there's no next session OR the hotel has no logo asset yet;
+  // either way the schedule line still renders text-only, same graceful-
+  // absence pattern used everywhere else a logo is optional on this page.
+  nextSessionLogoSrc: string | null
 }) {
   const tier = usePerformanceTier()
   const stageRef = useRef<HTMLDivElement>(null)
@@ -616,7 +623,15 @@ export function FarewellAegeanUfo({
           <p className="farewell-goodnight-static">{GOODNIGHT_LINES[goodnightIndex]}</p>
           <div className="farewell-heading">Tonight’s session has ended</div>
           {nextSessionLead ? <div className="farewell-sub">{nextSessionLead}</div> : null}
-          {nextSessionSchedule ? <div className="farewell-sub farewell-sub--schedule">{nextSessionSchedule}</div> : null}
+          {nextSessionSchedule ? (
+            <div className="farewell-next-venue">
+              {nextSessionLogoSrc ? (
+                // eslint-disable-next-line @next/next/no-img-element -- local /public asset, fixed-height badge, no next/image sizing needed here
+                <img src={nextSessionLogoSrc} alt="" className="farewell-next-logo" />
+              ) : null}
+              <div className="farewell-sub farewell-sub--schedule">{nextSessionSchedule}</div>
+            </div>
+          ) : null}
           <div className="farewell-flavor">
             The photons have gone home.
             <br />
@@ -695,7 +710,15 @@ export function FarewellAegeanUfo({
 
           <div className="farewell-heading">Tonight’s session has ended</div>
           {nextSessionLead ? <div className="farewell-sub">{nextSessionLead}</div> : null}
-          {nextSessionSchedule ? <div className="farewell-sub farewell-sub--schedule">{nextSessionSchedule}</div> : null}
+          {nextSessionSchedule ? (
+            <div className="farewell-next-venue">
+              {nextSessionLogoSrc ? (
+                // eslint-disable-next-line @next/next/no-img-element -- local /public asset, fixed-height badge, no next/image sizing needed here
+                <img src={nextSessionLogoSrc} alt="" className="farewell-next-logo" />
+              ) : null}
+              <div className="farewell-sub farewell-sub--schedule">{nextSessionSchedule}</div>
+            </div>
+          ) : null}
           <div className="farewell-flavor">
             The photons have gone home.
             <br />
