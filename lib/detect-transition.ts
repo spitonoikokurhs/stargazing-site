@@ -353,6 +353,29 @@ export function nextMilestoneToTag(
   return candidates[candidates.length - 1]
 }
 
+// Identifies a single stack run for the purpose of resetting a guest's
+// milestone-toggle SELECTION (see MilestoneToggle/useMilestoneFrames in
+// app/live/LiveView.tsx). In current production ONE Observation row spans an
+// entire session (the rawTargetName string-compare path that would split it
+// never fires — the relay doesn't send targetName), so observationId ALONE
+// is not sufficient: an operator's mid-session stack restart changes
+// lastStackRunStartedAt without touching observationId at all, which would
+// otherwise leave a guest's "2 min" selection silently pointing at a frame
+// from a DIFFERENT stack run (flagged in review). source is included too —
+// an active-source switch (pegasus<->seestar) must never leave a milestone
+// selection from one device showing under the other's card.
+//
+// 'unknown' stands in for a null stackRunStartedAt (a pre-migration row, or
+// an observation that has never had a confirmed reset) so the string
+// concatenation can't accidentally collide two genuinely different states.
+// Any change to the RESULT of this function — including a null-to-known or
+// known-to-null transition in stackRunStartedAt, since those produce
+// different strings by construction — must be read by the caller as "reset
+// the guest's selection to Current View."
+export function computeRunKey(source: string, observationId: string, stackRunStartedAt: string | null): string {
+  return `${source}:${observationId}:${stackRunStartedAt ?? 'unknown'}`
+}
+
 // ---------------------------------------------------------------------------
 // assessAstrometryFreshness
 // ---------------------------------------------------------------------------

@@ -18,7 +18,13 @@
 // above, ingested metadata has no such field), so this function is
 // UNVALIDATED against real data. Revisit once a real sample lands.
 
-import { detectTransition, assessAstrometryFreshness, nextMilestoneToTag, MILESTONE_SECONDS } from '../lib/detect-transition.ts'
+import {
+  detectTransition,
+  assessAstrometryFreshness,
+  nextMilestoneToTag,
+  MILESTONE_SECONDS,
+  computeRunKey,
+} from '../lib/detect-transition.ts'
 import { readFileSync } from 'node:fs'
 
 let failures = 0
@@ -531,6 +537,89 @@ function simulateMilestones(frames) {
       'reconstructed OKU-shaped case: a timestamp frozen at episode start, checked 12min later -> stale',
       r.freshness === 'stale',
       `got ${r.freshness}, age ${r.ageSeconds}`,
+    )
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 6. computeRunKey — the milestone-toggle selection-reset identity (see
+//    app/live/LiveView.tsx's MilestoneToggle/useMilestoneFrames). Two
+//    explicit regression tests per product review, plus general coverage of
+//    every kind of identity change that must force a reset.
+// ---------------------------------------------------------------------------
+{
+  console.log('\n--- computeRunKey: milestone-toggle reset identity ---')
+
+  // Test A (explicit regression case from review): same observationId, same
+  // source, stackRunStartedAt changes A->B (a same-Observation stack
+  // restart — the common real-world case, since one Observation row spans a
+  // whole session in production today) -> the key must change, which is
+  // what forces the client to reset selection to 'current'.
+  {
+    const keyA = computeRunKey('pegasus', 'obs-1', '2026-07-07T22:00:00.000Z')
+    const keyB = computeRunKey('pegasus', 'obs-1', '2026-07-07T22:15:00.000Z')
+    assert(
+      'Test A: same source+observationId, stackRunStartedAt A->B -> runKey changes',
+      keyA !== keyB,
+      `keyA=${keyA} keyB=${keyB}`,
+    )
+  }
+
+  // Test B (explicit regression case from review): same observationId, same
+  // stackRunStartedAt, source pegasus->seestar -> the key must change.
+  {
+    const keyPegasus = computeRunKey('pegasus', 'obs-1', '2026-07-07T22:00:00.000Z')
+    const keySeestar = computeRunKey('seestar', 'obs-1', '2026-07-07T22:00:00.000Z')
+    assert(
+      'Test B: same observationId+stackRunStartedAt, source pegasus->seestar -> runKey changes',
+      keyPegasus !== keySeestar,
+      `keyPegasus=${keyPegasus} keySeestar=${keySeestar}`,
+    )
+  }
+
+  // observationId change alone (an outright target-change path, if the
+  // rawTargetName string-compare ever does fire) must also change the key.
+  {
+    const key1 = computeRunKey('pegasus', 'obs-1', '2026-07-07T22:00:00.000Z')
+    const key2 = computeRunKey('pegasus', 'obs-2', '2026-07-07T22:00:00.000Z')
+    assert('observationId change alone -> runKey changes', key1 !== key2)
+  }
+
+  // null <-> known stackRunStartedAt transitions, both directions — a
+  // pre-migration row (or one that's never had a confirmed reset) reporting
+  // null, then later gaining a real value once a reset is confirmed, must
+  // still register as a change (and the reverse, defensively, even though
+  // ingest never actually clears lastStackRunStartedAt back to null).
+  {
+    const keyNull = computeRunKey('pegasus', 'obs-1', null)
+    const keyKnown = computeRunKey('pegasus', 'obs-1', '2026-07-07T22:00:00.000Z')
+    assert('stackRunStartedAt null -> known -> runKey changes', keyNull !== keyKnown)
+    assert('stackRunStartedAt known -> null -> runKey changes (same comparison, either direction)', keyKnown !== keyNull)
+  }
+
+  // Identical inputs -> identical key (the key must be stable/deterministic,
+  // not e.g. accidentally time-dependent) — same-run polls must NOT reset
+  // the guest's selection on every single poll.
+  {
+    const keyA = computeRunKey('pegasus', 'obs-1', '2026-07-07T22:00:00.000Z')
+    const keyB = computeRunKey('pegasus', 'obs-1', '2026-07-07T22:00:00.000Z')
+    assert('identical source+observationId+stackRunStartedAt -> identical runKey (no spurious reset)', keyA === keyB)
+  }
+
+  // A slightly contrived but real collision-safety check: a literal
+  // stackRunStartedAt value of the string "unknown" (which would only ever
+  // happen if some future source somehow produced that exact ISO string,
+  // effectively impossible, but worth confirming the sentinel doesn't create
+  // an ambiguous key) still differs from the true null-sentinel case only if
+  // the OTHER fields differ — documenting the known (extremely unlikely)
+  // edge rather than silently assuming it away.
+  {
+    const keyNullSentinel = computeRunKey('pegasus', 'obs-1', null)
+    const keyLiteralUnknown = computeRunKey('pegasus', 'obs-1', 'unknown')
+    assert(
+      'documented edge: a real stackRunStartedAt literally equal to "unknown" would collide with the null-sentinel key',
+      keyNullSentinel === keyLiteralUnknown,
+      'expected-equal (this is a known limitation, not a bug — real stackRunStartedAt values are always full ISO 8601 timestamps, never the bare word "unknown")',
     )
   }
 }

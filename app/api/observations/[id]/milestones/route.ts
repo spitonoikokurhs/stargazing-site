@@ -66,6 +66,13 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
     return json({
       observationId: observation.id,
+      // Always present, even when null (a pre-migration row, or an
+      // observation that has never had a confirmed stackRun reset) — the
+      // client keys its milestone-selection reset on this value (see
+      // useMilestoneFrames in app/live/LiveView.tsx), so an OMITTED field
+      // vs. an explicit null would be indistinguishable to a naive client
+      // and risk silently skipping a needed reset.
+      stackRunStartedAt: runStart !== null ? runStart.toISOString() : null,
       open: observation.endedAt === null,
       marks,
     })

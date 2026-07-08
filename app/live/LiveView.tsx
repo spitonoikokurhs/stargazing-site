@@ -31,6 +31,7 @@ import { typeDefinition } from '@/lib/object-types'
 import { typeColor } from '@/lib/type-colors'
 import catalogData from '@/config/catalog.json'
 import type { CatalogObject } from '@/lib/catalog'
+import { computeRunKey } from '@/lib/detect-transition'
 
 // Crossfade duration for a flavor-line swap; must match the opacity transition
 // in styles.css (.status-flavor).
@@ -327,19 +328,32 @@ type MilestoneMarks = { first: MilestoneFrame | null; twoMin: MilestoneFrame | n
 
 const MILESTONE_POLL_MS = 10 * 1000
 
+type MilestoneState = { marks: MilestoneMarks | null; runKey: string | null }
+
 // Fetches /api/observations/[id]/milestones for the given observation and
 // polls it every MILESTONE_POLL_MS while `open` — new marks land as a real
 // stack run progresses (First is available immediately, 2min/5min arrive
-// later), so this can't be a one-shot fetch. Resets to "nothing available"
-// immediately on an observationId change (a target change) rather than
-// showing the PREVIOUS observation's milestone frames under the new one's
-// toggle, even for the instant before the new fetch resolves.
-function useMilestoneFrames(observationId: string | null, open: boolean): MilestoneMarks | null {
-  const [marks, setMarks] = useState<MilestoneMarks | null>(null)
+// later), so this can't be a one-shot fetch. Also surfaces the resolved
+// runKey (source+observationId+stackRunStartedAt, see computeRunKey) so the
+// caller can force the guest's milestone SELECTION back to 'current'
+// whenever it changes — this covers not just an observationId change but
+// also a same-observation stack-run reset (mid-session retarget with no
+// Observation split) and an active-source switch, both flagged in review as
+// real ways the old observationId-only reset logic could leave a guest
+// silently viewing a stale/mismatched milestone frame.
+//
+// Resets marks (and therefore forces the caller's next read of runKey to
+// null, which differs from any real key and so always triggers a selection
+// reset) IMMEDIATELY on a source/observationId prop change, rather than
+// waiting for the next poll to resolve — showing the PREVIOUS run's
+// milestone frames for even one render under the new identity would be
+// exactly the bug this hardening pass exists to close.
+function useMilestoneFrames(source: string | null, observationId: string | null, open: boolean): MilestoneState {
+  const [state, setState] = useState<MilestoneState>({ marks: null, runKey: null })
 
   useEffect(() => {
-    setMarks(null) // clear immediately on observationId change — see doc above
-    if (observationId === null) return
+    setState({ marks: null, runKey: null }) // clear immediately — see doc above
+    if (source === null || observationId === null) return
 
     let cancelled = false
     const controller = new AbortController()
@@ -350,20 +364,25 @@ function useMilestoneFrames(observationId: string | null, open: boolean): Milest
           signal: controller.signal,
           cache: 'no-store',
         })
-        if (!res.ok) return // leave marks as last-known-good; a transient failure shouldn't blank the toggle
+        if (!res.ok) return // leave state as last-known-good; a transient failure shouldn't blank the toggle
         const body = await res.json()
         if (cancelled) return
         if (
           isObject(body) &&
+          isString(body.observationId) &&
+          (body.stackRunStartedAt === null || isString(body.stackRunStartedAt)) &&
           isObject(body.marks) &&
           isMilestoneFrameOrNull(body.marks.first) &&
           isMilestoneFrameOrNull(body.marks.twoMin) &&
           isMilestoneFrameOrNull(body.marks.fiveMin)
         ) {
-          setMarks({ first: body.marks.first, twoMin: body.marks.twoMin, fiveMin: body.marks.fiveMin })
+          setState({
+            marks: { first: body.marks.first, twoMin: body.marks.twoMin, fiveMin: body.marks.fiveMin },
+            runKey: computeRunKey(source as string, body.observationId, body.stackRunStartedAt),
+          })
         }
       } catch {
-        // Network error/abort — leave marks as last-known-good, same as a
+        // Network error/abort — leave state as last-known-good, same as a
         // non-OK response; this is a supplementary feature, never worth
         // disrupting the main live view over.
       }
@@ -380,9 +399,9 @@ function useMilestoneFrames(observationId: string | null, open: boolean): Milest
       controller.abort()
       if (interval) clearInterval(interval)
     }
-  }, [observationId, open])
+  }, [source, observationId, open])
 
-  return marks
+  return state
 }
 
 function isMilestoneFrameOrNull(v: unknown): v is MilestoneFrame | null {
@@ -640,6 +659,7 @@ export default function LiveView({ statusUrl = '/api/status' }: { statusUrl?: st
                 objectName: body.observation.objectName,
                 displayObject: resolveDisplayObject(body),
                 observationId: body.observation.observationId,
+                source: body.source,
                 totalAccumulatedTime: body.telemetry?.totalAccumulatedTime,
               },
               loadedAt: current.lastLiveFrame.loadedAt,
@@ -659,6 +679,7 @@ export default function LiveView({ statusUrl = '/api/status' }: { statusUrl?: st
                   objectName: body.observation.objectName,
                   displayObject: resolveDisplayObject(body),
                   observationId: body.observation.observationId,
+                  source: body.source,
                   totalAccumulatedTime: body.telemetry?.totalAccumulatedTime,
                 },
                 loadedAt: Date.now(),
@@ -942,13 +963,25 @@ function LiveFrameView({
   // Demo mode is purely local synthetic data (see getDemoStatusBody) — never
   // fetch real milestone data for a fake observationId in that case.
   const isDemo = getDemoMode() !== null
-  const milestoneMarks = useMilestoneFrames(isDemo ? null : lastLiveFrame.observationId, uiState === 'live' || uiState === 'reconnecting')
-  // Resets to 'current' whenever the observation changes (a target change) —
-  // a stale selection must never keep pointing at the PREVIOUS observation's
-  // milestone frame under the new one's toggle.
+  const { marks: milestoneMarks, runKey: milestoneRunKey } = useMilestoneFrames(
+    isDemo ? null : lastLiveFrame.source,
+    isDemo ? null : lastLiveFrame.observationId,
+    uiState === 'live' || uiState === 'reconnecting',
+  )
+  // Resets to 'current' whenever the resolved run identity changes — see
+  // computeRunKey's doc for why this must be source+observationId+
+  // stackRunStartedAt, not observationId alone: a same-observation stack
+  // restart (the common case in production, since one Observation row spans
+  // a whole session) or an active-source switch must ALSO force the guest
+  // back to the live frame, not just an outright target change. Keyed off
+  // milestoneRunKey (the hook's own resolved state, updated only once a
+  // fetch confirms the new identity) rather than the raw props directly, so
+  // this fires in lockstep with marks actually being cleared/repopulated —
+  // avoiding a render where the OLD selection is still applied against the
+  // NEW marks for even one frame.
   useEffect(() => {
     setMilestoneSelection('current')
-  }, [lastLiveFrame.observationId])
+  }, [milestoneRunKey])
 
   useEffect(() => {
     function onFullscreenChange() {

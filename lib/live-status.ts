@@ -56,6 +56,12 @@ export type LiveFrame = {
   // MilestoneToggle in app/live/LiveView.tsx). Changes whenever the target
   // changes, which is exactly when the milestone toggle needs to reset/refetch.
   observationId: string
+  // Which device produced this frame ("pegasus" | "seestar" | a special-event
+  // slug) — part of the milestone toggle's reset key alongside observationId
+  // and stackRunStartedAt (see MilestoneToggle's runKey), so a milestone
+  // selection can never survive an active-source switch and show under the
+  // wrong device's card.
+  source: string
   // Seconds of exposure the device has accumulated, when telemetry reported
   // it. "Total accumulated" (not per-object) — see the render label; absent
   // on Tier-1-only frames or when the device didn't send it.
@@ -104,6 +110,7 @@ type LiveFramePayload = {
   objectName: string
   displayObject: DisplayObject
   observationId: string
+  source: string
   totalAccumulatedTime?: number
 }
 
@@ -143,6 +150,7 @@ export function liveStatusReducer(state: LiveStatusState, event: LiveStatusEvent
         objectName: event.frame.objectName,
         displayObject: event.frame.displayObject,
         observationId: event.frame.observationId,
+        source: event.frame.source,
         totalAccumulatedTime: event.frame.totalAccumulatedTime,
         ingestedAt: event.frame.ingestedAt,
         loadedAt: event.loadedAt,
