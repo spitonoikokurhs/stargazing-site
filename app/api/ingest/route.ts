@@ -526,6 +526,19 @@ export async function POST(req: NextRequest) {
             })
             if (openRun) {
               const match = resolveStackRunMatch(metadata)
+              // KNOWN RACE, not fixed: this is a read-check-write (openRun
+              // fetched above, compared here, written below) with no row
+              // lock in between — two concurrent requests for the same open
+              // run could both read the same stale confidence and both
+              // decide they're an upgrade, or a lower-confidence write could
+              // land after a higher one. Not atomic. Safe today only because
+              // the relay uploads frames serially (one in flight at a time,
+              // waits for the response before sending the next), so two
+              // concurrent same-run frames cannot currently occur. Would
+              // need a conditional SQL update (e.g. an UPDATE ... WHERE
+              // confidence rank < new rank, checked at the database level)
+              // if concurrent ingest ever becomes possible — a multi-relay
+              // setup, or retries firing in parallel.
               const isUpgrade = match !== null && confidenceRank(match.confidence) > confidenceRank(openRun.confidence as Confidence | null)
 
               // Guard against concurrent frames for the same run processing
