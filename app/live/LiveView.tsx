@@ -1218,7 +1218,11 @@ function LiveFrameView({
           onSelect={setMilestoneSelection}
         />
 
-        <section className="content" aria-live="polite">
+        <section
+          className="content"
+          aria-live="polite"
+          style={contentTypeColorVars(lastLiveFrame.displayObject) as React.CSSProperties}
+        >
           {/* Object name is the topmost element in the content block.
               "Gathered light" now lives only in the topbar (next to
               LIVE/updated) — showing it twice on one screen was redundant,
@@ -1488,6 +1492,30 @@ function PannableZoomImage({ src, alt }: { src: string; alt: string }) {
 // catalog type at all, just an honest "we don't have a confident name yet."
 const FALLBACK_PILL_COLOR = '#A8A6A0'
 
+// Sets --object-type-border/--object-type-bg-subtle ONCE on .content (the
+// shared ancestor of both Facts and the enriched-card/.description block —
+// see .fact and .live-object-desc in styles.css, which now just consume
+// these vars as-is rather than each computing their own color-mix()). This
+// is what makes the chips and the enriched card match BY CONSTRUCTION: one
+// computation, one pair of variables, two consumers — not three independent
+// hardcoded color-mix() percentages that could silently drift apart if only
+// one component's CSS is edited later. The type pill deliberately stays
+// OUTSIDE this shared set (own --type-color, own stronger 55%/13% mix) —
+// it's meant to read as more vivid than chips/card, not part of the same
+// family. 'moving'/'fallback' have no confirmed catalog type to tint by, so
+// they fall back to the same neutral FALLBACK_PILL_COLOR the fallback type
+// pill uses rather than an arbitrary/wrong hue.
+function contentTypeColorVars(displayObject: DisplayObject): Record<string, string> {
+  const color = displayObject.kind === 'known' ? typeColor(displayObject.type) : FALLBACK_PILL_COLOR
+  return {
+    '--object-type-border': `color-mix(in srgb, ${color} 21%, rgba(237, 234, 227, 0.085))`,
+    '--object-type-bg-subtle': `color-mix(in srgb, ${color} 6%, rgba(237, 234, 227, 0.043))`,
+    // .fact span's label tint (pre-existing, unrelated to this refactor)
+    // still reads --type-color directly, so it stays available too.
+    '--type-color': color,
+  }
+}
+
 // Colored type pill (icon + label on a tinted rounded background, color-coded
 // per catalog type) plus its one-line definition underneath. Shown for a
 // confirmed catalog match (kind: 'known') AND for the no-confident-match
@@ -1555,12 +1583,11 @@ function FallbackFieldIcon() {
 function Facts({ displayObject }: { displayObject: DisplayObject }) {
   if (displayObject.kind !== 'known') return null
   if (!displayObject.constellation && !displayObject.distanceLy && !displayObject.sizeDescription) return null
-  // Same --type-color the type pill uses (see ObjectTypeLine) — set once here
-  // and inherited by every .fact child, so the whole card reads as one
-  // coordinated color family rather than each chip needing its own lookup.
-  const color = typeColor(displayObject.type)
+  // --object-type-border/--object-type-bg-subtle/--type-color all come from
+  // .content now (see contentTypeColorVars) — .fact just consumes them, no
+  // lookup of its own, so it can never drift from the enriched card's tint.
   return (
-    <div className="facts" aria-label="Object information" style={{ '--type-color': color } as React.CSSProperties}>
+    <div className="facts" aria-label="Object information">
       {displayObject.constellation ? (
         <div className="fact">
           <span>Constellation</span>

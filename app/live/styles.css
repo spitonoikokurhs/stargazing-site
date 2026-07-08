@@ -480,17 +480,19 @@
   width: min(100%, 540px);
 }
 
-/* --type-color is set once on .facts (see Facts in LiveView.tsx) and inherits
-   here — a whisper of the object's type-pill color so the card reads as one
-   coordinated family, NOT a second loud color statement (contrast the much
-   stronger 55%/13% mix the type pill itself uses). */
+/* --object-type-border/--object-type-bg-subtle are set once on .content (see
+   contentTypeColorVars in LiveView.tsx) and inherit here — a whisper of the
+   object's type-pill color so the card reads as one coordinated family, NOT
+   a second loud color statement (contrast the much stronger 55%/13% mix the
+   type pill itself uses). The enriched card (.live-object-desc, below) reads
+   the SAME two variables, so chips and card always match by construction. */
 .fact {
   min-width: 0;
   min-height: 58px;
   padding: 10px 7px;
-  border: 1px solid color-mix(in srgb, var(--type-color) 21%, rgba(237, 234, 227, 0.085));
+  border: 1px solid var(--object-type-border);
   border-radius: 18px;
-  background: color-mix(in srgb, var(--type-color) 6%, rgba(237, 234, 227, 0.043));
+  background: var(--object-type-bg-subtle);
   display: flex;
   flex-direction: column;
   /* flex-start (not center): pins the label to the same top position across
@@ -518,12 +520,16 @@
   text-transform: uppercase;
 }
 
+/* Weight/opacity pulled back from 650/0.95 toward the enriched card text's
+   own feel (400-550 weight, 0.82 opacity below) — still a touch more
+   prominent than prose since these are scannable data values, but no longer
+   visually louder than the wowFact underneath. */
 .fact strong {
   max-width: 100%;
-  color: rgba(237, 234, 227, 0.95);
+  color: rgba(237, 234, 227, 0.88);
   font-size: clamp(11px, 3.25vw, 14px);
   line-height: 1.15;
-  font-weight: 650;
+  font-weight: 550;
   overflow-wrap: anywhere;
   text-wrap: balance;
 }
@@ -542,13 +548,20 @@
 }
 
 /* Our object-level description (catalog description or rotating universal
-   phrase) reuses the mockup's .object-description card treatment. */
+   phrase) reuses the mockup's .object-description card treatment.
+   --object-type-border/--object-type-bg-subtle come from .content — the
+   SAME two variables .fact reads (see contentTypeColorVars in
+   LiveView.tsx), at the SAME strength, so the enriched card/plain
+   description reads as PART OF the same tinted section as the fact chips
+   above it, not a quieter afterthought below them. Falls back to the
+   original neutral gold border/gradient if the vars are ever unset (e.g. a
+   future caller of .live-object-desc outside .content's scope). */
 .live-object-desc {
   margin: 10px auto 0;
   padding: 14px 14px;
-  border: 1px solid rgba(199, 168, 105, 0.12);
+  border: 1px solid var(--object-type-border, rgba(199, 168, 105, 0.12));
   border-radius: 22px;
-  background: linear-gradient(180deg, rgba(237, 234, 227, 0.052), rgba(237, 234, 227, 0.026));
+  background: var(--object-type-bg-subtle, linear-gradient(180deg, rgba(237, 234, 227, 0.052), rgba(237, 234, 227, 0.026)));
   color: rgba(237, 234, 227, 0.82);
   font-size: clamp(13px, 3.8vw, 15px);
   line-height: 1.42;
@@ -677,13 +690,18 @@
   transform: translateY(0);
 }
 
-/* Small gold accent leading each fact — a curated/highlighted feel, not just
-   plain body text. Baseline-aligned with the text via inline-block + a fixed
-   gap rather than flex, so it reads as a glyph prefix within the sentence's
-   own text-wrap:balance flow instead of a separate row. */
+/* Type-color accent leading each fact — a curated/highlighted feel, not just
+   plain body text, AND the object's color identity (inherited from .content,
+   see contentTypeColorVars in LiveView.tsx) showing up as a small structural
+   touch rather than in the prose itself — the fact TEXT stays neutral (see
+   .enriched-wowfact's own color below); only this glyph carries the tint.
+   Baseline-aligned with the text via inline-block + a fixed gap rather than
+   flex, so it reads as a glyph prefix within the sentence's own
+   text-wrap:balance flow instead of a separate row. Falls back to the
+   original gold if --type-color is ever unset. */
 .enriched-wowfact-glyph {
   display: inline-block;
-  color: var(--gold);
+  color: var(--type-color, var(--gold));
   margin-right: 8px;
 }
 
