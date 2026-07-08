@@ -1197,7 +1197,7 @@ function LiveFrameView({
             <line className="rim-tick" x1="84.2" y1="84.2" x2="82.8" y2="82.8" />
             <text className="rim-brand">
               <textPath href="#rimBrandArc" startOffset="50%" textAnchor="middle" textLength={52} lengthAdjust="spacing">
-                STARGAZING.EVENTS
+                STARGAZING.WORLD
               </textPath>
             </text>
           </svg>
@@ -1230,7 +1230,7 @@ function LiveFrameView({
           <Facts displayObject={lastLiveFrame.displayObject} />
 
           <div className="description">
-            <ObjectDescription displayObject={lastLiveFrame.displayObject} viewerRef={viewerRef} />
+            <ObjectDescription displayObject={lastLiveFrame.displayObject} />
           </div>
         </section>
 
@@ -1920,10 +1920,8 @@ function TypeIcon({ type }: { type: string }) {
 // prominent, instruction line smaller/dimmer.
 function ObjectDescription({
   displayObject,
-  viewerRef,
 }: {
   displayObject: DisplayObject
-  viewerRef: React.RefObject<HTMLElement | null>
 }) {
   if (displayObject.kind === 'known') {
     // Enriched content is authored as a complete set (see CatalogObject in
@@ -1937,7 +1935,6 @@ function ObjectDescription({
           wowFacts={displayObject.wowFacts}
           visualHint={displayObject.visualHint}
           drawer={displayObject.drawer}
-          viewerRef={viewerRef}
         />
       )
     }
@@ -1959,6 +1956,36 @@ function ObjectDescription({
 // not ambient background text.
 const WOW_FACT_ROTATE_MS = 15 * 1000
 
+// Distinct Unicode glyph per drawer section — same gold styling throughout,
+// but a different symbol per heading reads as a small taxonomy of section
+// "kinds" rather than four identical bullets. Matched by exact heading text
+// as authored in config/catalog.json's drawer[].heading (title-case; CSS
+// text-transform:uppercase renders the caps, so the match must stay
+// title-case too); falls back to the wowFact's own ✦ for anything
+// unrecognized, so a future/typo'd heading still degrades to the
+// pre-existing glyph rather than rendering blank.
+function drawerHeadingGlyph(heading: string): string {
+  switch (heading) {
+    case "What you're seeing":
+      return '◎'
+    case 'Why it matters':
+      return '✦'
+    case 'The human story':
+      return '☺'
+    case 'How to spot it':
+      return '✛'
+    default:
+      return '✦'
+  }
+}
+
+// ◎ reads noticeably smaller than the other three glyphs at the shared
+// font-size (its ring is thinner/more open) — bumped 20% larger so all four
+// carry equal visual weight in the heading row.
+function drawerHeadingGlyphIsLarge(heading: string): boolean {
+  return heading === "What you're seeing"
+}
+
 // Enriched object-info card: a rotating "did you know" fact, a static
 // what-to-look-for hint, and a collapsed-by-default drawer of deeper sections
 // (see CatalogObject.wowFacts/visualHint/drawer in lib/catalog.ts). Reuses
@@ -1971,34 +1998,13 @@ function EnrichedCard({
   wowFacts,
   visualHint,
   drawer,
-  viewerRef,
 }: {
   wowFacts: string[]
   visualHint: string
   drawer: { heading: string; body: string }[]
-  viewerRef: React.RefObject<HTMLElement | null>
 }) {
   const { text, visible } = useRotatingPhrase(wowFacts, WOW_FACT_ROTATE_MS)
   const [open, setOpen] = useState(false)
-  const toggleRef = useRef<HTMLButtonElement>(null)
-  // Skips the scroll on mount — only a user's actual open/close tap should
-  // move the page; `open` starting at `false` must not fire a "close" scroll
-  // the instant this card first renders.
-  const hasInteracted = useRef(false)
-
-  useEffect(() => {
-    if (!hasInteracted.current) {
-      hasInteracted.current = true
-      return
-    }
-    // Opening: bring the toggle button (and the drawer that just appeared
-    // right below it) into view, landing near the top of the viewport — the
-    // image stays scrolled far enough up that it isn't pushed fully out.
-    // Closing: scroll back up to the image container, not all the way to the
-    // page top — the LIVE/updated status bar doesn't need to be back in view.
-    const target = open ? toggleRef.current : viewerRef.current
-    target?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-  }, [open, viewerRef])
 
   return (
     <div className="live-object-desc enriched-card">
@@ -2016,7 +2022,6 @@ function EnrichedCard({
         className="enriched-drawer-toggle"
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
-        ref={toggleRef}
       >
         {open ? 'Less about this view' : 'More about this view'}
         <span className={`enriched-drawer-chevron${open ? ' is-open' : ''}`} aria-hidden="true">
@@ -2027,7 +2032,15 @@ function EnrichedCard({
         <div className="enriched-drawer">
           {drawer.map((section) => (
             <div className="enriched-drawer-section" key={section.heading}>
-              <p className="enriched-drawer-heading">{section.heading}</p>
+              <p className="enriched-drawer-heading">
+                <span
+                  className={`enriched-drawer-heading-glyph${drawerHeadingGlyphIsLarge(section.heading) ? ' enriched-drawer-heading-glyph--large' : ''}`}
+                  aria-hidden="true"
+                >
+                  {drawerHeadingGlyph(section.heading)}
+                </span>
+                {section.heading}
+              </p>
               <p className="enriched-drawer-body">{section.body}</p>
             </div>
           ))}

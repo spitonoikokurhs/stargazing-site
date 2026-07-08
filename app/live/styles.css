@@ -57,7 +57,7 @@
   position: relative;
   width: min(100%, 560px);
   margin: 0 auto;
-  padding: 18px 10px 28px;
+  padding: 8px 10px 28px;
 }
 
 /* Single element now (brand text removed — it lives on the rim instead), so
@@ -67,12 +67,12 @@
    formatUpdatedAgo() which is what actually prevents the overflow in
    practice. */
 .topbar {
-  min-height: 28px;
+  min-height: 20px;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 10px;
-  padding: 4px 12px;
+  padding: 2px 12px;
   color: rgba(237, 234, 227, 0.72);
   font-size: clamp(10px, 2.7vw, 13px);
   letter-spacing: 0.19em;
@@ -259,7 +259,7 @@
   width: min(100%, 96vw);
   max-width: 540px;
   aspect-ratio: 1 / 1;
-  margin: 8px auto 0;
+  margin: 4px auto 0;
   border-radius: 18px;
   background: #020204;
   overflow: hidden;
@@ -364,7 +364,7 @@
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 5px;
-  margin: 13px auto 0;
+  margin: 13px auto 14px;
   padding: 4px;
   width: min(100%, 540px);
   border: 1px solid rgba(237, 234, 227, 0.08);
@@ -407,7 +407,7 @@
   max-width: 96%;
   color: #f2eee6;
   font-family: var(--font-display), "Cormorant Garamond", Georgia, "Times New Roman", serif;
-  font-size: clamp(42px, 12vw, 68px);
+  font-size: clamp(35px, 10vw, 56px);
   font-weight: 520;
   line-height: 0.92;
   letter-spacing: 0.005em;
@@ -419,7 +419,7 @@
   flex-direction: column;
   align-items: center;
   gap: 8px;
-  margin: 16px auto 0;
+  margin: 11px auto 0;
   text-align: center;
 }
 
@@ -476,7 +476,7 @@
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 7px;
-  margin: 16px auto 0;
+  margin: 11px auto 0;
   width: min(100%, 540px);
 }
 
@@ -529,7 +529,7 @@
 }
 
 .description {
-  margin: 16px auto 0;
+  margin: 11px auto 0;
   width: min(100%, 520px);
   padding: 0 8px;
 }
@@ -545,7 +545,7 @@
 /* Our object-level description (catalog description or rotating universal
    phrase) reuses the mockup's .object-description card treatment. */
 .live-object-desc {
-  margin: 15px auto 0;
+  margin: 10px auto 0;
   padding: 14px 14px;
   border: 1px solid rgba(199, 168, 105, 0.12);
   border-radius: 22px;
@@ -780,16 +780,37 @@
   }
 }
 
-/* Small gold left-border accent — elevates the heading from plain uppercase
-   label text to a curated pull-quote-style section marker. */
+/* Gold ✦ prefix (matching .enriched-wowfact-glyph) instead of a border —
+   ties the drawer's section markers to the same "curated guide" glyph
+   language as the rotating fact above, rather than a separate visual
+   vocabulary. Sits on a barely-visible warm pill (not a colored bar) so it
+   reads as a soft highlight, not a UI selection state. */
 .enriched-drawer-heading {
-  margin: 0;
-  padding-left: 8px;
-  border-left: 3px solid var(--gold);
-  color: rgba(168, 166, 160, 0.75);
+  display: inline-flex;
+  align-items: baseline;
+  align-self: center;
+  width: fit-content;
+  margin: 0 auto;
+  padding: 4px 8px;
+  border-radius: 4px;
+  background: rgba(212, 175, 55, 0.045);
+  color: rgba(228, 225, 218, 0.87);
   font-size: clamp(8px, 2.35vw, 10px);
   letter-spacing: 0.16em;
   text-transform: uppercase;
+}
+
+.enriched-drawer-heading-glyph {
+  display: inline-block;
+  color: var(--gold);
+  margin-right: 8px;
+}
+
+/* ◎'s open ring reads smaller than the other three glyphs at the shared
+   size — 20% up (relative to the heading's own clamp) evens out the visual
+   weight across all four section markers. */
+.enriched-drawer-heading-glyph--large {
+  font-size: 1.2em;
 }
 
 .enriched-drawer-body {
