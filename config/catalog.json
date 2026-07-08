@@ -3,7 +3,10 @@
     {
       "id": "M57",
       "primaryName": "Ring Nebula",
-      "aliases": ["M57", "NGC 6720"],
+      "aliases": [
+        "M57",
+        "NGC 6720"
+      ],
       "type": "Planetary Nebula",
       "raDeg": 283.396,
       "decDeg": 33.0292,
@@ -12,12 +15,40 @@
       "description": "A glowing smoke-ring left behind by a dying star, one of the sky's most famous tiny nebulae.",
       "constellation": "Lyra",
       "distanceLy": 2570,
-      "sizeDescription": "a tiny ring — telescope only"
+      "sizeDescription": "a tiny ring — telescope only",
+      "wowFacts": [
+        "You are looking at the far future of a Sun-like star: its outer atmosphere thrown into space while the hot core glows in the middle.",
+        "The Ring Nebula is roughly a light-year across, and its expanding gas will eventually fade back into the galaxy.",
+        "When Charles Messier cataloged it in 1779, he was trying to avoid mistaking objects like this for comets.",
+        "In a live-stacked image, the ring is real structure: gas from a dying star glowing under ultraviolet light."
+      ],
+      "visualHint": "Look for a tiny smoke-ring or doughnut shape, often with a blue-green center and softer reddish edges as the stack deepens.",
+      "drawer": [
+        {
+          "heading": "What you're seeing",
+          "body": "The Ring Nebula is a planetary nebula: gas shed by a dying Sun-like star and lit by the hot remnant left behind. The name is historical; it is not related to planets."
+        },
+        {
+          "heading": "Why it matters",
+          "body": "Planetary nebulae show a brief, beautiful stage near the end of a star's life. They are one way stars return enriched gas to the galaxy."
+        },
+        {
+          "heading": "The human story",
+          "body": "Objects like this were cataloged by early telescope observers because they looked like tiny disks or fuzzy patches. Today they help guests connect a delicate shape with the life cycle of stars."
+        },
+        {
+          "heading": "How to spot it",
+          "body": "Expect something small and concentrated, not a huge cloud. Look for shape and color first; fine inner detail depends on seeing, focus, and stack depth."
+        }
+      ]
     },
     {
       "id": "ALBIREO",
       "primaryName": "Albireo",
-      "aliases": ["Albireo", "Beta Cygni"],
+      "aliases": [
+        "Albireo",
+        "Beta Cygni"
+      ],
       "type": "Double Star",
       "raDeg": 292.6804,
       "decDeg": 27.9597,
@@ -26,12 +57,40 @@
       "description": "A striking double star — one gold, one blue — sitting side by side in a vivid color contrast.",
       "constellation": "Cygnus",
       "distanceLy": 430,
-      "sizeDescription": "a close pair — telescope only"
+      "sizeDescription": "a close pair — telescope only",
+      "wowFacts": [
+        "Albireo looks like two jewels in space: one golden, one blue-white.",
+        "The color contrast is real starlight, caused by stars with different surface temperatures.",
+        "For many guests, Albireo is the moment when stars stop looking simply white.",
+        "This target is not about faint detail; it is about seeing color directly in starlight."
+      ],
+      "visualHint": "Look for a close pair of stars with a warm golden star beside a cooler blue-white companion.",
+      "drawer": [
+        {
+          "heading": "What you're seeing",
+          "body": "Albireo is a famous double-star view in Cygnus, the Swan. Through a telescope it separates into two points of strongly contrasting color."
+        },
+        {
+          "heading": "Why it matters",
+          "body": "Star color is a clue to temperature and stellar character. Blue-white stars are hotter, while golden-orange stars are cooler or more evolved."
+        },
+        {
+          "heading": "The human story",
+          "body": "Albireo sits in Cygnus, a constellation rich in Greek myth and summer Milky Way scenery. It has long been a favorite telescope showpiece because the beauty is immediate."
+        },
+        {
+          "heading": "How to spot it",
+          "body": "Unlike nebulae or galaxies, Albireo will not grow with stacking. The magic is in focus, steadiness, and the clean split between the warm and cool star colors."
+        }
+      ]
     },
     {
       "id": "M27",
       "primaryName": "Dumbbell Nebula",
-      "aliases": ["M27", "NGC 6853"],
+      "aliases": [
+        "M27",
+        "NGC 6853"
+      ],
       "type": "Planetary Nebula",
       "raDeg": 299.9017,
       "decDeg": 22.7211,
@@ -70,21 +129,53 @@
     {
       "id": "M13",
       "primaryName": "Hercules Globular Cluster",
-      "aliases": ["M13", "NGC 6205", "Great Hercules Cluster"],
+      "aliases": [
+        "M13",
+        "NGC 6205",
+        "Great Hercules Cluster"
+      ],
       "type": "Globular Cluster",
-      "raDeg": 250.4230,
+      "raDeg": 250.423,
       "decDeg": 36.4613,
       "displayRadiusDeg": 0.25,
       "priority": 90,
       "description": "A dense swarm of hundreds of thousands of ancient stars packed into a shimmering ball.",
       "constellation": "Hercules",
       "distanceLy": 22200,
-      "sizeDescription": "two-thirds of the full Moon"
+      "sizeDescription": "two-thirds of the full Moon",
+      "wowFacts": [
+        "This single fuzzy ball contains hundreds of thousands of stars packed into one ancient swarm.",
+        "M13 is roughly 11 to 12 billion years old, meaning many of its stars formed when the universe itself was still young.",
+        "In 1974, humans aimed the Arecibo message toward M13: a symbolic hello, not a real attempt at conversation.",
+        "In the live image, the grainy sparkle is the telescope beginning to separate individual stars in a city of suns."
+      ],
+      "visualHint": "Look for a bright, grainy core with tiny stars starting to resolve around the edges as the stack builds.",
+      "drawer": [
+        {
+          "heading": "What you're seeing",
+          "body": "The Hercules Globular Cluster is a dense sphere of ancient stars orbiting the Milky Way. The bright center is crowded with stars too close together to fully separate in the image."
+        },
+        {
+          "heading": "Why it matters",
+          "body": "Globular clusters preserve some of the oldest stars in the galaxy. They are deep-time objects, carrying clues from the Milky Way's early history."
+        },
+        {
+          "heading": "The human story",
+          "body": "These clusters were once listed as fuzzy objects by early observers, but telescopes revealed them as swarms of stars. They are among the most satisfying objects to watch sharpen during live stacking."
+        },
+        {
+          "heading": "How to spot it",
+          "body": "Look for a round glow that becomes grainy. The outer edges may resolve into star points while the center stays bright and crowded."
+        }
+      ]
     },
     {
       "id": "M31",
       "primaryName": "Andromeda Galaxy",
-      "aliases": ["M31", "NGC 224"],
+      "aliases": [
+        "M31",
+        "NGC 224"
+      ],
       "type": "Spiral Galaxy",
       "raDeg": 10.6847,
       "decDeg": 41.2687,
@@ -123,7 +214,10 @@
     {
       "id": "M65",
       "primaryName": "M65",
-      "aliases": ["M65", "NGC 3623"],
+      "aliases": [
+        "M65",
+        "NGC 3623"
+      ],
       "type": "Spiral Galaxy",
       "raDeg": 169.7333,
       "decDeg": 13.0922,
@@ -132,12 +226,40 @@
       "description": "A slender spiral galaxy in Leo, one third of the famous Leo Triplet.",
       "constellation": "Leo",
       "distanceLy": 35000000,
-      "sizeDescription": "a slim glow — telescope only"
+      "sizeDescription": "a slim glow — telescope only",
+      "wowFacts": [
+        "M65 is a whole spiral galaxy tilted in space, so it appears as a soft elongated glow.",
+        "Its light has traveled roughly 35 million years before reaching tonight's telescope.",
+        "It belongs to the Leo Triplet, a small group of galaxies sharing the same patch of sky.",
+        "In the live image, the bright center is the easiest clue that this faint oval is a galaxy."
+      ],
+      "visualHint": "Look for a faint, elongated oval with a brighter middle, best appreciated as the stack slowly strengthens the glow.",
+      "drawer": [
+        {
+          "heading": "What you're seeing",
+          "body": "M65 is a spiral galaxy in Leo seen at an angle. Its disk is tilted, so the galaxy looks stretched rather than round."
+        },
+        {
+          "heading": "Why it matters",
+          "body": "M65 helps show that galaxy appearance depends on viewing angle. A spiral can look like a thin oval, a round glow, or a pinwheel depending on how it is tilted toward us."
+        },
+        {
+          "heading": "The human story",
+          "body": "M65 was discovered in 1780 and became part of the Messier catalog. It is often observed with M66 and NGC 3628 as part of the Leo Triplet."
+        },
+        {
+          "heading": "How to spot it",
+          "body": "Expect a subtle galaxy, not a bright spiral photograph. Find the brighter middle first, then trace the faint extended halo around it."
+        }
+      ]
     },
     {
       "id": "M66",
       "primaryName": "M66",
-      "aliases": ["M66", "NGC 3627"],
+      "aliases": [
+        "M66",
+        "NGC 3627"
+      ],
       "type": "Spiral Galaxy",
       "raDeg": 170.0625,
       "decDeg": 12.9914,
@@ -146,26 +268,83 @@
       "description": "A bright, warped spiral galaxy in Leo, tugged into shape by its Triplet neighbors.",
       "constellation": "Leo",
       "distanceLy": 35000000,
-      "sizeDescription": "a small spiral — telescope only"
+      "sizeDescription": "a small spiral — telescope only",
+      "wowFacts": [
+        "M66 is a spiral galaxy whose shape has likely been disturbed by gravitational encounters with its neighbors.",
+        "Its light has been traveling for roughly 30 million years, long before humans existed.",
+        "Several supernovae have been observed in M66, brief flashes from dying massive stars in another galaxy.",
+        "In the live image, the uneven oval glow hints at a galaxy with a dynamic past."
+      ],
+      "visualHint": "Look for a brighter galactic core with a softer, slightly uneven oval glow around it.",
+      "drawer": [
+        {
+          "heading": "What you're seeing",
+          "body": "M66 is a spiral galaxy in Leo and one of the main members of the Leo Triplet. Its disk is tilted and somewhat asymmetric."
+        },
+        {
+          "heading": "Why it matters",
+          "body": "M66 is interesting because galaxy encounters can warp spiral arms, trigger star formation, and reshape disks. A calm-looking glow can carry evidence of a gravitational past."
+        },
+        {
+          "heading": "The human story",
+          "body": "M66 shares the sky with M65 and NGC 3628, making the Leo Triplet a favorite spring galaxy group. It is a strong example of how deep-sky objects become more meaningful in context."
+        },
+        {
+          "heading": "How to spot it",
+          "body": "The core should appear first. The outer shape may look uneven rather than perfectly smooth, especially with darker skies and a longer stack."
+        }
+      ]
     },
     {
       "id": "LEO-TRIPLET",
       "primaryName": "Leo Triplet",
-      "aliases": ["Leo Triplet", "M65 Group"],
+      "aliases": [
+        "Leo Triplet",
+        "M65 Group"
+      ],
       "type": "Galaxy Group",
       "raDeg": 170.0625,
-      "decDeg": 13.1900,
+      "decDeg": 13.19,
       "displayRadiusDeg": 0.9,
       "priority": 92,
       "description": "Three galaxies locked in a slow gravitational dance, close enough together to share a single eyepiece view.",
       "constellation": "Leo",
       "distanceLy": 35000000,
-      "sizeDescription": "the three span ~1.5× the full Moon"
+      "sizeDescription": "the three span ~1.5× the full Moon",
+      "wowFacts": [
+        "This single field can hold several galaxies, each one a separate island of billions of stars.",
+        "Their light has crossed roughly tens of millions of years before arriving together on this screen.",
+        "The Leo Triplet shows that galaxies live in neighborhoods and can tug on one another with gravity.",
+        "In the live image, every faint smudge is not a nebula, but another galaxy."
+      ],
+      "visualHint": "Look for multiple faint smudges or elongated glows in the same field, each with a brighter center.",
+      "drawer": [
+        {
+          "heading": "What you're seeing",
+          "body": "The Leo Triplet is a small galaxy group, commonly featuring M65, M66, and NGC 3628. Each member is a separate galaxy far beyond the Milky Way."
+        },
+        {
+          "heading": "Why it matters",
+          "body": "Galaxy groups are common across the universe. Seeing several galaxies together helps make cosmic scale feel real: whole star systems sharing one telescope field."
+        },
+        {
+          "heading": "The human story",
+          "body": "The group lies in Leo, the Lion, one of the oldest and most recognizable constellations. It turns an ancient sky figure into a window on modern extragalactic astronomy."
+        },
+        {
+          "heading": "How to spot it",
+          "body": "This is a subtle dark-sky target. Look for more than one soft oval or streak; the reward is realizing each faint patch is a galaxy of its own."
+        }
+      ]
     },
     {
       "id": "M104",
       "primaryName": "Sombrero Galaxy",
-      "aliases": ["M104", "NGC 4594", "Sombrero Galaxy"],
+      "aliases": [
+        "M104",
+        "NGC 4594",
+        "Sombrero Galaxy"
+      ],
       "type": "Spiral Galaxy",
       "raDeg": 189.9976,
       "decDeg": -11.6231,
@@ -174,12 +353,41 @@
       "description": "A galaxy seen edge-on, wrapped in a dark dust lane that gives it its namesake wide-brimmed-hat shape.",
       "constellation": "Virgo",
       "distanceLy": 29000000,
-      "sizeDescription": "a tiny bright sliver — telescope only"
+      "sizeDescription": "a tiny bright sliver — telescope only",
+      "wowFacts": [
+        "The Sombrero Galaxy gets its famous shape from a bright central bulge crossed by a dark lane of dust.",
+        "That dark stripe is not shadow from outside; it is the galaxy's own dust blocking starlight behind it.",
+        "At its center sits a massive black hole, hidden inside the bright heart of the galaxy.",
+        "In the live image, the prize is the flattened, hat-like profile rather than spiral arms."
+      ],
+      "visualHint": "Look for a bright elongated core with a thin dark lane or flattened edge, depending on sky conditions.",
+      "drawer": [
+        {
+          "heading": "What you're seeing",
+          "body": "M104, the Sombrero Galaxy, is a galaxy seen close to edge-on. Its bright central bulge and dark dust lane create the hat-like shape that gives it its nickname."
+        },
+        {
+          "heading": "Why it matters",
+          "body": "The Sombrero is a beautiful example of how dust changes the appearance of a galaxy. It also contains a massive central black hole, reminding us that many galaxies have dense, energetic centers."
+        },
+        {
+          "heading": "The human story",
+          "body": "Its nickname is one of astronomy's most memorable because the shape is so easy to recognize. Even when the view is subtle, guests can hunt for the brim-like dark lane."
+        },
+        {
+          "heading": "How to spot it",
+          "body": "Expect a compact, bright, flattened glow rather than a large face-on spiral. The dark lane is delicate, so look for a thin edge or notch across the bright body. "
+        }
+      ]
     },
     {
       "id": "M81",
       "primaryName": "Bode's Galaxy",
-      "aliases": ["M81", "NGC 3031", "Bode's Galaxy"],
+      "aliases": [
+        "M81",
+        "NGC 3031",
+        "Bode's Galaxy"
+      ],
       "type": "Spiral Galaxy",
       "raDeg": 148.8888,
       "decDeg": 69.0653,
@@ -188,12 +396,41 @@
       "description": "A grand, sweeping spiral galaxy, one of the brightest and easiest galaxies to see beyond our own.",
       "constellation": "Ursa Major",
       "distanceLy": 12000000,
-      "sizeDescription": "nearly the full Moon"
+      "sizeDescription": "nearly the full Moon",
+      "wowFacts": [
+        "M81 is a grand spiral galaxy, a distant cousin of the Milky Way with hundreds of billions of stars.",
+        "Its light left about 12 million years ago, long before modern humans existed.",
+        "M81 and nearby M82 have tugged on each other with gravity, shaping both galaxies' histories.",
+        "In the live image, the bright oval core is the heart of another galaxy far beyond our own."
+      ],
+      "visualHint": "Look for a bright oval core with a broad, soft halo; spiral arms are subtle unless the sky is very dark.",
+      "drawer": [
+        {
+          "heading": "What you're seeing",
+          "body": "M81, also called Bode's Galaxy, is a large spiral galaxy in Ursa Major. The central region is bright and easy to see, while the outer spiral arms are much fainter."
+        },
+        {
+          "heading": "Why it matters",
+          "body": "M81 is one of the nearest large spiral galaxies beyond our Local Group. Its relationship with M82 makes it a vivid example of how galaxies can influence one another."
+        },
+        {
+          "heading": "The human story",
+          "body": "The galaxy is named after Johann Elert Bode, who described it in the 18th century. It remains one of the classic northern galaxies for live viewing because its core is bright and reliable."
+        },
+        {
+          "heading": "How to spot it",
+          "body": "The core appears first as a bright oval. Give the stack time; the outer halo is much fainter and may look like a soft extension rather than obvious arms."
+        }
+      ]
     },
     {
       "id": "M82",
       "primaryName": "Cigar Galaxy",
-      "aliases": ["M82", "NGC 3034", "Cigar Galaxy"],
+      "aliases": [
+        "M82",
+        "NGC 3034",
+        "Cigar Galaxy"
+      ],
       "type": "Irregular Galaxy",
       "raDeg": 148.9683,
       "decDeg": 69.6797,
@@ -202,12 +439,41 @@
       "description": "A galaxy torn ragged by a burst of furious star formation, glowing in a long cigar-shaped streak.",
       "constellation": "Ursa Major",
       "distanceLy": 12000000,
-      "sizeDescription": "a third of the full Moon"
+      "sizeDescription": "a third of the full Moon",
+      "wowFacts": [
+        "M82 is a starburst galaxy, forming stars at a furious rate after a gravitational encounter with M81.",
+        "Powerful winds from newborn stars and supernovae are blasting gas out of the galaxy.",
+        "Its cigar shape is not calm: it is a galaxy visibly disturbed by cosmic violence.",
+        "In the live image, the uneven streak is a real galaxy in turmoil."
+      ],
+      "visualHint": "Look for a narrow, bright streak with a mottled or broken-looking center rather than a smooth oval.",
+      "drawer": [
+        {
+          "heading": "What you're seeing",
+          "body": "M82, the Cigar Galaxy, is an irregular starburst galaxy near M81. Its long, ragged shape is the result of a disturbed disk and intense star formation."
+        },
+        {
+          "heading": "Why it matters",
+          "body": "M82 is one of the best nearby examples of a galaxy transformed by interaction. Gravity stirred it up, and the result is a burst of new stars and outflowing gas."
+        },
+        {
+          "heading": "The human story",
+          "body": "M82 is often shown with M81 because the pair tells a story better together: one elegant spiral, one energetic, torn-looking neighbor. It is a small drama between galaxies."
+        },
+        {
+          "heading": "How to spot it",
+          "body": "Look for a thin bright slash rather than a round glow. Under good conditions, the center may look uneven, almost split or mottled."
+        }
+      ]
     },
     {
       "id": "M101",
       "primaryName": "Pinwheel Galaxy",
-      "aliases": ["M101", "NGC 5457", "Pinwheel Galaxy"],
+      "aliases": [
+        "M101",
+        "NGC 5457",
+        "Pinwheel Galaxy"
+      ],
       "type": "Spiral Galaxy",
       "raDeg": 210.8023,
       "decDeg": 54.3487,
@@ -216,26 +482,83 @@
       "description": "A vast, face-on spiral seen in full — sweeping arms laid out flat, like a photo from directly above.",
       "constellation": "Ursa Major",
       "distanceLy": 21000000,
-      "sizeDescription": "nearly the full Moon"
+      "sizeDescription": "nearly the full Moon",
+      "wowFacts": [
+        "The Pinwheel Galaxy is enormous, but its light is spread so thinly that it can be surprisingly hard to see.",
+        "You are looking almost face-on at a galaxy's disk, like viewing a spiral from above.",
+        "Its arms contain giant star-forming regions, little islands of pinkish nebulae in deeper images.",
+        "In the live image, patience matters: the core appears first, while the broad disk slowly lifts out of the background."
+      ],
+      "visualHint": "Look for a large, faint, roundish glow with a brighter center; spiral arms are subtle and need dark skies.",
+      "drawer": [
+        {
+          "heading": "What you're seeing",
+          "body": "M101 is a large face-on spiral galaxy in Ursa Major. Because we see its disk spread out, the galaxy has low surface brightness even though it is intrinsically huge."
+        },
+        {
+          "heading": "Why it matters",
+          "body": "Face-on galaxies let astronomers study spiral arms, gas clouds, and star-forming regions across the disk. M101 is a reminder that big does not always mean visually bright."
+        },
+        {
+          "heading": "The human story",
+          "body": "Its Pinwheel nickname comes from the broad spiral pattern visible in deeper images. Live viewing is more subtle, which makes it a good dark-site target rather than a guaranteed rooftop showpiece."
+        },
+        {
+          "heading": "How to spot it",
+          "body": "Look for a broad pale patch, not a crisp pinwheel. If the sky is bright or hazy, the outer disk may nearly disappear, leaving mostly the central glow."
+        }
+      ]
     },
     {
       "id": "M33",
       "primaryName": "Triangulum Galaxy",
-      "aliases": ["M33", "NGC 598"],
+      "aliases": [
+        "M33",
+        "NGC 598"
+      ],
       "type": "Spiral Galaxy",
       "raDeg": 23.4621,
-      "decDeg": 30.6600,
-      "displayRadiusDeg": 1.0,
+      "decDeg": 30.66,
+      "displayRadiusDeg": 1,
       "priority": 88,
       "description": "A whole other galaxy of tens of billions of stars, quietly spiraling nearby.",
       "constellation": "Triangulum",
       "distanceLy": 2730000,
-      "sizeDescription": "about twice the full Moon"
+      "sizeDescription": "about twice the full Moon",
+      "wowFacts": [
+        "The Triangulum Galaxy is one of the nearest major galaxies beyond the Milky Way.",
+        "Its light has traveled roughly 2.7 million years to reach tonight's telescope.",
+        "M33 is smaller than the Milky Way and Andromeda, but it is rich in regions where new stars are forming.",
+        "In dark skies, this faint glow is a neighboring galaxy in our local cosmic family."
+      ],
+      "visualHint": "Look for a broad, faint glow with a brighter middle; spiral detail is gentle and needs patience.",
+      "drawer": [
+        {
+          "heading": "What you're seeing",
+          "body": "M33, the Triangulum Galaxy, is a spiral galaxy in the Local Group. It is smaller than Andromeda and the Milky Way but still contains tens of billions of stars."
+        },
+        {
+          "heading": "Why it matters",
+          "body": "M33 helps astronomers study how smaller spiral galaxies form stars and evolve near larger neighbors. Some of its brightest nebulae are large enough to be studied from Earth."
+        },
+        {
+          "heading": "The human story",
+          "body": "Triangulum is a small, simple constellation known since antiquity. Its galaxy is famous among observers because it is nearby but delicate, rewarding truly dark skies."
+        },
+        {
+          "heading": "How to spot it",
+          "body": "M33 is large and low-contrast, so it may look like a pale uneven patch rather than a bold spiral. Dark mountain skies make an enormous difference for this target."
+        }
+      ]
     },
     {
       "id": "M51",
       "primaryName": "Whirlpool Galaxy",
-      "aliases": ["M51", "NGC 5194", "Whirlpool Galaxy"],
+      "aliases": [
+        "M51",
+        "NGC 5194",
+        "Whirlpool Galaxy"
+      ],
       "type": "Spiral Galaxy",
       "raDeg": 202.4696,
       "decDeg": 47.1952,
@@ -244,12 +567,41 @@
       "description": "A textbook spiral galaxy caught mid-collision with a smaller companion, its arms stretched by gravity.",
       "constellation": "Canes Venatici",
       "distanceLy": 23000000,
-      "sizeDescription": "a third of the full Moon"
+      "sizeDescription": "a third of the full Moon",
+      "wowFacts": [
+        "The Whirlpool Galaxy is not alone: its spiral shape is being stirred by a smaller companion galaxy.",
+        "The graceful spiral arms are real lanes of stars, gas, and dust wrapped around a distant galactic core.",
+        "Light from M51 has been traveling for roughly 23 million years before reaching this screen.",
+        "In a good live stack, you may see the bridge-like connection that made this galaxy famous."
+      ],
+      "visualHint": "Look for a bright central glow with a smaller companion nearby; spiral structure may appear as soft curling arms.",
+      "drawer": [
+        {
+          "heading": "What you're seeing",
+          "body": "Whirlpool Galaxy is outside the Milky Way, so its glow is the combined light of enormous numbers of distant stars. Individual stars are too far away to separate, so the galaxy appears as a soft structure."
+        },
+        {
+          "heading": "Why it matters",
+          "body": "Galaxies reveal the universe at its largest familiar scale: star systems, dust, gas, and gravity arranged over tens of thousands of light-years. Even a faint smudge can be a whole stellar city."
+        },
+        {
+          "heading": "The human story",
+          "body": "Many galaxies entered catalogs as comet-like patches before their true nature was understood. The realization that they are separate galaxies was one of astronomy's great expansions of human perspective."
+        },
+        {
+          "heading": "How to spot it",
+          "body": "Look for the brighter center first, then the fainter outer glow. Spiral arms, dust lanes, or companions are subtle and depend strongly on sky darkness and stacking time."
+        }
+      ]
     },
     {
       "id": "M63",
       "primaryName": "Sunflower Galaxy",
-      "aliases": ["M63", "NGC 5055", "Sunflower Galaxy"],
+      "aliases": [
+        "M63",
+        "NGC 5055",
+        "Sunflower Galaxy"
+      ],
       "type": "Spiral Galaxy",
       "raDeg": 198.9554,
       "decDeg": 42.0292,
@@ -258,12 +610,40 @@
       "description": "A bright spiral with tightly wound, flecked arms that give it a sunflower-like glow.",
       "constellation": "Canes Venatici",
       "distanceLy": 29000000,
-      "sizeDescription": "a small bright glow — telescope only"
+      "sizeDescription": "a small bright glow — telescope only",
+      "wowFacts": [
+        "The Sunflower Galaxy gets its nickname from patchy spiral structure that looks petal-like in deep images.",
+        "Its arms are not smooth grand ribbons; they are broken into textured star-forming fragments.",
+        "The galaxy's light has traveled tens of millions of years before reaching this live view.",
+        "In the telescope, the bright core is easy; the sunflower texture is the subtle prize."
+      ],
+      "visualHint": "Look for a bright oval core with a faint, uneven halo rather than obvious bold spiral arms.",
+      "drawer": [
+        {
+          "heading": "What you're seeing",
+          "body": "M63 is a spiral galaxy in Canes Venatici. Its spiral structure is flocculent, meaning it appears patchy and textured rather than cleanly drawn."
+        },
+        {
+          "heading": "Why it matters",
+          "body": "Not every spiral galaxy has dramatic, symmetrical arms. M63 shows how star formation can make a galaxy's disk look mottled and organic."
+        },
+        {
+          "heading": "The human story",
+          "body": "Its Sunflower nickname comes from long-exposure images where the galaxy's texture resembles petals. In live viewing, that same idea is present but much gentler."
+        },
+        {
+          "heading": "How to spot it",
+          "body": "Start with the bright center, then look for the softer oval around it. The outer texture may appear as uneven grain rather than obvious arms."
+        }
+      ]
     },
     {
       "id": "M94",
       "primaryName": "M94",
-      "aliases": ["M94", "NGC 4736"],
+      "aliases": [
+        "M94",
+        "NGC 4736"
+      ],
       "type": "Spiral Galaxy",
       "raDeg": 192.7212,
       "decDeg": 41.1206,
@@ -272,68 +652,212 @@
       "description": "A compact, bright-cored spiral galaxy ringed by a faint outer halo of stars.",
       "constellation": "Canes Venatici",
       "distanceLy": 16000000,
-      "sizeDescription": "a small bright glow — telescope only"
+      "sizeDescription": "a small bright glow — telescope only",
+      "wowFacts": [
+        "M94 hides a bright ring of star formation around its central region.",
+        "It can look like a small bright core at first, but the galaxy extends much farther into a faint outer disk.",
+        "This galaxy shows that star formation can organize into rings, not just spiral arms.",
+        "In the live image, the intense center is only the brightest part of a much larger system."
+      ],
+      "visualHint": "Look for a small, bright, round core with a softer glow around it; the outer disk is much fainter.",
+      "drawer": [
+        {
+          "heading": "What you're seeing",
+          "body": "M94 is a spiral galaxy in Canes Venatici with a very bright central region. Around that center is a ring where many young stars are forming."
+        },
+        {
+          "heading": "Why it matters",
+          "body": "M94 is useful because its structure is not just a simple spiral. Rings, disks, and central activity all help astronomers understand how galaxies move gas and form stars."
+        },
+        {
+          "heading": "The human story",
+          "body": "M94 was discovered in the 18th century and became part of Messier's catalog of comet-like objects. It is a good example of a galaxy whose deeper structure is larger than the first glance suggests."
+        },
+        {
+          "heading": "How to spot it",
+          "body": "The center may look almost stellar at first because it is so bright. With stacking, look for a surrounding haze that proves you are seeing more than a single point."
+        }
+      ]
     },
     {
       "id": "M42",
       "primaryName": "Orion Nebula",
-      "aliases": ["M42", "NGC 1976", "Great Orion Nebula"],
+      "aliases": [
+        "M42",
+        "NGC 1976",
+        "Great Orion Nebula"
+      ],
       "type": "Diffuse Nebula",
       "raDeg": 83.8221,
       "decDeg": -5.3911,
-      "displayRadiusDeg": 1.0,
+      "displayRadiusDeg": 1,
       "priority": 100,
       "description": "A vast stellar nursery where new stars are being born right now, visible as a fuzzy patch below Orion's belt.",
       "constellation": "Orion",
       "distanceLy": 1344,
-      "sizeDescription": "about twice the full Moon"
+      "sizeDescription": "about twice the full Moon",
+      "wowFacts": [
+        "The Orion Nebula is a nearby stellar nursery where new stars are being born right now.",
+        "The glowing gas is lit by hot young stars hidden inside the nebula.",
+        "Some of the stars forming here may one day have planets of their own.",
+        "In a live-stacked image, the misty wings are real gas clouds sculpted by newborn stars."
+      ],
+      "visualHint": "Look for a bright central core with soft wing-like clouds spreading outward; color and detail build quickly.",
+      "drawer": [
+        {
+          "heading": "What you're seeing",
+          "body": "Orion Nebula is an interstellar cloud of gas and dust in the Milky Way. Some parts glow because nearby stars energize gas, while darker regions are dust blocking background light."
+        },
+        {
+          "heading": "Why it matters",
+          "body": "Nebulae show the galaxy as an active place where stars form, shine, and reshape their birth clouds. They are not static scenery; they are evolving environments."
+        },
+        {
+          "heading": "The human story",
+          "body": "Many nebula nicknames come from shapes that observers recognized in long exposures. In a live telescope view, the same structure is gentler, more like a landscape slowly appearing from darkness."
+        },
+        {
+          "heading": "How to spot it",
+          "body": "Expect a soft glow rather than a sharp outline. Color and contrast build gradually, and dark lanes or edges may be easier to see than the full famous shape."
+        }
+      ]
     },
     {
       "id": "M8",
       "primaryName": "Lagoon Nebula",
-      "aliases": ["M8", "NGC 6523"],
+      "aliases": [
+        "M8",
+        "NGC 6523"
+      ],
       "type": "Diffuse Nebula",
       "raDeg": 270.9042,
-      "decDeg": -24.3800,
+      "decDeg": -24.38,
       "displayRadiusDeg": 0.7,
       "priority": 82,
       "description": "A bright cloud of glowing gas in Sagittarius, cradling a cluster of hot young stars.",
       "constellation": "Sagittarius",
       "distanceLy": 4100,
-      "sizeDescription": "about 1.5× the full Moon"
+      "sizeDescription": "about 1.5× the full Moon",
+      "wowFacts": [
+        "The Lagoon Nebula is a stellar nursery: new stars are forming inside the glowing gas you are watching live.",
+        "Its reddish glow is mostly hydrogen gas lit up by hot young stars, the same raw material future stars are born from.",
+        "The dark lane through the nebula is not empty space; it is dust blocking light from the bright cloud behind it.",
+        "In the live image, the nebula's shape should grow from a soft patch into a glowing landscape with a dark channel through it."
+      ],
+      "visualHint": "Look for a broad reddish glow with a darker channel cutting through it, plus a cluster of bright young stars nearby.",
+      "drawer": [
+        {
+          "heading": "What you're seeing",
+          "body": "M8, the Lagoon Nebula, is a large emission nebula in Sagittarius. It is a cloud of glowing hydrogen gas, dark dust, and young stars embedded in the summer Milky Way."
+        },
+        {
+          "heading": "Why it matters",
+          "body": "This is a region where the Milky Way is actively turning gas into stars. The hot young stars light the nebula from within, while darker dust still hides denser parts of the cloud."
+        },
+        {
+          "heading": "The human story",
+          "body": "From Greece in summer, Sagittarius sits low toward the rich heart of the Milky Way. The Lagoon is one of the great southern treasures in that direction, bright enough to reward both visual observing and live stacking."
+        },
+        {
+          "heading": "How to spot it",
+          "body": "The bright nebula should appear before the finer structure. Look for the dark lagoon-like lane and for the nearby star cluster; the full glow becomes richer as the stack gathers more light."
+        }
+      ]
     },
     {
       "id": "M20",
       "primaryName": "Trifid Nebula",
-      "aliases": ["M20", "NGC 6514"],
+      "aliases": [
+        "M20",
+        "NGC 6514"
+      ],
       "type": "Diffuse Nebula",
       "raDeg": 270.6167,
-      "decDeg": -23.0300,
+      "decDeg": -23.03,
       "displayRadiusDeg": 0.35,
       "priority": 75,
       "description": "A three-lobed nebula split by dark dust lanes, glowing pink and blue side by side.",
       "constellation": "Sagittarius",
       "distanceLy": 5200,
-      "sizeDescription": "about the full Moon"
+      "sizeDescription": "about the full Moon",
+      "wowFacts": [
+        "The Trifid Nebula combines glowing red gas, blue reflected starlight, and dark dust lanes in one compact target.",
+        "Its name means divided into three parts, because dark dust cuts across the bright nebula like cosmic cracks.",
+        "The dark lanes are not holes in the image; they are dense dust blocking light from behind.",
+        "In the live view, the Trifid is a small cosmic color lesson: emission, reflection, and absorption all in one place."
+      ],
+      "visualHint": "Look for a compact glow split by dark lanes; the red and blue color contrast may be subtle and improves with stacking.",
+      "drawer": [
+        {
+          "heading": "What you're seeing",
+          "body": "M20 is the Trifid Nebula in Sagittarius. It contains red emission gas, blue reflection nebulosity, and dark dust lanes crossing the bright region."
+        },
+        {
+          "heading": "Why it matters",
+          "body": "Few objects show so many nebula processes in one compact view. The same field shows gas glowing, dust reflecting light, and dust blocking light."
+        },
+        {
+          "heading": "The human story",
+          "body": "The name Trifid comes from the divided appearance seen by early observers. It is one of those objects where the nickname is not just poetic; it points directly to the structure."
+        },
+        {
+          "heading": "How to spot it",
+          "body": "The dark lanes are the feature to hunt for. At first the nebula may look like a small bright patch, then the divisions and color hints become clearer as the stack deepens."
+        }
+      ]
     },
     {
       "id": "M16",
       "primaryName": "Eagle Nebula",
-      "aliases": ["M16", "NGC 6611", "Pillars of Creation"],
+      "aliases": [
+        "M16",
+        "NGC 6611",
+        "Pillars of Creation"
+      ],
       "type": "Diffuse Nebula",
-      "raDeg": 274.7000,
+      "raDeg": 274.7,
       "decDeg": -13.8067,
       "displayRadiusDeg": 0.35,
       "priority": 80,
       "description": "Home to the famous Pillars of Creation, towering columns of gas where stars are forming.",
       "constellation": "Serpens",
       "distanceLy": 7000,
-      "sizeDescription": "about the full Moon"
+      "sizeDescription": "about the full Moon",
+      "wowFacts": [
+        "The Eagle Nebula contains the famous Pillars of Creation, columns of gas and dust where stars are forming.",
+        "Those pillars are only a small part of a much larger cloud being sculpted by hot young stars.",
+        "The same newborn stars lighting the nebula are also eroding the material that made them.",
+        "In a live image, the famous pillars may be subtle, but the glow and cluster are the real star-birth region."
+      ],
+      "visualHint": "Look for a soft nebular glow around a small cluster of stars; the darkest pillar-like structures may be delicate or only hinted at.",
+      "drawer": [
+        {
+          "heading": "What you're seeing",
+          "body": "M16 is the Eagle Nebula, an emission nebula with a young open cluster inside it. The cluster's hot stars illuminate and reshape the surrounding gas and dust."
+        },
+        {
+          "heading": "Why it matters",
+          "body": "The Eagle shows star formation and stellar feedback at the same time. New stars are born from the cloud, then their radiation and winds carve that cloud away."
+        },
+        {
+          "heading": "The human story",
+          "body": "The Hubble image of the Pillars of Creation became one of the most famous space images ever made. Tonight's live view is gentler, but it is the same object arriving as fresh photons in real time."
+        },
+        {
+          "heading": "How to spot it",
+          "body": "Do not expect a Hubble-style close-up. First find the cluster and surrounding glow; with time and dark skies, darker knots and structure may begin to separate from the nebula."
+        }
+      ]
     },
     {
       "id": "M17",
       "primaryName": "Omega Nebula",
-      "aliases": ["M17", "NGC 6618", "Swan Nebula", "Horseshoe Nebula"],
+      "aliases": [
+        "M17",
+        "NGC 6618",
+        "Swan Nebula",
+        "Horseshoe Nebula"
+      ],
       "type": "Diffuse Nebula",
       "raDeg": 275.1958,
       "decDeg": -16.1767,
@@ -342,12 +866,42 @@
       "description": "A glowing swan-shaped ribbon of gas, one of the brightest star-forming clouds in our galaxy.",
       "constellation": "Sagittarius",
       "distanceLy": 5500,
-      "sizeDescription": "a third of the full Moon"
+      "sizeDescription": "a third of the full Moon",
+      "wowFacts": [
+        "The Omega Nebula is a bright star-forming cloud where hot young stars are lighting hydrogen gas from within.",
+        "Observers have seen different shapes in it for centuries: a swan, a check mark, a horseshoe, or the Greek letter omega.",
+        "This nebula sits in the summer Milky Way, near the direction of our galaxy's crowded inner regions.",
+        "In the live image, its bright curved bar often appears first, then the softer outer cloud slowly gathers around it."
+      ],
+      "visualHint": "Look for a bright curved or check-mark-shaped glow, with fainter nebulosity spreading around it as stacking builds.",
+      "drawer": [
+        {
+          "heading": "What you're seeing",
+          "body": "M17 is an emission nebula in Sagittarius, a cloud of gas energized by hot young stars. It is part of the Milky Way's active star-forming material."
+        },
+        {
+          "heading": "Why it matters",
+          "body": "Like Orion's nebula, M17 is a place where stars and clouds interact. The young stars do not just shine; they heat, ionize, and sculpt the gas around them."
+        },
+        {
+          "heading": "The human story",
+          "body": "Its many nicknames come from human pattern-finding, which makes it a lovely guest target. One person may see a swan, another a Greek omega, another simply a luminous cloud."
+        },
+        {
+          "heading": "How to spot it",
+          "body": "The bright central curve is the anchor. The fainter surrounding gas is more subtle, so let the stack build before judging the full shape."
+        }
+      ]
     },
     {
       "id": "NGC869-884",
       "primaryName": "Double Cluster",
-      "aliases": ["NGC 869", "NGC 884", "Double Cluster", "Caldwell 14"],
+      "aliases": [
+        "NGC 869",
+        "NGC 884",
+        "Double Cluster",
+        "Caldwell 14"
+      ],
       "type": "Open Cluster",
       "raDeg": 34.7429,
       "decDeg": 57.1333,
@@ -356,12 +910,40 @@
       "description": "Two brilliant star clusters side by side, like a double handful of diamonds scattered on velvet.",
       "constellation": "Perseus",
       "distanceLy": 7500,
-      "sizeDescription": "the pair spans about 2× the full Moon"
+      "sizeDescription": "the pair spans about 2× the full Moon",
+      "wowFacts": [
+        "The Double Cluster is two young star clusters side by side in the Milky Way.",
+        "Many of its brightest stars are hot blue-white suns, far younger than the Sun.",
+        "This object has been admired since antiquity as a bright patch in Perseus under dark skies.",
+        "In the live image, the wonder is immediate: not a smudge, but two glittering swarms of stars."
+      ],
+      "visualHint": "Look for two dense star gatherings in the same field, with many blue-white points scattered between them.",
+      "drawer": [
+        {
+          "heading": "What you're seeing",
+          "body": "NGC 869 and NGC 884 are two open clusters in Perseus. They are young star groups lying in the rich star fields of the Milky Way."
+        },
+        {
+          "heading": "Why it matters",
+          "body": "Open clusters show stars born together from shared clouds. The Double Cluster is especially striking because two rich clusters appear close together in the same region of sky."
+        },
+        {
+          "heading": "The human story",
+          "body": "Perseus is part of a great Greek mythological sky story with Andromeda, Cassiopeia, and Cetus. The Double Cluster adds a brilliant telescopic treasure to that mythic landscape."
+        },
+        {
+          "heading": "How to spot it",
+          "body": "Look for twin concentrations of stars, not nebulosity. The shape is best seen by taking in the whole field rather than focusing on one bright star."
+        }
+      ]
     },
     {
       "id": "M45",
       "primaryName": "Pleiades",
-      "aliases": ["M45", "Seven Sisters"],
+      "aliases": [
+        "M45",
+        "Seven Sisters"
+      ],
       "type": "Open Cluster",
       "raDeg": 56.75,
       "decDeg": 24.1167,
@@ -370,12 +952,42 @@
       "description": "A sparkling cluster of young blue stars, often called the Seven Sisters, easy to spot with the naked eye.",
       "constellation": "Taurus",
       "distanceLy": 444,
-      "sizeDescription": "about 3× the full Moon"
+      "sizeDescription": "about 3× the full Moon",
+      "wowFacts": [
+        "The Pleiades are a young family of hot blue stars only about 100 million years old.",
+        "Their faint blue mist is reflection nebulosity: dust shining by borrowed starlight.",
+        "This cluster has been known to cultures around the world for thousands of years, long before telescopes.",
+        "In the live image, the bright sisters appear first, then the delicate glow may begin to gather around them."
+      ],
+      "visualHint": "Look for bright blue-white stars, with faint misty reflection glow possible around the strongest ones.",
+      "drawer": [
+        {
+          "heading": "What you're seeing",
+          "body": "M45, the Pleiades, is an open cluster of young stars in Taurus. The brightest members are hot blue stars, and nearby dust can reflect their light as a faint blue haze."
+        },
+        {
+          "heading": "Why it matters",
+          "body": "The Pleiades are a nearby example of stars born together and still traveling as a group. They help astronomers study young stars before the cluster slowly disperses."
+        },
+        {
+          "heading": "The human story",
+          "body": "In Greek mythology, the Pleiades were seven sisters, daughters of Atlas and Pleione. The cluster also appears in calendars, navigation traditions, and stories around the world."
+        },
+        {
+          "heading": "How to spot it",
+          "body": "This object is wide, so the telescope may show only part of the full cluster. Look for the brilliant stars first; the blue haze depends strongly on sky quality and exposure time."
+        }
+      ]
     },
     {
       "id": "NGC6960-6992",
       "primaryName": "Veil Nebula",
-      "aliases": ["NGC 6960", "NGC 6992", "Witch's Broom Nebula", "Caldwell 34"],
+      "aliases": [
+        "NGC 6960",
+        "NGC 6992",
+        "Witch's Broom Nebula",
+        "Caldwell 34"
+      ],
       "type": "Supernova Remnant",
       "raDeg": 312.75,
       "decDeg": 30.7167,
@@ -384,12 +996,40 @@
       "description": "The delicate, tattered remains of a star that exploded thousands of years ago, still glowing across the sky.",
       "constellation": "Cygnus",
       "distanceLy": 2400,
-      "sizeDescription": "spreads 6× the full Moon"
+      "sizeDescription": "spreads 6× the full Moon",
+      "wowFacts": [
+        "The Veil Nebula is the wreckage of a star that exploded thousands of years ago.",
+        "Its delicate filaments are a shockwave expanding through interstellar gas.",
+        "The original supernova may have been bright enough to be seen from Earth in prehistoric times.",
+        "In a live image, the thin strands are not smoke; they are glowing debris from a dead star."
+      ],
+      "visualHint": "Look for long, thin, thread-like arcs rather than a solid cloud; the structure is delicate and best under dark skies.",
+      "drawer": [
+        {
+          "heading": "What you're seeing",
+          "body": "Veil Nebula is the expanding debris from a massive star that exploded. The thin glowing structures are shock-heated gas moving through space."
+        },
+        {
+          "heading": "Why it matters",
+          "body": "Supernova remnants distribute heavy elements into the galaxy, helping seed future stars, planets, and eventually life. They are beautiful evidence of cosmic recycling."
+        },
+        {
+          "heading": "The human story",
+          "body": "The original explosion may have been visible to ancient observers, though no confirmed record is tied to this remnant. What remains tonight is the long afterglow of stellar death."
+        },
+        {
+          "heading": "How to spot it",
+          "body": "Look for delicate filaments and arcs, not a solid cloud. Dark skies make a major difference because the light is spread over thin structures."
+        }
+      ]
     },
     {
       "id": "NGC7000",
       "primaryName": "North America Nebula",
-      "aliases": ["NGC 7000", "Caldwell 20"],
+      "aliases": [
+        "NGC 7000",
+        "Caldwell 20"
+      ],
       "type": "Diffuse Nebula",
       "raDeg": 313.7125,
       "decDeg": 44.5333,
@@ -398,12 +1038,40 @@
       "description": "A huge cloud of glowing gas shaped uncannily like the continent of North America.",
       "constellation": "Cygnus",
       "distanceLy": 2200,
-      "sizeDescription": "4× the full Moon"
+      "sizeDescription": "4× the full Moon",
+      "wowFacts": [
+        "The North America Nebula is so large that this telescope usually shows only part of it, not the whole continent shape at once.",
+        "Its familiar outline is carved by dark dust blocking pieces of a much larger glowing hydrogen cloud.",
+        "The nebula lies near Deneb in Cygnus, one of the richest summer Milky Way regions overhead.",
+        "In the live image, you may be flying over one coastline of the nebula rather than seeing the whole map."
+      ],
+      "visualHint": "Look for broad red nebulosity and dark edges; the full North America outline is larger than the field of view.",
+      "drawer": [
+        {
+          "heading": "What you're seeing",
+          "body": "NGC 7000 is a huge emission nebula near Deneb in Cygnus. Its red light comes from hydrogen gas, while dark dust creates the famous continent-like boundary."
+        },
+        {
+          "heading": "Why it matters",
+          "body": "Large nebulae like this are part of the Milky Way's star-forming environment. They show that the galaxy is threaded with gas and dust on scales far larger than a single telescope field."
+        },
+        {
+          "heading": "The human story",
+          "body": "Its nickname comes from wide-field images where the outline resembles North America. A live telescope view is more intimate: not the whole continent, but a glowing region within it."
+        },
+        {
+          "heading": "How to spot it",
+          "body": "Do not expect the entire map shape in one frame. Look for contrast between glowing red gas and darker dust boundaries; correct framing matters more than centering the catalog position exactly."
+        }
+      ]
     },
     {
       "id": "M4",
       "primaryName": "M4 Globular Cluster",
-      "aliases": ["M4", "NGC 6121"],
+      "aliases": [
+        "M4",
+        "NGC 6121"
+      ],
       "type": "Globular Cluster",
       "raDeg": 245.8967,
       "decDeg": -26.5256,
@@ -412,50 +1080,162 @@
       "description": "One of the closest globular clusters to us, a loose ball of ancient stars near the heart of Scorpius.",
       "constellation": "Scorpius",
       "distanceLy": 7200,
-      "sizeDescription": "about the full Moon"
+      "sizeDescription": "about the full Moon",
+      "wowFacts": [
+        "M4 is one of the closest globular clusters to Earth.",
+        "Its stars are ancient, many billions of years older than the Sun.",
+        "A distinctive bar of stars crosses its center in many telescope views.",
+        "In the live image, the cluster's grainy texture is made of old stars packed into a tight swarm."
+      ],
+      "visualHint": "Look for a soft round cluster with a brighter middle and hints of individual stars around the edges.",
+      "drawer": [
+        {
+          "heading": "What you're seeing",
+          "body": "M4 is a globular cluster near Antares in Scorpius. It is a dense ball of ancient stars orbiting the Milky Way."
+        },
+        {
+          "heading": "Why it matters",
+          "body": "Because it is relatively close for a globular cluster, M4 is important for studying old stars. Its age makes it a relic of the galaxy's early history."
+        },
+        {
+          "heading": "The human story",
+          "body": "M4 sits near Antares, the red heart of Scorpius, a dramatic summer constellation. From Greece it rides low in the south, so clear air and a good horizon matter."
+        },
+        {
+          "heading": "How to spot it",
+          "body": "Atmosphere near the horizon can soften the view. Look for a round glow that begins to break into tiny points as the stack improves."
+        }
+      ]
     },
     {
       "id": "M22",
       "primaryName": "M22 Globular Cluster",
-      "aliases": ["M22", "NGC 6656"],
+      "aliases": [
+        "M22",
+        "NGC 6656"
+      ],
       "type": "Globular Cluster",
-      "raDeg": 279.1000,
+      "raDeg": 279.1,
       "decDeg": -23.9042,
       "displayRadiusDeg": 0.3,
       "priority": 62,
       "description": "A big, bright globular cluster in Sagittarius, one of the best in the sky for backyard telescopes.",
       "constellation": "Sagittarius",
       "distanceLy": 10600,
-      "sizeDescription": "three-quarters of the full Moon"
+      "sizeDescription": "three-quarters of the full Moon",
+      "wowFacts": [
+        "M22 is one of the brightest globular clusters visible from northern latitudes.",
+        "It contains hundreds of thousands of ancient stars near the direction of the Milky Way's center.",
+        "Its stars are relics from the early galaxy, long older than the Sun.",
+        "In the live image, the outer halo can start to sparkle as individual stars separate from the glow."
+      ],
+      "visualHint": "Look for a large, bright, grainy ball of stars with a dense center and resolved edges.",
+      "drawer": [
+        {
+          "heading": "What you're seeing",
+          "body": "M22 is a globular cluster in Sagittarius. It is a dense swarm of old stars orbiting the Milky Way's central regions."
+        },
+        {
+          "heading": "Why it matters",
+          "body": "M22 is one of the finest globular clusters for live viewing because it is bright and relatively large. It gives guests a direct look at an ancient star city."
+        },
+        {
+          "heading": "The human story",
+          "body": "Sagittarius points toward the rich inner Milky Way. From a Greek summer sky, M22 is one of the great cluster showpieces in that southern direction."
+        },
+        {
+          "heading": "How to spot it",
+          "body": "The cluster should appear as a bright round glow that becomes grainier with time. The edge stars are usually easier to resolve than the crowded core."
+        }
+      ]
     },
     {
       "id": "M6",
       "primaryName": "Butterfly Cluster",
-      "aliases": ["M6", "NGC 6405"],
+      "aliases": [
+        "M6",
+        "NGC 6405"
+      ],
       "type": "Open Cluster",
       "raDeg": 265.0833,
       "decDeg": -32.2167,
       "displayRadiusDeg": 0.4,
       "priority": 55,
       "description": "A cluster of stars whose pattern fans out like the wings of a butterfly.",
-      "sizeDescription": "about the full Moon"
+      "sizeDescription": "about the full Moon",
+      "wowFacts": [
+        "The Butterfly Cluster gets its nickname from the wing-like pattern of its bright stars.",
+        "Its stars are young compared with the Sun, born together in the Milky Way.",
+        "One orange star in the cluster adds warm contrast among the bluer stars.",
+        "In the live image, this is a pattern target: the beauty is in the arrangement of stars."
+      ],
+      "visualHint": "Look for a loose cluster whose brighter stars suggest butterfly wings.",
+      "drawer": [
+        {
+          "heading": "What you're seeing",
+          "body": "M6 is an open cluster in Scorpius. It is a group of young stars born from the same cloud."
+        },
+        {
+          "heading": "Why it matters",
+          "body": "Open clusters show stars near the beginning of their shared lives. Over time, the Milky Way's gravity will scatter them into the wider galaxy."
+        },
+        {
+          "heading": "The human story",
+          "body": "The Butterfly nickname is one of the easiest for guests to connect with because it comes from the visible star pattern. From Greece it sits low in the rich southern summer sky."
+        },
+        {
+          "heading": "How to spot it",
+          "body": "Look for individual stars, not nebulosity. The shape may be easier to see if you step back from the screen rather than focusing on one star."
+        }
+      ]
     },
     {
       "id": "M7",
       "primaryName": "Ptolemy Cluster",
-      "aliases": ["M7", "NGC 6475"],
+      "aliases": [
+        "M7",
+        "NGC 6475"
+      ],
       "type": "Open Cluster",
       "raDeg": 268.4625,
       "decDeg": -34.8192,
       "displayRadiusDeg": 0.5,
       "priority": 55,
       "description": "A loose, bright scattering of stars known since antiquity, easily seen with the naked eye near the scorpion's tail.",
-      "sizeDescription": "about 2.5× the full Moon"
+      "sizeDescription": "about 2.5× the full Moon",
+      "wowFacts": [
+        "Ptolemy's Cluster was recorded in antiquity, long before telescopes existed.",
+        "It is one of the brightest open clusters in the sky.",
+        "The stars are young by cosmic standards and spread across a rich Milky Way field.",
+        "In a live image, this target feels like opening a window into a crowded star field."
+      ],
+      "visualHint": "Look for a wide, bright scattering of stars rather than a compact object.",
+      "drawer": [
+        {
+          "heading": "What you're seeing",
+          "body": "M7 is a large open cluster in Scorpius. It contains many bright stars spread over a wide area."
+        },
+        {
+          "heading": "Why it matters",
+          "body": "Open clusters are temporary star families. M7 is especially striking because it is bright, nearby, and set against the dense background of the Milky Way."
+        },
+        {
+          "heading": "The human story",
+          "body": "The cluster is associated with Claudius Ptolemy, the ancient astronomer who described it as a nebulous object. Seeing it from Greece adds a lovely historical echo."
+        },
+        {
+          "heading": "How to spot it",
+          "body": "This object may be too wide to fit completely in the telescope view. Look for a rich, loose star field rather than a single central glow."
+        }
+      ]
     },
     {
       "id": "M11",
       "primaryName": "Wild Duck Cluster",
-      "aliases": ["M11", "NGC 6705"],
+      "aliases": [
+        "M11",
+        "NGC 6705"
+      ],
       "type": "Open Cluster",
       "raDeg": 282.7708,
       "decDeg": -6.2717,
@@ -464,26 +1244,82 @@
       "description": "A tightly packed swarm of stars whose fan-like shape reminded early observers of ducks in flight.",
       "constellation": "Scutum",
       "distanceLy": 6200,
-      "sizeDescription": "about half the full Moon"
+      "sizeDescription": "about half the full Moon",
+      "wowFacts": [
+        "The Wild Duck Cluster is one of the richest open clusters in the sky.",
+        "It contains thousands of stars, packed more densely than most open clusters.",
+        "Its nickname comes from a pattern that reminded observers of ducks flying in formation.",
+        "In the live image, it can look almost like a globular cluster until the individual stars begin to sparkle."
+      ],
+      "visualHint": "Look for a compact, glittering swarm of stars with a bright, crowded center.",
+      "drawer": [
+        {
+          "heading": "What you're seeing",
+          "body": "M11 is an open cluster in Scutum. It is unusually rich and compact, with many stars crowded into a small-looking area."
+        },
+        {
+          "heading": "Why it matters",
+          "body": "Most open clusters are loose and airy, but M11 is dense enough to feel almost globular at first glance. It shows how varied star clusters can be."
+        },
+        {
+          "heading": "The human story",
+          "body": "The Wild Duck nickname is a classic observer's image, based on the shape of its brighter stars. It is one of the summer Milky Way's most satisfying cluster targets."
+        },
+        {
+          "heading": "How to spot it",
+          "body": "The cluster should become increasingly sparkly as stacking continues. Look for a dense triangular or fan-like patch rather than a simple loose scattering."
+        }
+      ]
     },
     {
       "id": "M15",
       "primaryName": "M15 Globular Cluster",
-      "aliases": ["M15", "NGC 7078"],
+      "aliases": [
+        "M15",
+        "NGC 7078"
+      ],
       "type": "Globular Cluster",
-      "raDeg": 322.4930,
-      "decDeg": 12.1670,
+      "raDeg": 322.493,
+      "decDeg": 12.167,
       "displayRadiusDeg": 0.25,
       "priority": 58,
       "description": "A tightly compressed ball of ancient stars, one of the densest globular clusters known.",
       "constellation": "Pegasus",
       "distanceLy": 33600,
-      "sizeDescription": "over half the full Moon"
+      "sizeDescription": "over half the full Moon",
+      "wowFacts": [
+        "M15 is one of the densest globular clusters in the Milky Way.",
+        "Its core is extremely crowded, with ancient stars packed tightly together.",
+        "This cluster is roughly 12 billion years old, a survivor from the early galaxy.",
+        "In the live image, the bright center is a crowd of stars too dense to fully separate."
+      ],
+      "visualHint": "Look for a bright compact core with a grainy halo of stars around it.",
+      "drawer": [
+        {
+          "heading": "What you're seeing",
+          "body": "M15 is a globular cluster in Pegasus. It contains a dense concentration of old stars bound together by gravity."
+        },
+        {
+          "heading": "Why it matters",
+          "body": "M15 is famous for its very concentrated core. Studying clusters like this helps astronomers understand how stars behave in extremely crowded environments."
+        },
+        {
+          "heading": "The human story",
+          "body": "Pegasus is the winged horse of Greek mythology, rising beautifully in late summer and autumn skies. M15 is one of its deep-sky highlights."
+        },
+        {
+          "heading": "How to spot it",
+          "body": "Expect a bright, tight center and a softer surrounding halo. The edges may resolve into individual stars while the core remains nearly solid."
+        }
+      ]
     },
     {
       "id": "M2",
       "primaryName": "M2 Globular Cluster",
-      "aliases": ["M2", "NGC 7089"],
+      "aliases": [
+        "M2",
+        "NGC 7089"
+      ],
       "type": "Globular Cluster",
       "raDeg": 323.3625,
       "decDeg": -0.8231,
@@ -492,12 +1328,40 @@
       "description": "A rich, symmetrical ball of stars, one of the sky's grander globular clusters.",
       "constellation": "Aquarius",
       "distanceLy": 37500,
-      "sizeDescription": "about half the full Moon"
+      "sizeDescription": "about half the full Moon",
+      "wowFacts": [
+        "M2 is an ancient globular cluster far out in the Milky Way's halo.",
+        "It contains a huge population of old stars bound into a spherical swarm.",
+        "The cluster has survived for billions of years while orbiting our galaxy.",
+        "In a live image, the soft ball slowly becomes grainy as more stars emerge."
+      ],
+      "visualHint": "Look for a round, compact glow with a bright center and subtle resolved edges.",
+      "drawer": [
+        {
+          "heading": "What you're seeing",
+          "body": "M2 is a globular cluster in Aquarius. It is a dense, old star cluster orbiting outside the main disk of the Milky Way."
+        },
+        {
+          "heading": "Why it matters",
+          "body": "Globular clusters preserve ancient stars and help trace the Milky Way's early formation. M2 is one of the larger and brighter examples visible in this part of the sky."
+        },
+        {
+          "heading": "The human story",
+          "body": "M2 was known before Messier added it to his catalog. For observers, it is a rewarding late-summer and autumn target when Aquarius is well placed."
+        },
+        {
+          "heading": "How to spot it",
+          "body": "The view will look like a compact glowing ball at first. With time, the outer parts may start to break into tiny star points."
+        }
+      ]
     },
     {
       "id": "M5",
       "primaryName": "M5 Globular Cluster",
-      "aliases": ["M5", "NGC 5904"],
+      "aliases": [
+        "M5",
+        "NGC 5904"
+      ],
       "type": "Globular Cluster",
       "raDeg": 229.6383,
       "decDeg": 2.0811,
@@ -506,12 +1370,42 @@
       "description": "One of the oldest and largest globular clusters known, a dense swarm of ancient stars in Serpens.",
       "constellation": "Serpens",
       "distanceLy": 24500,
-      "sizeDescription": "three-quarters of the full Moon"
+      "sizeDescription": "three-quarters of the full Moon",
+      "wowFacts": [
+        "M5 is one of the finest globular clusters in the sky, with a rich halo of ancient stars.",
+        "It is roughly 13 billion years old, nearly as old as the Milky Way itself.",
+        "Hundreds of thousands of stars are bound together in this one cluster.",
+        "In a live image, the cluster's outer stars can sparkle like frost around a bright core."
+      ],
+      "visualHint": "Look for a bright round cluster with a dense center and a wide, grainy halo.",
+      "drawer": [
+        {
+          "heading": "What you're seeing",
+          "body": "M5 is a large globular cluster in Serpens. It is a dense sphere of very old stars orbiting the Milky Way."
+        },
+        {
+          "heading": "Why it matters",
+          "body": "M5 is important because it is both old and rich, making it a beautiful laboratory for stellar evolution. Its stars help astronomers study the earliest eras of our galaxy."
+        },
+        {
+          "heading": "The human story",
+          "body": "Charles Messier cataloged it in the 18th century, though earlier observers had noted it as a nebulous object. Today it is one of the great globular cluster showpieces."
+        },
+        {
+          "heading": "How to spot it",
+          "body": "The halo should gradually resolve into many points under good conditions. The center remains brighter and more crowded than the edges."
+        }
+      ]
     },
     {
       "id": "M76",
       "primaryName": "Little Dumbbell Nebula",
-      "aliases": ["M76", "NGC 650", "NGC 651", "Little Dumbbell Nebula"],
+      "aliases": [
+        "M76",
+        "NGC 650",
+        "NGC 651",
+        "Little Dumbbell Nebula"
+      ],
       "type": "Planetary Nebula",
       "raDeg": 25.5825,
       "decDeg": 51.5753,
@@ -520,12 +1414,41 @@
       "description": "A small, faint echo of the Dumbbell Nebula, the wispy remains of a dying star's outer layers.",
       "constellation": "Perseus",
       "distanceLy": 3400,
-      "sizeDescription": "tiny — telescope only"
+      "sizeDescription": "tiny — telescope only",
+      "wowFacts": [
+        "The Little Dumbbell is a dying star's glowing shell, like M27 but smaller and fainter.",
+        "Its two-lobed shape comes from gas escaping unevenly from the central star.",
+        "This is one of the more challenging Messier planetary nebulae, which makes catching it feel earned.",
+        "In the live image, the reward is noticing the small dumbbell shape emerge from the background."
+      ],
+      "visualHint": "Look for a small, faint, boxy or two-lobed glow rather than a large bright nebula.",
+      "drawer": [
+        {
+          "heading": "What you're seeing",
+          "body": "M76 is a planetary nebula in Perseus. It is the expanding gas shed by a dying Sun-like star, lit by the hot remnant near the center."
+        },
+        {
+          "heading": "Why it matters",
+          "body": "Planetary nebulae show a short-lived late stage in stellar evolution. M76 is especially interesting because its shape hints at complex outflows rather than a simple round shell."
+        },
+        {
+          "heading": "The human story",
+          "body": "Its nickname, the Little Dumbbell, compares it to the brighter Dumbbell Nebula M27. It rewards patience more than instant spectacle."
+        },
+        {
+          "heading": "How to spot it",
+          "body": "This target is small and can be subtle. Look for a compact glow with a slightly pinched or divided shape as the stack improves."
+        }
+      ]
     },
     {
       "id": "NGC6543",
       "primaryName": "Cat's Eye Nebula",
-      "aliases": ["NGC 6543", "Caldwell 6", "Cat's Eye Nebula"],
+      "aliases": [
+        "NGC 6543",
+        "Caldwell 6",
+        "Cat's Eye Nebula"
+      ],
       "type": "Planetary Nebula",
       "raDeg": 269.6392,
       "decDeg": 66.6331,
@@ -534,89 +1457,311 @@
       "description": "A small, brilliant planetary nebula with intricate layered structure, one of the sky's most detailed.",
       "constellation": "Draco",
       "distanceLy": 3300,
-      "sizeDescription": "tiny but bright — telescope only"
+      "sizeDescription": "tiny but bright — telescope only",
+      "wowFacts": [
+        "The Cat's Eye Nebula is the intricate shell of a dying star.",
+        "Its central star has shed layers of gas in patterns that are still not simple to explain.",
+        "Deep images reveal multiple shells around the bright inner nebula, like echoes of a star's final breaths.",
+        "In a live image, the bright compact core is the part most likely to stand out."
+      ],
+      "visualHint": "Look for a small, bright, bluish-green dot or tiny disk; fine structure may be beyond the live view.",
+      "drawer": [
+        {
+          "heading": "What you're seeing",
+          "body": "NGC 6543 is a planetary nebula in Draco. It is gas expelled by a dying star and lit by the star's hot exposed core."
+        },
+        {
+          "heading": "Why it matters",
+          "body": "The Cat's Eye is famous for its complex structure in large telescopes. It shows that dying stars can shed material in surprisingly organized and layered ways."
+        },
+        {
+          "heading": "The human story",
+          "body": "Its nickname comes from the bright inner shape seen in detailed images. For guests, it is a reminder that some dramatic objects are physically tiny on the telescope screen."
+        },
+        {
+          "heading": "How to spot it",
+          "body": "This will likely appear small and bright, not like the famous Hubble image. Look for color and compactness rather than large-scale detail."
+        }
+      ]
     },
     {
       "id": "M92",
       "primaryName": "M92 Globular Cluster",
-      "aliases": ["M92", "NGC 6341"],
+      "aliases": [
+        "M92",
+        "NGC 6341"
+      ],
       "type": "Globular Cluster",
       "raDeg": 259.2808,
       "decDeg": 43.1358,
       "displayRadiusDeg": 0.2,
       "priority": 52,
       "description": "A brilliant, tightly packed cluster often overlooked in favor of its famous neighbor M13.",
-      "sizeDescription": "about half the full Moon"
+      "sizeDescription": "about half the full Moon",
+      "wowFacts": [
+        "M92 is an ancient globular cluster often overshadowed by nearby M13, but it is spectacular in its own right.",
+        "Its stars are among the oldest populations in the Milky Way.",
+        "M92 is Hercules' quieter showpiece: less famous than M13, but still one of the great ancient clusters of the summer sky.",
+        "In the live image, M92 shows a bright compact core surrounded by a halo of old stars."
+      ],
+      "visualHint": "Look for a tight, bright cluster with a dense core and grainy outer edge.",
+      "drawer": [
+        {
+          "heading": "What you're seeing",
+          "body": "M92 is a globular cluster in Hercules. It is a dense ball of ancient stars orbiting the Milky Way's halo."
+        },
+        {
+          "heading": "Why it matters",
+          "body": "M92 helps astronomers study some of the oldest stars in our galaxy. Its age and composition carry clues from the early Milky Way."
+        },
+        {
+          "heading": "The human story",
+          "body": "Because M13 is so famous, M92 can feel like Hercules' hidden second treasure. It rewards anyone willing to look beyond the headline object."
+        },
+        {
+          "heading": "How to spot it",
+          "body": "Expect a compact, bright glow. The outer halo may resolve into tiny points, while the core remains tightly packed."
+        }
+      ]
     },
     {
       "id": "M56",
       "primaryName": "M56 Globular Cluster",
-      "aliases": ["M56", "NGC 6779"],
+      "aliases": [
+        "M56",
+        "NGC 6779"
+      ],
       "type": "Globular Cluster",
       "raDeg": 289.1483,
       "decDeg": 30.1836,
       "displayRadiusDeg": 0.15,
       "priority": 40,
-      "description": "A modest, loosely concentrated cluster of stars drifting in the summer Milky Way."
+      "description": "A modest, loosely concentrated cluster of stars drifting in the summer Milky Way.",
+      "wowFacts": [
+        "M56 is a quiet ancient cluster floating in the rich summer Milky Way.",
+        "Its stars are old members of the galaxy's halo, not young stars of the disk.",
+        "It is less showy than M13, but it carries the same deep-time story.",
+        "In the live image, the cluster may look like a small grainy glow among many field stars."
+      ],
+      "visualHint": "Look for a modest round glow that becomes slightly grainy with stacking.",
+      "drawer": [
+        {
+          "heading": "What you're seeing",
+          "body": "M56 is a globular cluster in Lyra. It is a compact swarm of old stars bound together by gravity."
+        },
+        {
+          "heading": "Why it matters",
+          "body": "Even smaller globular clusters are ancient witnesses to the Milky Way's early history. M56 shows that these old systems are scattered throughout the halo."
+        },
+        {
+          "heading": "The human story",
+          "body": "M56 sits between the famous summer constellations Lyra and Cygnus. It is a quieter target in a region full of brighter showpieces."
+        },
+        {
+          "heading": "How to spot it",
+          "body": "Do not expect a dramatic resolved cluster unless conditions are good. Look for a small, soft concentration that stands apart from the surrounding star field."
+        }
+      ]
     },
     {
       "id": "M71",
       "primaryName": "M71 Globular Cluster",
-      "aliases": ["M71", "NGC 6838"],
+      "aliases": [
+        "M71",
+        "NGC 6838"
+      ],
       "type": "Globular Cluster",
       "raDeg": 298.4433,
       "decDeg": 18.7792,
       "displayRadiusDeg": 0.15,
       "priority": 38,
-      "description": "A loose, sparse cluster of stars so relaxed it was once mistaken for a simple star field."
+      "description": "A loose, sparse cluster of stars so relaxed it was once mistaken for a simple star field.",
+      "wowFacts": [
+        "M71 is a loose globular cluster that almost looks like an unusually rich open cluster.",
+        "Its identity was debated because it is less compact than classic globulars.",
+        "The cluster sits in Sagitta, one of the smallest constellations in the sky.",
+        "In the live image, M71 may appear as a grainy patch rather than a tight ball."
+      ],
+      "visualHint": "Look for a loose, irregular concentration of faint stars rather than a dense round core.",
+      "drawer": [
+        {
+          "heading": "What you're seeing",
+          "body": "M71 is generally classified as a globular cluster, though it is unusually loose. It lies in the small constellation Sagitta."
+        },
+        {
+          "heading": "Why it matters",
+          "body": "M71 shows that astronomical categories have edge cases. Not every globular cluster looks like a dense, symmetrical ball."
+        },
+        {
+          "heading": "The human story",
+          "body": "Sagitta represents an arrow in the sky, a tiny constellation with ancient roots. M71 gives this small constellation a deep-sky highlight."
+        },
+        {
+          "heading": "How to spot it",
+          "body": "Look for a patch of stars that is richer than the surrounding field. It may not have the strong central condensation guests expect from globular clusters."
+        }
+      ]
     },
     {
       "id": "M29",
       "primaryName": "M29 Open Cluster",
-      "aliases": ["M29", "NGC 6913"],
+      "aliases": [
+        "M29",
+        "NGC 6913"
+      ],
       "type": "Open Cluster",
       "raDeg": 305.9833,
       "decDeg": 38.4867,
       "displayRadiusDeg": 0.15,
       "priority": 35,
-      "description": "A compact little knot of hot young stars riding the Milky Way through Cygnus."
+      "description": "A compact little knot of hot young stars riding the Milky Way through Cygnus.",
+      "wowFacts": [
+        "M29 is a small young open cluster set against the rich star fields of Cygnus.",
+        "Its brightest stars form a simple pattern that can look like a tiny box or dipper.",
+        "The cluster is partly hidden by dust in the Milky Way, which dims its full richness.",
+        "In the live image, the charm is in the small pattern of bright stars."
+      ],
+      "visualHint": "Look for a compact group of bright stars arranged in a small geometric pattern.",
+      "drawer": [
+        {
+          "heading": "What you're seeing",
+          "body": "M29 is an open cluster in Cygnus. It is a young group of stars seen through dusty regions of the Milky Way."
+        },
+        {
+          "heading": "Why it matters",
+          "body": "Open clusters like M29 show star families before they disperse into the galaxy. Dust along the line of sight also reminds us that the Milky Way is full of obscuring material."
+        },
+        {
+          "heading": "The human story",
+          "body": "Cygnus dominates the summer Milky Way and is rich with star clusters and nebulae. M29 is a modest but pleasant stop in that crowded region."
+        },
+        {
+          "heading": "How to spot it",
+          "body": "This target will not look nebulous. Look for a small knot of stars, with the surrounding field also packed with Milky Way background stars."
+        }
+      ]
     },
     {
       "id": "M39",
       "primaryName": "M39 Open Cluster",
-      "aliases": ["M39", "NGC 7092"],
+      "aliases": [
+        "M39",
+        "NGC 7092"
+      ],
       "type": "Open Cluster",
-      "raDeg": 322.9000,
+      "raDeg": 322.9,
       "decDeg": 48.4333,
       "displayRadiusDeg": 0.4,
       "priority": 35,
       "description": "A wide, loose scattering of bright stars, best swept up with binoculars on a dark night.",
-      "sizeDescription": "about the full Moon"
+      "sizeDescription": "about the full Moon",
+      "wowFacts": [
+        "M39 is a loose, nearby open cluster in Cygnus.",
+        "Its stars are spread widely, giving it a spacious, glittering look.",
+        "This is a young star family slowly drifting apart into the Milky Way.",
+        "In the live image, it may feel more like a bright star pattern than a dense cluster."
+      ],
+      "visualHint": "Look for a broad triangular or loose grouping of bright stars.",
+      "drawer": [
+        {
+          "heading": "What you're seeing",
+          "body": "M39 is an open cluster in Cygnus. It contains stars born together that are now spread across a wide patch of sky."
+        },
+        {
+          "heading": "Why it matters",
+          "body": "Loose open clusters show what happens after stars form together and begin to drift apart. They are temporary structures compared with ancient globular clusters."
+        },
+        {
+          "heading": "The human story",
+          "body": "M39 lies in the summer Milky Way, near the path of Cygnus the Swan. It is best appreciated as a graceful star field rather than a dramatic object."
+        },
+        {
+          "heading": "How to spot it",
+          "body": "Because it is wide, the telescope may show only part of the full cluster. Look for bright stars arranged loosely rather than a compact center."
+        }
+      ]
     },
     {
       "id": "MOON",
       "primaryName": "The Moon",
-      "aliases": ["Moon", "Luna"],
+      "aliases": [
+        "Moon",
+        "Luna"
+      ],
       "type": "Moon",
       "requiresEphemeris": true,
       "displayRadiusDeg": null,
       "priority": 100,
-      "description": "Our closest neighbor in space, close enough to see craters, mountains, and seas of ancient lava with your own eyes."
+      "description": "Our closest neighbor in space, close enough to see craters, mountains, and seas of ancient lava with your own eyes.",
+      "wowFacts": [
+        "The Moon is close enough that its light reaches us in about 1.3 seconds.",
+        "Every crater shadow is a sunrise or sunset happening on another world.",
+        "The same lunar face has watched human history from the first campfires to tonight's phones.",
+        "In the live view, the most dramatic detail usually appears along the terminator, where sunlight grazes the surface."
+      ],
+      "visualHint": "Look near the day-night boundary for crater rims, mountain shadows, and the strongest 3D texture.",
+      "drawer": [
+        {
+          "heading": "What you're seeing",
+          "body": "The Moon is Earth's natural satellite, a rocky world covered with craters, plains, mountains, and ancient lava basins. Its surface records billions of years of impacts."
+        },
+        {
+          "heading": "Why it matters",
+          "body": "The Moon stabilizes Earth's axial tilt and shapes our tides. It is also the only world beyond Earth where humans have walked."
+        },
+        {
+          "heading": "The human story",
+          "body": "The Moon belongs to every culture's sky story, from calendars and mythology to exploration. In Greek tradition it connects with Selene and Artemis, names still echoed in modern lunar exploration."
+        },
+        {
+          "heading": "How to spot it",
+          "body": "The full Moon is bright but flatter-looking because shadows are short. Partial phases reveal far more relief, especially along the terminator where crater walls cast long shadows."
+        }
+      ]
     },
     {
       "id": "JUPITER",
       "primaryName": "Jupiter",
-      "aliases": ["Jupiter"],
+      "aliases": [
+        "Jupiter"
+      ],
       "type": "Planet",
       "requiresEphemeris": true,
       "displayRadiusDeg": null,
       "priority": 98,
-      "description": "The largest planet in our solar system, often showing its four biggest moons lined up alongside it."
+      "description": "The largest planet in our solar system, often showing its four biggest moons lined up alongside it.",
+      "wowFacts": [
+        "Jupiter is so large that more than 1,300 Earths could fit inside it by volume.",
+        "Its cloud bands are weather systems on a planet with no solid surface like Earth's.",
+        "The bright moons near Jupiter are worlds in their own right, first seen by Galileo in 1610.",
+        "In the live view, Jupiter changes from night to night as its moons move around it."
+      ],
+      "visualHint": "Look for a bright disk with faint bands, plus small star-like moons lined up nearby.",
+      "drawer": [
+        {
+          "heading": "What you're seeing",
+          "body": "Jupiter is the largest planet in the Solar System, a giant world made mostly of hydrogen and helium. Its visible surface is actually the top of deep cloud layers."
+        },
+        {
+          "heading": "Why it matters",
+          "body": "Jupiter's gravity has shaped the Solar System's history. Its moons are also major worlds, including Europa, which may have an ocean beneath its ice."
+        },
+        {
+          "heading": "The human story",
+          "body": "Galileo's observation of Jupiter's moons helped prove that not everything orbits Earth. The planet's Greek counterpart is Zeus, king of the gods."
+        },
+        {
+          "heading": "How to spot it",
+          "body": "Planet detail depends strongly on atmospheric steadiness. Look for the two main cloud bands and the positions of the moons; the Great Red Spot is only visible when facing Earth."
+        }
+      ]
     },
     {
       "id": "SATURN",
       "primaryName": "Saturn",
-      "aliases": ["Saturn"],
+      "aliases": [
+        "Saturn"
+      ],
       "type": "Planet",
       "requiresEphemeris": true,
       "displayRadiusDeg": null,
@@ -651,27 +1796,85 @@
     {
       "id": "VENUS",
       "primaryName": "Venus",
-      "aliases": ["Venus"],
+      "aliases": [
+        "Venus"
+      ],
       "type": "Planet",
       "requiresEphemeris": true,
       "displayRadiusDeg": null,
       "priority": 90,
-      "description": "The brilliant evening or morning star, brighter than anything else in the night sky besides the Moon."
+      "description": "The brilliant evening or morning star, brighter than anything else in the night sky besides the Moon.",
+      "wowFacts": [
+        "Venus is wrapped in clouds so thick that its surface is hidden from visible light.",
+        "It is the hottest planet in the Solar System, hotter than Mercury despite being farther from the Sun.",
+        "Through a telescope, Venus shows phases like a tiny Moon.",
+        "The brilliant evening star is actually a scorched world with a crushing atmosphere."
+      ],
+      "visualHint": "Look for a very bright small disk or crescent; surface details will not be visible through the clouds.",
+      "drawer": [
+        {
+          "heading": "What you're seeing",
+          "body": "Venus is Earth's inner neighbor, covered by reflective clouds of sulfuric acid. Its brightness comes from sunlight bouncing off those clouds."
+        },
+        {
+          "heading": "Why it matters",
+          "body": "Venus is a warning about planetary climate extremes. Its runaway greenhouse atmosphere makes the surface hot enough to melt lead."
+        },
+        {
+          "heading": "The human story",
+          "body": "Venus has been the morning and evening star of cultures worldwide. In Greek tradition it is linked with Aphrodite, goddess of love and beauty."
+        },
+        {
+          "heading": "How to spot it",
+          "body": "Do not expect surface markings. The key feature is the phase: Venus may appear gibbous, half-lit, or crescent depending on where it is in its orbit."
+        }
+      ]
     },
     {
       "id": "MARS",
       "primaryName": "Mars",
-      "aliases": ["Mars"],
+      "aliases": [
+        "Mars"
+      ],
       "type": "Planet",
       "requiresEphemeris": true,
       "displayRadiusDeg": null,
       "priority": 88,
-      "description": "The rusty red planet. At favorable oppositions, telescopes can reveal its polar cap and dark surface markings."
+      "description": "The rusty red planet. At favorable oppositions, telescopes can reveal its polar cap and dark surface markings.",
+      "wowFacts": [
+        "Mars is a real rocky world with deserts, polar caps, volcanoes, and ancient river valleys.",
+        "Its rusty color comes from iron-rich minerals on the surface.",
+        "Olympus Mons on Mars is the tallest known volcano in the Solar System.",
+        "In the live view, Mars is small, but its orange-red color is unmistakably planetary."
+      ],
+      "visualHint": "Look for a small orange-red disk; surface detail may be subtle and depends heavily on atmospheric steadiness.",
+      "drawer": [
+        {
+          "heading": "What you're seeing",
+          "body": "Mars is the fourth planet from the Sun, a cold desert world with a thin atmosphere. Its reddish color is caused by iron oxides in the soil and dust."
+        },
+        {
+          "heading": "Why it matters",
+          "body": "Mars preserves evidence that liquid water once flowed across its surface. It is one of the most important places for studying whether habitable environments existed beyond Earth."
+        },
+        {
+          "heading": "The human story",
+          "body": "Mars has been associated with war gods in many cultures, including Ares in Greek tradition. Today it is also the planet most associated with future human exploration."
+        },
+        {
+          "heading": "How to spot it",
+          "body": "Mars changes dramatically with distance from Earth, so some seasons it appears much smaller than others. Look first for color; fine surface detail is a bonus."
+        }
+      ]
     },
     {
       "id": "NGC7293",
       "primaryName": "Helix Nebula",
-      "aliases": ["NGC 7293", "Caldwell 63", "Eye of God"],
+      "aliases": [
+        "NGC 7293",
+        "Caldwell 63",
+        "Eye of God"
+      ],
       "type": "Planetary Nebula",
       "raDeg": 337.4106,
       "decDeg": -20.8371,
@@ -680,26 +1883,84 @@
       "description": "A glowing ring of gas cast off by a dying star, close enough to us that it's one of the largest planetary nebulae in the sky.",
       "constellation": "Aquarius",
       "distanceLy": 650,
-      "sizeDescription": "about the full Moon"
+      "sizeDescription": "about the full Moon",
+      "wowFacts": [
+        "The Helix Nebula is one of the closest planetary nebulae to Earth, but its light is spread out so widely that it can look ghostly.",
+        "Its famous eye-like shape is a dying star's outer layers expanding into space.",
+        "The star at the center is becoming a white dwarf, the dense ember left after a Sun-like star dies.",
+        "In a live image, the Helix is less like a tiny ring and more like a huge faint breath in the sky."
+      ],
+      "visualHint": "Look for a broad, faint ring or oval glow; it may be subtle because its light is spread over a large area.",
+      "drawer": [
+        {
+          "heading": "What you're seeing",
+          "body": "NGC 7293, the Helix Nebula, is a planetary nebula in Aquarius. It is gas expelled by a dying star, lit by the hot remnant near the center."
+        },
+        {
+          "heading": "Why it matters",
+          "body": "Because it is relatively nearby, the Helix lets astronomers study the structure of a planetary nebula in detail. It is a glimpse of one possible late stage for Sun-like stars."
+        },
+        {
+          "heading": "The human story",
+          "body": "Its eye-like appearance has made it famous in modern space images. In live viewing, it is quieter and more subtle, but the same dying-star shell is there."
+        },
+        {
+          "heading": "How to spot it",
+          "body": "This is a low-surface-brightness object, so dark skies help enormously. Look for a large, soft oval rather than a compact bright ring like M57."
+        }
+      ]
     },
     {
       "id": "NGC6888",
       "primaryName": "Crescent Nebula",
-      "aliases": ["NGC 6888", "Caldwell 27", "Sharpless 105"],
+      "aliases": [
+        "NGC 6888",
+        "Caldwell 27",
+        "Sharpless 105"
+      ],
       "type": "Diffuse Nebula",
       "raDeg": 303.0292,
-      "decDeg": 38.3550,
+      "decDeg": 38.355,
       "displayRadiusDeg": 0.2,
       "priority": 68,
       "description": "A delicate shell of gas blown outward by a hot, furious star nearing the end of its life.",
       "constellation": "Cygnus",
       "distanceLy": 5000,
-      "sizeDescription": "about two-thirds of the full Moon"
+      "sizeDescription": "about two-thirds of the full Moon",
+      "wowFacts": [
+        "The Crescent Nebula is a bubble blown by a powerful Wolf-Rayet star shedding material at high speed.",
+        "The central star is so intense that it is sculpting its own surroundings before it likely ends in a violent death.",
+        "Its crescent shape is where fast stellar wind crashes into older gas thrown off by the same star.",
+        "In the live image, the curved arc is not a decorative outline; it is a shock front around a massive star."
+      ],
+      "visualHint": "Look for a faint curved arc or crescent-shaped glow among rich Cygnus star fields.",
+      "drawer": [
+        {
+          "heading": "What you're seeing",
+          "body": "NGC 6888 is an emission nebula in Cygnus shaped by a massive Wolf-Rayet star. Fast stellar wind is pushing into material the star ejected earlier."
+        },
+        {
+          "heading": "Why it matters",
+          "body": "The Crescent shows massive-star evolution in action. It is not a quiet cloud; it is a shell being carved by a star near the end of a short, fierce life."
+        },
+        {
+          "heading": "The human story",
+          "body": "It lies in Cygnus, the Swan, one of the richest constellations in the summer Milky Way. The shape is delicate, but the physics behind it is anything but gentle."
+        },
+        {
+          "heading": "How to spot it",
+          "body": "This target is faint and benefits from dark skies and time. Look for curved structure rather than a bright filled-in nebula; the complete shell may not be obvious."
+        }
+      ]
     },
     {
       "id": "NGC7635",
       "primaryName": "Bubble Nebula",
-      "aliases": ["NGC 7635", "Caldwell 11", "Sharpless 162"],
+      "aliases": [
+        "NGC 7635",
+        "Caldwell 11",
+        "Sharpless 162"
+      ],
       "type": "Diffuse Nebula",
       "raDeg": 350.2013,
       "decDeg": 61.2017,
@@ -708,12 +1969,40 @@
       "description": "A delicate sphere of gas blown outward by the wind of a single massive young star.",
       "constellation": "Cassiopeia",
       "distanceLy": 7100,
-      "sizeDescription": "about half the full Moon"
+      "sizeDescription": "about half the full Moon",
+      "wowFacts": [
+        "The Bubble Nebula is a shell blown into space by the wind of a hot massive star.",
+        "The bubble is not perfectly centered because the gas around the star is uneven, resisting the wind more on one side.",
+        "You are seeing a star physically carving a cavity into its surrounding cloud.",
+        "In the live image, the bubble may be subtle, but the curved rim is the clue that gives the object its name."
+      ],
+      "visualHint": "Look for a faint rounded bubble or curved arc near a brighter patch of nebulosity.",
+      "drawer": [
+        {
+          "heading": "What you're seeing",
+          "body": "NGC 7635 is an emission nebula in Cassiopeia. A hot massive star is blowing a bubble into the surrounding gas with its strong stellar wind."
+        },
+        {
+          "heading": "Why it matters",
+          "body": "The Bubble Nebula shows stellar feedback in a form guests can imagine. Stars do not only shine; they push, carve, heat, and reshape the clouds around them."
+        },
+        {
+          "heading": "The human story",
+          "body": "Its nickname is simple because the form is so memorable in deeper images. In a live view, finding that faint rim becomes part of the fun."
+        },
+        {
+          "heading": "How to spot it",
+          "body": "The clean bubble shape is challenging in modest live views. Look for a small curved rim or brighter knot first, then the surrounding glow as the stack builds."
+        }
+      ]
     },
     {
       "id": "NGC281",
       "primaryName": "Pacman Nebula",
-      "aliases": ["NGC 281", "Sharpless 184"],
+      "aliases": [
+        "NGC 281",
+        "Sharpless 184"
+      ],
       "type": "Diffuse Nebula",
       "raDeg": 13.2471,
       "decDeg": 56.6219,
@@ -722,12 +2011,42 @@
       "description": "A bright cloud of glowing gas and dark dust, shaped by starlight into its famous open-mouthed silhouette.",
       "constellation": "Cassiopeia",
       "distanceLy": 9200,
-      "sizeDescription": "about the full Moon"
+      "sizeDescription": "about the full Moon",
+      "wowFacts": [
+        "The Pacman Nebula gets its nickname from a dark bite-shaped lane cutting into the glow.",
+        "It is a star-forming region filled with glowing gas, dust, and young stars.",
+        "Dense dark clumps inside the nebula can be places where future stars are forming.",
+        "In the live image, the fun is finding the shape while remembering it is a real stellar nursery."
+      ],
+      "visualHint": "Look for a rounded glow with a darker notch or bite-like feature on one side.",
+      "drawer": [
+        {
+          "heading": "What you're seeing",
+          "body": "NGC 281 is an emission nebula in Cassiopeia. Hot young stars energize the gas, while dark dust shapes the visible outline."
+        },
+        {
+          "heading": "Why it matters",
+          "body": "This nebula shows how messy star birth can be. Glowing gas, dark dust, and young clusters all share the same region."
+        },
+        {
+          "heading": "The human story",
+          "body": "The Pacman nickname is modern and playful, based on the arcade-game shape. It is a good reminder that astronomy names can be scientific and delightfully human at the same time."
+        },
+        {
+          "heading": "How to spot it",
+          "body": "The overall glow may appear before the bite is obvious. Give the stack time and look for contrast between the bright nebula and the dark lane."
+        }
+      ]
     },
     {
       "id": "NGC457",
       "primaryName": "Owl Cluster",
-      "aliases": ["NGC 457", "Caldwell 13", "ET Cluster", "Dragonfly Cluster"],
+      "aliases": [
+        "NGC 457",
+        "Caldwell 13",
+        "ET Cluster",
+        "Dragonfly Cluster"
+      ],
       "type": "Open Cluster",
       "raDeg": 19.8858,
       "decDeg": 58.2908,
@@ -736,12 +2055,40 @@
       "description": "A whimsical cluster of stars whose two bright \"eyes\" and outstretched arms give it the look of an owl, or a tiny alien.",
       "constellation": "Cassiopeia",
       "distanceLy": 7900,
-      "sizeDescription": "about half the full Moon"
+      "sizeDescription": "about half the full Moon",
+      "wowFacts": [
+        "The Owl Cluster looks like a tiny owl or E.T. with two bright eyes staring back from space.",
+        "Its two brightest stars make the eyes, while fainter stars trace wings or outstretched arms.",
+        "This is a real open cluster, not just a random drawing, though the nickname comes from our pattern-loving eyes.",
+        "In the live image, once you see the owl shape, it is almost impossible to unsee it."
+      ],
+      "visualHint": "Look for two bright eye-like stars with a spread of fainter stars forming wings or arms.",
+      "drawer": [
+        {
+          "heading": "What you're seeing",
+          "body": "NGC 457 is an open cluster in Cassiopeia. Its bright stars form a pattern that observers compare to an owl or the character E.T."
+        },
+        {
+          "heading": "Why it matters",
+          "body": "Open clusters are young star families, but NGC 457 is especially guest-friendly because its pattern is easy to connect with visually. It turns astronomy into a small act of recognition."
+        },
+        {
+          "heading": "The human story",
+          "body": "Cassiopeia is a queen from Greek mythology, and this cluster sits within her W-shaped constellation. The Owl nickname is a modern layer added by observers."
+        },
+        {
+          "heading": "How to spot it",
+          "body": "This is not a faint smudge target. Look for a star pattern: two bright eyes, a body, and outstretched wings or arms."
+        }
+      ]
     },
     {
       "id": "NGC7023",
       "primaryName": "Iris Nebula",
-      "aliases": ["NGC 7023", "Caldwell 4"],
+      "aliases": [
+        "NGC 7023",
+        "Caldwell 4"
+      ],
       "type": "Reflection Nebula",
       "raDeg": 315.3983,
       "decDeg": 68.1694,
@@ -750,26 +2097,82 @@
       "description": "A young star's light bounces off surrounding dust to form a delicate, petal-like blue glow.",
       "constellation": "Cepheus",
       "distanceLy": 1300,
-      "sizeDescription": "about two-thirds of the full Moon"
+      "sizeDescription": "about two-thirds of the full Moon",
+      "wowFacts": [
+        "The Iris Nebula shines by reflected starlight, not by glowing red hydrogen gas.",
+        "Its blue tone comes from dust scattering blue light more efficiently, the same basic reason Earth's sky is blue.",
+        "Dark dust around the nebula gives it a flower-like contrast in deeper images.",
+        "In the live image, the glow may look like faint blue light caught in smoke around a star."
+      ],
+      "visualHint": "Look for a soft bluish glow around a star, with darker dust making the edges uneven.",
+      "drawer": [
+        {
+          "heading": "What you're seeing",
+          "body": "NGC 7023 is a reflection nebula in Cepheus. Dust around a bright star reflects and scatters the star's light toward us."
+        },
+        {
+          "heading": "Why it matters",
+          "body": "Reflection nebulae reveal dust by borrowed light. They are different from emission nebulae, where gas itself glows after being energized."
+        },
+        {
+          "heading": "The human story",
+          "body": "Its Iris nickname comes from the flower-like appearance in deeper images. It is a softer, more delicate target than the bright red star-forming nebulae."
+        },
+        {
+          "heading": "How to spot it",
+          "body": "This can be subtle in live viewing. Look for a halo around the central star and uneven dark surroundings rather than a bold outline."
+        }
+      ]
     },
     {
       "id": "IC1396",
       "primaryName": "Elephant's Trunk Nebula",
-      "aliases": ["IC 1396", "Sharpless 131"],
+      "aliases": [
+        "IC 1396",
+        "Sharpless 131"
+      ],
       "type": "Diffuse Nebula",
-      "raDeg": 324.7500,
-      "decDeg": 57.4900,
+      "raDeg": 324.75,
+      "decDeg": 57.49,
       "displayRadiusDeg": 1.4,
       "priority": 62,
       "description": "A vast cloud of glowing gas wrapped around a dark, winding column of dust where new stars are being born.",
       "constellation": "Cepheus",
       "distanceLy": 2400,
-      "sizeDescription": "spans roughly 6× the full Moon"
+      "sizeDescription": "spans roughly 6× the full Moon",
+      "wowFacts": [
+        "IC 1396 is so large that the telescope shows only part of this vast star-forming complex at once.",
+        "The Elephant's Trunk is a dark column of gas and dust where new stars may be forming inside the shadowed material.",
+        "Hot young stars nearby are lighting and eroding the cloud at the same time.",
+        "In the live image, the drama is contrast: faint red glow interrupted by darker dust structures."
+      ],
+      "visualHint": "Look for faint red nebulosity with darker lanes or columns; the famous trunk may be subtle and framing-dependent.",
+      "drawer": [
+        {
+          "heading": "What you're seeing",
+          "body": "IC 1396 is a large emission nebula in Cepheus. It contains glowing hydrogen gas, young stars, and dark dust structures including the Elephant's Trunk region."
+        },
+        {
+          "heading": "Why it matters",
+          "body": "This region shows how star formation can happen inside dense clouds while nearby massive stars erode those same clouds. It is a tug-of-war between birth and destruction."
+        },
+        {
+          "heading": "The human story",
+          "body": "The Elephant's Trunk nickname comes from a curved dark column seen in deeper images. In a live telescope view, it is more subtle: a dark structure inside a larger glowing landscape."
+        },
+        {
+          "heading": "How to spot it",
+          "body": "This target is large and faint, so dark skies matter. Look for red haze and dark boundaries rather than one bright, neat object."
+        }
+      ]
     },
     {
       "id": "NGC7380",
       "primaryName": "Wizard Nebula",
-      "aliases": ["NGC 7380", "Sharpless 142"],
+      "aliases": [
+        "NGC 7380",
+        "Sharpless 142"
+      ],
       "type": "Diffuse Nebula",
       "raDeg": 341.8375,
       "decDeg": 58.1317,
@@ -778,12 +2181,40 @@
       "description": "A star-forming cloud whose billowing shapes have reminded observers of a robed, staff-wielding figure.",
       "constellation": "Cepheus",
       "distanceLy": 8000,
-      "sizeDescription": "about the full Moon"
+      "sizeDescription": "about the full Moon",
+      "wowFacts": [
+        "The Wizard Nebula is a young cluster and glowing cloud wrapped into one star-forming scene.",
+        "Its nickname comes from dark and bright shapes that suggest a robed figure in deeper images.",
+        "The stars inside are helping light and sculpt the nebula that formed them.",
+        "In the live image, the wizard may be elusive, but the structured glow is real star-birth material."
+      ],
+      "visualHint": "Look for faint structured nebulosity around a small cluster, with dark gaps shaping the glow.",
+      "drawer": [
+        {
+          "heading": "What you're seeing",
+          "body": "NGC 7380 is a young open cluster embedded in an emission nebula in Cepheus. The stars and surrounding gas are physically connected."
+        },
+        {
+          "heading": "Why it matters",
+          "body": "This target shows the relationship between newborn stars and their birth cloud. The cluster illuminates the nebula while also reshaping it."
+        },
+        {
+          "heading": "The human story",
+          "body": "The Wizard nickname is an observer's imaginative label for the nebula's shape. It fits the mood of dark-sky observing: science with just enough magic in the pattern."
+        },
+        {
+          "heading": "How to spot it",
+          "body": "The nebula is not as instantly bright as Orion or Lagoon. Look first for the small cluster, then for faint uneven glow around it as the stack builds."
+        }
+      ]
     },
     {
       "id": "NGC7789",
       "primaryName": "Caroline's Rose",
-      "aliases": ["NGC 7789", "Caroline Herschel's Cluster"],
+      "aliases": [
+        "NGC 7789",
+        "Caroline Herschel's Cluster"
+      ],
       "type": "Open Cluster",
       "raDeg": 359.3292,
       "decDeg": 56.7244,
@@ -792,40 +2223,126 @@
       "description": "A rich, dense swarm of ancient stars whose looping chains of light and dark suggest the swirled petals of a rose.",
       "constellation": "Cassiopeia",
       "distanceLy": 6800,
-      "sizeDescription": "about half the full Moon"
+      "sizeDescription": "about half the full Moon",
+      "wowFacts": [
+        "Caroline's Rose is a rich open cluster whose star lanes curl like petals in deeper views.",
+        "It was discovered by Caroline Herschel, one of astronomy's great observing pioneers.",
+        "The cluster contains many evolved stars, giving it a soft, elegant richness rather than a few blazing blue points.",
+        "In the live image, the rose is made entirely of stars."
+      ],
+      "visualHint": "Look for a dense, delicate spray of faint stars arranged in curved patterns.",
+      "drawer": [
+        {
+          "heading": "What you're seeing",
+          "body": "NGC 7789 is a rich open cluster in Cassiopeia. Its many stars create curved lanes and patterns that inspired the Rose nickname."
+        },
+        {
+          "heading": "Why it matters",
+          "body": "This cluster is older than many bright open clusters, so it contains a more evolved stellar population. It helps show how clusters change as their stars age."
+        },
+        {
+          "heading": "The human story",
+          "body": "Caroline Herschel discovered this object in the 18th century. Naming it Caroline's Rose beautifully ties the view to one of astronomy's important women observers."
+        },
+        {
+          "heading": "How to spot it",
+          "body": "This target rewards patience and a dark sky. Look for a rich, almost floral texture rather than a few bright stars."
+        }
+      ]
     },
     {
       "id": "IC1318",
       "primaryName": "Sadr Region",
-      "aliases": ["IC 1318", "Gamma Cygni Nebula", "Butterfly Nebula"],
+      "aliases": [
+        "IC 1318",
+        "Gamma Cygni Nebula",
+        "Butterfly Nebula"
+      ],
       "type": "Diffuse Nebula",
       "raDeg": 305.5571,
       "decDeg": 40.2567,
-      "displayRadiusDeg": 1.0,
+      "displayRadiusDeg": 1,
       "priority": 60,
       "description": "A wide, softly glowing field of gas surrounding one of Cygnus's brightest stars, threaded through with dark dust lanes.",
       "constellation": "Cygnus",
       "distanceLy": 4900,
-      "sizeDescription": "spans several times the full Moon"
+      "sizeDescription": "spans several times the full Moon",
+      "wowFacts": [
+        "The Sadr Region is not one neat object but a glowing landscape in the heart of Cygnus.",
+        "Dark dust lanes cut through the red hydrogen glow like rivers of shadow.",
+        "This area sits along the summer Milky Way, where the galaxy is rich with gas, stars, and dust.",
+        "In the live image, you are seeing a piece of a much larger nebular complex."
+      ],
+      "visualHint": "Look for broad red nebulosity crossed by darker lanes and crowded with Milky Way stars.",
+      "drawer": [
+        {
+          "heading": "What you're seeing",
+          "body": "IC 1318 is a large emission nebula complex near Sadr, the central star of Cygnus. It contains glowing hydrogen gas and dark dust clouds."
+        },
+        {
+          "heading": "Why it matters",
+          "body": "The Sadr Region shows the Milky Way as an active, structured place. It is less a single object than a glowing section of the galaxy's star-forming environment."
+        },
+        {
+          "heading": "The human story",
+          "body": "Cygnus, the Swan, flies along the summer Milky Way and carries several Greek myth connections. This region turns that mythic constellation into a physical river of gas and stars."
+        },
+        {
+          "heading": "How to spot it",
+          "body": "This object is huge, so the telescope frames only part of it. Look for red glow, dark lanes, and dense star fields rather than a tidy outline."
+        }
+      ]
     },
     {
       "id": "M24",
       "primaryName": "Sagittarius Star Cloud",
-      "aliases": ["M24", "IC 4715", "Small Sagittarius Star Cloud"],
+      "aliases": [
+        "M24",
+        "IC 4715",
+        "Small Sagittarius Star Cloud"
+      ],
       "type": "Star Cloud",
-      "raDeg": 274.2000,
-      "decDeg": -18.5500,
+      "raDeg": 274.2,
+      "decDeg": -18.55,
       "displayRadiusDeg": 0.75,
       "priority": 76,
       "description": "A dense window through the dust of our own galaxy, revealing tens of thousands of Milky Way stars stacked behind one another.",
       "constellation": "Sagittarius",
       "distanceLy": 10000,
-      "sizeDescription": "spans about 3× the full Moon"
+      "sizeDescription": "spans about 3× the full Moon",
+      "wowFacts": [
+        "M24 is not a cluster but a window into a dense star cloud of the Milky Way.",
+        "You are looking through a clearer gap in foreground dust toward countless distant stars.",
+        "This view points toward the rich inner regions of our galaxy.",
+        "In the live image, the object is the star field itself: a crowd of suns filling the frame."
+      ],
+      "visualHint": "Look for an unusually rich field packed with stars, sometimes with darker dust patches nearby.",
+      "drawer": [
+        {
+          "heading": "What you're seeing",
+          "body": "M24 is the Sagittarius Star Cloud, a bright section of the Milky Way rather than a single cluster. It is a dense field of distant stars seen through a relatively clear window in dust."
+        },
+        {
+          "heading": "Why it matters",
+          "body": "This target shows the Milky Way from the inside. Instead of looking at one isolated object, you are looking along a rich direction through our galaxy's disk."
+        },
+        {
+          "heading": "The human story",
+          "body": "Before telescopes, the Milky Way was a river of light in myth and navigation. M24 turns that river into countless individual stars on the screen."
+        },
+        {
+          "heading": "How to spot it",
+          "body": "Expect a crowded star field, not a nebula or round cluster. Dark patches may be dust clouds blocking background stars."
+        }
+      ]
     },
     {
       "id": "M3",
       "primaryName": "M3 Globular Cluster",
-      "aliases": ["M3", "NGC 5272"],
+      "aliases": [
+        "M3",
+        "NGC 5272"
+      ],
       "type": "Globular Cluster",
       "raDeg": 205.5484,
       "decDeg": 28.3773,
@@ -834,12 +2351,40 @@
       "description": "One of the largest and brightest globular clusters, a dense ball of half a million ancient stars.",
       "constellation": "Canes Venatici",
       "distanceLy": 33900,
-      "sizeDescription": "about half the full Moon"
+      "sizeDescription": "about half the full Moon",
+      "wowFacts": [
+        "This cluster is an ancient swarm of stars bound together by gravity.",
+        "Many of its stars formed when the Milky Way was still young.",
+        "Globular clusters are like fossils from the early galaxy.",
+        "In the live image, the glow turns grainy as the telescope begins to resolve individual stars."
+      ],
+      "visualHint": "Look for a bright round glow with a grainy outer edge and a dense center.",
+      "drawer": [
+        {
+          "heading": "What you're seeing",
+          "body": "M3 is a globular cluster, a dense sphere of ancient stars orbiting the Milky Way. The bright center is crowded with stars too close together to fully separate in the image."
+        },
+        {
+          "heading": "Why it matters",
+          "body": "Globular clusters preserve some of the oldest stars in the galaxy. They are deep-time objects, carrying clues from the Milky Way's early history."
+        },
+        {
+          "heading": "The human story",
+          "body": "These clusters were once listed as fuzzy objects by early observers, but telescopes revealed them as swarms of stars. They are among the most satisfying objects to watch sharpen during live stacking."
+        },
+        {
+          "heading": "How to spot it",
+          "body": "Look for a round glow that becomes grainy. The outer edges may resolve into star points while the center stays bright and crowded."
+        }
+      ]
     },
     {
       "id": "M10",
       "primaryName": "M10 Globular Cluster",
-      "aliases": ["M10", "NGC 6254"],
+      "aliases": [
+        "M10",
+        "NGC 6254"
+      ],
       "type": "Globular Cluster",
       "raDeg": 254.2875,
       "decDeg": -4.1003,
@@ -848,12 +2393,41 @@
       "description": "A bright, moderately concentrated ball of ancient stars near the center of Ophiuchus.",
       "constellation": "Ophiuchus",
       "distanceLy": 14300,
-      "sizeDescription": "about half the full Moon"
+      "sizeDescription": "about half the full Moon",
+      "wowFacts": [
+        "M10 is an ancient globular cluster drifting through the halo of the Milky Way.",
+        "Its stars formed long before the Sun and planets existed.",
+        "The cluster is a gravitational swarm, with stars packed far closer than in our neighborhood.",
+        "In the live image, M10 should grow from a soft ball into a grainy cluster."
+      ],
+      "visualHint": "Look for a round, moderately bright glow with stars resolving around the edges.",
+      "drawer": [
+        {
+          "heading": "What you're seeing",
+          "body": "M10 is a globular cluster in Ophiuchus. It is a dense, old collection of stars bound together by gravity."
+        },
+        {
+          "heading": "Why it matters",
+          "body": "Globular clusters like M10 preserve ancient stellar populations. They help astronomers trace the history and structure of the Milky Way."
+        },
+        {
+          "heading": "The human story",
+          "body": "Ophiuchus is the serpent-bearer, a large constellation crossed by the summer sky. It contains several globular clusters, making it a rewarding region for deep-sky observing."
+        },
+        {
+          "heading": "How to spot it",
+          "body": "M10 is not as famous as M13, but it is a satisfying cluster. Look for a bright center and a softer outer halo that becomes textured with time."
+        }
+      ]
     },
     {
       "id": "M12",
       "primaryName": "M12 Globular Cluster",
-      "aliases": ["M12", "NGC 6218", "Gumball Globular"],
+      "aliases": [
+        "M12",
+        "NGC 6218",
+        "Gumball Globular"
+      ],
       "type": "Globular Cluster",
       "raDeg": 251.8091,
       "decDeg": -1.9485,
@@ -862,12 +2436,40 @@
       "description": "A looser, more relaxed globular cluster than most of its neighbors, sitting a few degrees from M10.",
       "constellation": "Ophiuchus",
       "distanceLy": 16000,
-      "sizeDescription": "about half the full Moon"
+      "sizeDescription": "about half the full Moon",
+      "wowFacts": [
+        "M12 is a globular cluster that appears looser than many of its ancient relatives.",
+        "It may have lost some of its lower-mass stars through gravitational interactions with the Milky Way.",
+        "The stars here are relics from the galaxy's early history.",
+        "In the live image, M12 may look softer and less centrally packed than classic globulars."
+      ],
+      "visualHint": "Look for a round, slightly loose cluster with a gentle brightening toward the center.",
+      "drawer": [
+        {
+          "heading": "What you're seeing",
+          "body": "M12 is a globular cluster in Ophiuchus. It is a gravitationally bound swarm of old stars."
+        },
+        {
+          "heading": "Why it matters",
+          "body": "M12 is interesting because it is relatively loose for a globular cluster. Its structure may tell a story of stars stripped away over time."
+        },
+        {
+          "heading": "The human story",
+          "body": "M12 sits near M10 in the same broad summer region. Together they show that even objects of the same class can have different personalities."
+        },
+        {
+          "heading": "How to spot it",
+          "body": "Expect a modest, grainy glow rather than a dramatic compact ball. Compare it with denser globular clusters if both are shown."
+        }
+      ]
     },
     {
       "id": "M14",
       "primaryName": "M14 Globular Cluster",
-      "aliases": ["M14", "NGC 6402"],
+      "aliases": [
+        "M14",
+        "NGC 6402"
+      ],
       "type": "Globular Cluster",
       "raDeg": 264.4004,
       "decDeg": -3.2458,
@@ -876,26 +2478,82 @@
       "description": "A large, distant globular cluster, fainter than its more famous neighbors but rich in ancient stars.",
       "constellation": "Ophiuchus",
       "distanceLy": 29000,
-      "sizeDescription": "about a third of the full Moon"
+      "sizeDescription": "about a third of the full Moon",
+      "wowFacts": [
+        "M14 is a distant globular cluster whose stars blur together into a soft ancient glow.",
+        "It contains a large population of old stars orbiting the Milky Way.",
+        "A nova was later found in M14 on old photographic plates, showing that even ancient clusters can host sudden stellar events.",
+        "In the live image, M14 may stay smoother than closer, brighter globulars."
+      ],
+      "visualHint": "Look for a faint round glow with only limited resolution into individual stars.",
+      "drawer": [
+        {
+          "heading": "What you're seeing",
+          "body": "M14 is a globular cluster in Ophiuchus. It is farther and harder to resolve than some of the brighter summer globulars."
+        },
+        {
+          "heading": "Why it matters",
+          "body": "Clusters like M14 contain ancient stars and occasional stellar surprises such as novae. They are not frozen relics; their stars can still change and erupt."
+        },
+        {
+          "heading": "The human story",
+          "body": "M14 is one of several globular clusters cataloged by Messier in Ophiuchus. It is a quieter target, best appreciated as part of the galaxy's old halo population."
+        },
+        {
+          "heading": "How to spot it",
+          "body": "This may appear as a soft circular haze more than a resolved star swarm. Dark skies and steady tracking help bring out its shape."
+        }
+      ]
     },
     {
       "id": "M80",
       "primaryName": "M80 Globular Cluster",
-      "aliases": ["M80", "NGC 6093"],
+      "aliases": [
+        "M80",
+        "NGC 6093"
+      ],
       "type": "Globular Cluster",
-      "raDeg": 244.2600,
+      "raDeg": 244.26,
       "decDeg": -22.9761,
       "displayRadiusDeg": 0.15,
       "priority": 56,
       "description": "One of the densest globular clusters known, a tightly packed swarm of several hundred thousand stars.",
       "constellation": "Scorpius",
       "distanceLy": 32600,
-      "sizeDescription": "about a quarter of the full Moon"
+      "sizeDescription": "about a quarter of the full Moon",
+      "wowFacts": [
+        "M80 is a compact globular cluster with a very dense-looking core.",
+        "Its ancient stars are packed into a tight sphere far from the Sun.",
+        "A nova appeared in M80 in 1860, briefly changing the cluster's appearance.",
+        "In the live image, M80 is small but intense, with a bright center."
+      ],
+      "visualHint": "Look for a small, concentrated glow with a bright core and subtle grain around it.",
+      "drawer": [
+        {
+          "heading": "What you're seeing",
+          "body": "M80 is a globular cluster in Scorpius. It is compact and dense compared with many easier, looser clusters."
+        },
+        {
+          "heading": "Why it matters",
+          "body": "Dense clusters are laboratories for stellar encounters. In crowded environments, stars can interact in ways that are rare in quieter parts of the galaxy."
+        },
+        {
+          "heading": "The human story",
+          "body": "M80 lies in the dramatic constellation Scorpius, low in the summer south from Greece. Its 19th-century nova made it especially notable among globular clusters."
+        },
+        {
+          "heading": "How to spot it",
+          "body": "Because it is compact, M80 may look almost star-like at first. Watch for the surrounding glow that distinguishes it from a single star."
+        }
+      ]
     },
     {
       "id": "M107",
       "primaryName": "M107 Globular Cluster",
-      "aliases": ["M107", "NGC 6171"],
+      "aliases": [
+        "M107",
+        "NGC 6171"
+      ],
       "type": "Globular Cluster",
       "raDeg": 248.1328,
       "decDeg": -13.0538,
@@ -904,12 +2562,40 @@
       "description": "A loose, faint globular cluster, one of the last Messier objects to be discovered.",
       "constellation": "Ophiuchus",
       "distanceLy": 20900,
-      "sizeDescription": "about a third of the full Moon"
+      "sizeDescription": "about a third of the full Moon",
+      "wowFacts": [
+        "M107 is one of the fainter globular clusters in the Messier catalog.",
+        "Its ancient stars form a loose, subtle swarm in Ophiuchus.",
+        "This cluster is less showy, but it carries the same deep-time history as brighter globulars.",
+        "In a live image, the reward is seeing a faint old cluster gradually separate from the background."
+      ],
+      "visualHint": "Look for a faint, loose, roundish glow that may only partly resolve into stars.",
+      "drawer": [
+        {
+          "heading": "What you're seeing",
+          "body": "M107 is a globular cluster in Ophiuchus. It is a relatively faint, loose cluster of old stars."
+        },
+        {
+          "heading": "Why it matters",
+          "body": "Not every ancient cluster is bright and dramatic. M107 shows the quieter end of the globular cluster family."
+        },
+        {
+          "heading": "The human story",
+          "body": "M107 was added to the Messier catalog after Messier's original publications. It is a patient observer's target rather than an instant showpiece."
+        },
+        {
+          "heading": "How to spot it",
+          "body": "This object may be subtle, especially with light pollution or low altitude. Look for a slight concentration of faint stars and haze."
+        }
+      ]
     },
     {
       "id": "M55",
       "primaryName": "M55 Globular Cluster",
-      "aliases": ["M55", "NGC 6809"],
+      "aliases": [
+        "M55",
+        "NGC 6809"
+      ],
       "type": "Globular Cluster",
       "raDeg": 294.9975,
       "decDeg": -30.9621,
@@ -918,82 +2604,250 @@
       "description": "A large, loosely concentrated globular cluster, easy to resolve into individual stars even in modest telescopes.",
       "constellation": "Sagittarius",
       "distanceLy": 17600,
-      "sizeDescription": "about two-thirds of the full Moon"
+      "sizeDescription": "about two-thirds of the full Moon",
+      "wowFacts": [
+        "M55 is a large, loose globular cluster in Sagittarius.",
+        "Its stars are ancient, but the cluster appears more open than many dense globulars.",
+        "From dark skies, it can spread into a broad grainy glow.",
+        "In the live image, M55 may look like a gentle cloud of old stars rather than a tight ball."
+      ],
+      "visualHint": "Look for a broad, loose, grainy glow with no extremely sharp central core.",
+      "drawer": [
+        {
+          "heading": "What you're seeing",
+          "body": "M55 is a globular cluster in Sagittarius. It is a large, relatively loose swarm of old stars."
+        },
+        {
+          "heading": "Why it matters",
+          "body": "M55 shows that globular clusters vary widely in concentration. Its looser structure makes it visually different from dense clusters like M15."
+        },
+        {
+          "heading": "The human story",
+          "body": "Sagittarius contains many treasures because it points toward the Milky Way's rich inner regions. M55 is one of its broad, understated globular clusters."
+        },
+        {
+          "heading": "How to spot it",
+          "body": "This target benefits from dark skies and a clear southern horizon. Look for a wide soft patch that becomes grainier with stacking."
+        }
+      ]
     },
     {
       "id": "M23",
       "primaryName": "M23 Open Cluster",
-      "aliases": ["M23", "NGC 6494"],
+      "aliases": [
+        "M23",
+        "NGC 6494"
+      ],
       "type": "Open Cluster",
-      "raDeg": 269.2000,
+      "raDeg": 269.2,
       "decDeg": -19.0167,
       "displayRadiusDeg": 0.225,
       "priority": 50,
       "description": "A rich, loose scattering of over a hundred stars in the rich starfields of Sagittarius.",
       "constellation": "Sagittarius",
       "distanceLy": 2150,
-      "sizeDescription": "about the full Moon"
+      "sizeDescription": "about the full Moon",
+      "wowFacts": [
+        "M23 is a loose open cluster set in one of the richest star fields of the summer Milky Way.",
+        "Its stars were born together and are slowly drifting apart into the galaxy.",
+        "This cluster sits near the direction of the Milky Way's crowded inner regions.",
+        "In the live image, the beauty is not one bright core but a graceful gathering of individual suns."
+      ],
+      "visualHint": "Look for a loose sprinkling of stars, richer than the surrounding field but not tightly packed.",
+      "drawer": [
+        {
+          "heading": "What you're seeing",
+          "body": "M23 is an open cluster in Sagittarius. It is a group of stars born from the same cloud and still traveling through the Milky Way as a loose family."
+        },
+        {
+          "heading": "Why it matters",
+          "body": "Open clusters show how stars begin life together before the galaxy gradually scatters them. M23 is a gentle example set against one of the sky's richest backgrounds."
+        },
+        {
+          "heading": "The human story",
+          "body": "Its location in Sagittarius places it near many famous summer objects. It is less dramatic than the Lagoon or Trifid, but it belongs to the same Milky Way landscape."
+        },
+        {
+          "heading": "How to spot it",
+          "body": "Look for a slightly denser star field rather than a compact glow. The cluster may blend into the background, so compare the richer area with the surrounding stars."
+        }
+      ]
     },
     {
       "id": "M25",
       "primaryName": "M25 Open Cluster",
-      "aliases": ["M25", "IC 4725"],
+      "aliases": [
+        "M25",
+        "IC 4725"
+      ],
       "type": "Open Cluster",
-      "raDeg": 277.9000,
-      "decDeg": -19.2500,
+      "raDeg": 277.9,
+      "decDeg": -19.25,
       "displayRadiusDeg": 0.267,
       "priority": 48,
       "description": "A bright, loose cluster of stars easily swept up with binoculars against the dense Sagittarius Milky Way.",
       "constellation": "Sagittarius",
       "distanceLy": 2000,
-      "sizeDescription": "about the full Moon"
+      "sizeDescription": "about the full Moon",
+      "wowFacts": [
+        "M25 is a bright open cluster in Sagittarius, easy to enjoy as a relaxed star pattern.",
+        "Its stars are young compared with the Sun and still share a common birthplace.",
+        "Some stars in this cluster vary in brightness, adding hidden change to what looks like a still scene.",
+        "In the live image, M25 should appear as a broad, loose gathering rather than a dense knot."
+      ],
+      "visualHint": "Look for a broad, loose group of bright stars against the summer Milky Way.",
+      "drawer": [
+        {
+          "heading": "What you're seeing",
+          "body": "M25 is an open cluster in Sagittarius. Its stars formed together and remain loosely associated as they orbit within the Milky Way."
+        },
+        {
+          "heading": "Why it matters",
+          "body": "Open clusters help astronomers compare stars that formed at about the same time. They are natural laboratories for understanding how stars age at different masses."
+        },
+        {
+          "heading": "The human story",
+          "body": "M25 is one of several Messier objects packed into the Sagittarius region. It is a calmer stop on a summer tour dominated by nebulae and dense star clouds."
+        },
+        {
+          "heading": "How to spot it",
+          "body": "Expect a star cluster, not nebulosity. The brighter stars define the view first, while fainter members fill in as the image settles."
+        }
+      ]
     },
     {
       "id": "M21",
       "primaryName": "M21 Open Cluster",
-      "aliases": ["M21", "NGC 6531"],
+      "aliases": [
+        "M21",
+        "NGC 6531"
+      ],
       "type": "Open Cluster",
       "raDeg": 271.0558,
-      "decDeg": -22.4900,
+      "decDeg": -22.49,
       "displayRadiusDeg": 0.11,
       "priority": 45,
       "description": "A compact, tightly packed knot of young hot stars near the Trifid Nebula.",
       "constellation": "Sagittarius",
       "distanceLy": 3900,
-      "sizeDescription": "about a third of the full Moon"
+      "sizeDescription": "about a third of the full Moon",
+      "wowFacts": [
+        "M21 is a young open cluster sitting close to the Trifid Nebula in the summer sky.",
+        "Its hot young stars formed recently by cosmic standards.",
+        "The cluster sits in a neighborhood where star clusters and glowing clouds appear side by side.",
+        "In the live image, M21 is a crisp star group beside some of the Milky Way's great nebular scenery."
+      ],
+      "visualHint": "Look for a compact group of bright young stars, often near richer nebulous fields.",
+      "drawer": [
+        {
+          "heading": "What you're seeing",
+          "body": "M21 is an open cluster in Sagittarius near the Trifid Nebula. It contains young stars born from the Milky Way's gas and dust."
+        },
+        {
+          "heading": "Why it matters",
+          "body": "M21 helps show the connection between star clusters and star-forming regions. Clusters like this are what can remain after a nebula has formed stars and begun to disperse."
+        },
+        {
+          "heading": "The human story",
+          "body": "M21 is often visited together with M20 and M8 during summer observing. It is part of a region that feels like a guided tour through star birth."
+        },
+        {
+          "heading": "How to spot it",
+          "body": "Look for individual stars rather than a cloud. The cluster is modest, so its setting near brighter nebulae is part of the appeal."
+        }
+      ]
     },
     {
       "id": "M18",
       "primaryName": "M18 Open Cluster",
-      "aliases": ["M18", "NGC 6613"],
+      "aliases": [
+        "M18",
+        "NGC 6613"
+      ],
       "type": "Open Cluster",
-      "raDeg": 274.9750,
+      "raDeg": 274.975,
       "decDeg": -17.1333,
       "displayRadiusDeg": 0.075,
       "priority": 40,
       "description": "A small, modest cluster of stars, easy to pass by between the more famous nebulae of Sagittarius.",
       "constellation": "Sagittarius",
       "distanceLy": 4900,
-      "sizeDescription": "a quarter of the full Moon"
+      "sizeDescription": "a quarter of the full Moon",
+      "wowFacts": [
+        "M18 is a small young star family tucked between brighter summer showpieces.",
+        "Its stars are much younger than the Sun and were born together in the Milky Way.",
+        "This cluster sits between the Omega Nebula and the rich Sagittarius region, like a quiet waypoint on the Milky Way road.",
+        "In the live image, M18 is a modest pattern of stars rather than a dramatic glow."
+      ],
+      "visualHint": "Look for a small, loose cluster of stars against a rich background field.",
+      "drawer": [
+        {
+          "heading": "What you're seeing",
+          "body": "M18 is an open cluster in Sagittarius. It is a modest group of young stars born together from the same star-forming environment."
+        },
+        {
+          "heading": "Why it matters",
+          "body": "Even small clusters are part of the Milky Way's star-making story. They show that star birth often produces groups, not isolated stars."
+        },
+        {
+          "heading": "The human story",
+          "body": "M18 sits in a region full of famous summer objects, including the Omega and Lagoon nebulae. It is a quieter member of the same rich sky route."
+        },
+        {
+          "heading": "How to spot it",
+          "body": "Do not expect a dense cluster or nebula. Look for a small grouping that stands out slightly from the surrounding Milky Way field."
+        }
+      ]
     },
     {
       "id": "M26",
       "primaryName": "M26 Open Cluster",
-      "aliases": ["M26", "NGC 6694"],
+      "aliases": [
+        "M26",
+        "NGC 6694"
+      ],
       "type": "Open Cluster",
-      "raDeg": 281.3000,
-      "decDeg": -9.4000,
+      "raDeg": 281.3,
+      "decDeg": -9.4,
       "displayRadiusDeg": 0.125,
       "priority": 42,
       "description": "A modest but distinct cluster of stars, sitting in a rich stretch of the Scutum Milky Way.",
       "constellation": "Scutum",
       "distanceLy": 5000,
-      "sizeDescription": "about half the full Moon"
+      "sizeDescription": "about half the full Moon",
+      "wowFacts": [
+        "M26 is a compact open cluster in Scutum, near the dense star fields of the summer Milky Way.",
+        "Dust between us and the cluster may dim part of its star field.",
+        "Its stars formed together and are slowly being pulled apart by the galaxy.",
+        "In the live image, M26 may appear as a small, understated knot of stars."
+      ],
+      "visualHint": "Look for a compact, faint cluster of stars with a slightly uneven appearance.",
+      "drawer": [
+        {
+          "heading": "What you're seeing",
+          "body": "M26 is an open cluster in Scutum. It is a group of stars born together in the Milky Way's disk."
+        },
+        {
+          "heading": "Why it matters",
+          "body": "Open clusters help astronomers compare stars of common age and origin. M26 also hints at how foreground dust can hide or dim parts of the galaxy."
+        },
+        {
+          "heading": "The human story",
+          "body": "Scutum is a small constellation near the rich summer Milky Way. M26 is less famous than nearby M11, but it belongs to the same stellar region."
+        },
+        {
+          "heading": "How to spot it",
+          "body": "This is a subtle cluster. Look for a small concentration of faint stars rather than a bright showpiece."
+        }
+      ]
     },
     {
       "id": "M52",
       "primaryName": "M52 Open Cluster",
-      "aliases": ["M52", "NGC 7654"],
+      "aliases": [
+        "M52",
+        "NGC 7654"
+      ],
       "type": "Open Cluster",
       "raDeg": 351.1967,
       "decDeg": 61.5922,
@@ -1002,26 +2856,82 @@
       "description": "A rich, young cluster of stars near the Bubble Nebula, easy to sweep up along the rich northern Milky Way.",
       "constellation": "Cassiopeia",
       "distanceLy": 5000,
-      "sizeDescription": "about half the full Moon"
+      "sizeDescription": "about half the full Moon",
+      "wowFacts": [
+        "M52 is a rich open cluster in Cassiopeia, set along the starry path of the Milky Way.",
+        "Its stars are young compared with the Sun and still gathered in a recognizable family.",
+        "The cluster lies in a region crowded with other clusters, nebulae, and dust clouds.",
+        "In the live image, M52 should look like a dense sprinkle of stars with a few brighter anchors."
+      ],
+      "visualHint": "Look for a compact cluster with many faint stars and a few brighter anchors.",
+      "drawer": [
+        {
+          "heading": "What you're seeing",
+          "body": "M52 is an open cluster in Cassiopeia. It contains many stars that formed together and remain gravitationally associated."
+        },
+        {
+          "heading": "Why it matters",
+          "body": "Open clusters are snapshots of stellar families at different ages. M52 helps show how young clusters populate the Milky Way's disk."
+        },
+        {
+          "heading": "The human story",
+          "body": "Cassiopeia's W shape is one of the easiest northern patterns to recognize and is tied to Greek mythology. M52 adds a rich telescopic layer to that familiar constellation."
+        },
+        {
+          "heading": "How to spot it",
+          "body": "Look for a tight patch of stars against a busy background. The cluster's richness becomes clearer as fainter stars appear."
+        }
+      ]
     },
     {
       "id": "M103",
       "primaryName": "M103 Open Cluster",
-      "aliases": ["M103", "NGC 581"],
+      "aliases": [
+        "M103",
+        "NGC 581"
+      ],
       "type": "Open Cluster",
       "raDeg": 23.3417,
-      "decDeg": 60.6650,
+      "decDeg": 60.665,
       "displayRadiusDeg": 0.1,
       "priority": 44,
       "description": "A compact, triangular knot of stars, one of the last objects Charles Messier ever catalogued.",
       "constellation": "Cassiopeia",
       "distanceLy": 9000,
-      "sizeDescription": "a fifth of the full Moon"
+      "sizeDescription": "a fifth of the full Moon",
+      "wowFacts": [
+        "M103 is a small open cluster in Cassiopeia with a compact triangular look.",
+        "Its stars are young members of the Milky Way's disk.",
+        "A reddish star in the field can add a warm contrast to the cluster view.",
+        "In the live image, M103 is a small pattern target rather than a large showpiece."
+      ],
+      "visualHint": "Look for a compact triangular group of stars with a few brighter points.",
+      "drawer": [
+        {
+          "heading": "What you're seeing",
+          "body": "M103 is an open cluster in Cassiopeia. It is a small group of stars born together in the plane of the Milky Way."
+        },
+        {
+          "heading": "Why it matters",
+          "body": "Clusters like M103 help astronomers understand how young stars evolve after birth. Their shared age makes them useful natural laboratories."
+        },
+        {
+          "heading": "The human story",
+          "body": "M103 was one of the last objects added to Messier's original catalog. It sits in a constellation rich with clusters because Cassiopeia lies along the Milky Way."
+        },
+        {
+          "heading": "How to spot it",
+          "body": "This target is small. Look for the shape made by the brighter stars rather than expecting a dense or nebulous object."
+        }
+      ]
     },
     {
       "id": "NGC663",
       "primaryName": "NGC 663",
-      "aliases": ["NGC 663", "Caldwell 10"],
+      "aliases": [
+        "NGC 663",
+        "Caldwell 10"
+      ],
       "type": "Open Cluster",
       "raDeg": 26.5917,
       "decDeg": 61.2147,
@@ -1030,21 +2940,74 @@
       "description": "A bright, loose cluster of young stars, a rewarding binocular target near the Cassiopeia showpieces.",
       "constellation": "Cassiopeia",
       "distanceLy": 7200,
-      "sizeDescription": "about half the full Moon"
+      "sizeDescription": "about half the full Moon",
+      "wowFacts": [
+        "NGC 663 is a rich open cluster in Cassiopeia, one of that constellation's strong star-cluster targets.",
+        "It contains many young, hot stars born in the Milky Way's disk.",
+        "The cluster sits in a region crowded with other clusters and dark dust.",
+        "In the live image, its appeal is the dense star field rather than one bright core."
+      ],
+      "visualHint": "Look for a rich concentration of stars with an uneven, natural scattering.",
+      "drawer": [
+        {
+          "heading": "What you're seeing",
+          "body": "NGC 663 is an open cluster in Cassiopeia. It is a young star group embedded in one of the Milky Way's rich northern regions."
+        },
+        {
+          "heading": "Why it matters",
+          "body": "This cluster helps trace recent star formation in our galaxy. Young clusters like it mark places where the Milky Way has recently made new stars."
+        },
+        {
+          "heading": "The human story",
+          "body": "Cassiopeia is tied to Greek mythology as the vain queen, but through a telescope it is also a treasury of star clusters. NGC 663 is one of its richer examples."
+        },
+        {
+          "heading": "How to spot it",
+          "body": "Expect many individual stars rather than a smooth glow. The cluster may blend with the rich background, so look for the densest concentration."
+        }
+      ]
     },
     {
       "id": "M34",
       "primaryName": "M34 Open Cluster",
-      "aliases": ["M34", "NGC 1039"],
+      "aliases": [
+        "M34",
+        "NGC 1039"
+      ],
       "type": "Open Cluster",
-      "raDeg": 40.5000,
+      "raDeg": 40.5,
       "decDeg": 42.7833,
       "displayRadiusDeg": 0.3,
       "priority": 54,
       "description": "A loose, bright cluster of stars easily seen with the naked eye between Perseus and Andromeda.",
       "constellation": "Perseus",
       "distanceLy": 1450,
-      "sizeDescription": "a little more than the full Moon"
+      "sizeDescription": "a little more than the full Moon",
+      "wowFacts": [
+        "M34 is a nearby open cluster, a loose family of stars in Perseus.",
+        "Its stars are young compared with the Sun but old enough to have spread out noticeably.",
+        "The cluster is close enough that several of its stars appear bright and widely spaced.",
+        "In the live image, M34 feels like a clean, open gathering of suns."
+      ],
+      "visualHint": "Look for a loose cluster of bright stars spread across the field, not a compact ball.",
+      "drawer": [
+        {
+          "heading": "What you're seeing",
+          "body": "M34 is an open cluster in Perseus. It contains stars born together that are now loosely spread across space."
+        },
+        {
+          "heading": "Why it matters",
+          "body": "Open clusters like M34 show how star families gradually disperse. Their stars share an origin, making them useful for studying stellar aging."
+        },
+        {
+          "heading": "The human story",
+          "body": "Perseus is part of a great Greek mythological sky story involving Andromeda and Cassiopeia. M34 adds a bright telescopic object to that ancient constellation."
+        },
+        {
+          "heading": "How to spot it",
+          "body": "This is a star pattern target. Look for a loose, balanced scattering of bright points rather than a fuzzy nebula."
+        }
+      ]
     }
   ]
 }
