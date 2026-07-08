@@ -18,7 +18,7 @@
 // above, ingested metadata has no such field), so this function is
 // UNVALIDATED against real data. Revisit once a real sample lands.
 
-import { detectTransition, assessAstrometryFreshness } from '../lib/detect-transition.ts'
+import { detectTransition, assessAstrometryFreshness, nextMilestoneToTag, MILESTONE_SECONDS } from '../lib/detect-transition.ts'
 import { readFileSync } from 'node:fs'
 
 let failures = 0
@@ -182,7 +182,113 @@ function replay(frames) {
 }
 
 // ---------------------------------------------------------------------------
-// 3. detectTransition — synthetic edge cases not present in either real
+// 3. nextMilestoneToTag — replay both real sessions, mirroring exactly what
+//    app/api/ingest/route.ts does: on every stackRun 'new', clear the tagged
+//    set for the new run; on every frame, ask which mark (if any) newly
+//    qualifies and mark it tagged.
+// ---------------------------------------------------------------------------
+function simulateMilestones(frames) {
+  let previous = null
+  let lastStackRunStartedAtMs = null
+  let tagged = new Set()
+  const tags = [] // per-frame: the mark tagged on that frame, or null
+
+  for (const f of frames) {
+    const nowMs = Date.parse(f.capturedAt)
+    const current = { totalAccumulatedTime: f.totalAccumulatedTime, raDegrees: f.raDegrees, decDegrees: f.decDegrees }
+    const result = detectTransition(previous, current, { nowMs, lastStackRunStartedAtMs })
+
+    if (result.stackRun === 'new') {
+      lastStackRunStartedAtMs = nowMs
+      tagged = new Set() // fresh stack run: no marks tagged yet
+    }
+
+    const mark = nextMilestoneToTag(current.totalAccumulatedTime, tagged)
+    if (mark !== null) tagged.add(mark)
+    tags.push(mark)
+
+    if (isUsable(current.totalAccumulatedTime)) previous = current
+  }
+  return tags
+}
+
+{
+  console.log('\n--- Milestone tagging: replay real Astir 2026-07-06 ---')
+  const frames = loadFixture('./fixtures/astir-2026-07-06.json')
+  const tags = simulateMilestones(frames)
+
+  // Every stack run in the real Astir session tags 0 exactly once (the
+  // first frame of the run always qualifies for the 0s mark), and never
+  // tags the SAME mark twice within one run.
+  const taggedIndices = tags.map((m, i) => (m !== null ? `${i}:${m}` : null)).filter(Boolean)
+  console.log(`  tagged: ${taggedIndices.join(', ')}`)
+
+  const zeroTagCount = tags.filter((m) => m === 0).length
+  assert('Astir: mark 0 (First) tagged exactly once per stack run (8 runs -> 8 tags)', zeroTagCount === 8, `got ${zeroTagCount}`)
+
+  // No mark is EVER tagged twice within the same run — spot check by
+  // confirming total tags never exceeds 3 per run (0/120/300) and every run
+  // boundary (a stackRun 'new' frame) resets the count.
+  let previous = null
+  let lastStackRunStartedAtMs = null
+  let sinceReset = []
+  for (let i = 0; i < frames.length; i++) {
+    const f = frames[i]
+    const nowMs = Date.parse(f.capturedAt)
+    const current = { totalAccumulatedTime: f.totalAccumulatedTime, raDegrees: f.raDegrees, decDegrees: f.decDegrees }
+    const result = detectTransition(previous, current, { nowMs, lastStackRunStartedAtMs })
+    if (result.stackRun === 'new') {
+      assert(`Astir run starting at frame ${i}: at most 3 milestone tags, no duplicates`, new Set(sinceReset).size === sinceReset.length && sinceReset.length <= 3)
+      sinceReset = []
+      lastStackRunStartedAtMs = nowMs
+    }
+    if (tags[i] !== null) sinceReset.push(tags[i])
+    if (isUsable(current.totalAccumulatedTime)) previous = current
+  }
+  assert('Astir final run: at most 3 milestone tags, no duplicates', new Set(sinceReset).size === sinceReset.length && sinceReset.length <= 3)
+}
+
+{
+  console.log('\n--- Milestone tagging: replay real OKU 2026-07-07 ---')
+  const frames = loadFixture('./fixtures/oku-2026-07-07.json')
+  const tags = simulateMilestones(frames)
+  const taggedIndices = tags.map((m, i) => (m !== null ? `${i}:${m}` : null)).filter(Boolean)
+  console.log(`  tagged: ${taggedIndices.join(', ')}`)
+
+  // The stale-astrometry run (indices 53-63, reset at 53, totalAccumulatedTime
+  // climbing 20->710 across it) should tag 0 at frame 53, 120 at the first
+  // frame >=120s (index 55, totalAccumulatedTime=140), and 300 at the first
+  // frame >=300s (index 57, totalAccumulatedTime=370) — even though
+  // astrometry was frozen throughout. Milestone tagging is coordinate-blind
+  // by design (stackRun-only), which this confirms concretely.
+  assert('OKU stale-astrometry run: frame 53 tagged 0 (First)', tags[53] === 0, `got ${tags[53]}`)
+  assert('OKU stale-astrometry run: frame 55 (140s) tagged 120 (2min)', tags[55] === 120, `got ${tags[55]}`)
+  assert('OKU stale-astrometry run: frame 57 (370s) tagged 300 (5min)', tags[57] === 300, `got ${tags[57]}`)
+  assert(
+    'OKU stale-astrometry run: no other frame in the run tagged anything',
+    frames.slice(53, 64).every((_, i) => i === 0 || i === 2 || i === 4 || tags[53 + i] === null),
+    `got [${tags.slice(53, 64).join(', ')}]`,
+  )
+}
+
+{
+  console.log('\n--- nextMilestoneToTag: synthetic edge cases ---')
+
+  assert('null totalAccumulatedTime -> no mark', nextMilestoneToTag(null, new Set()) === null)
+  assert('totalAccumulatedTime=0, nothing tagged -> marks 0', nextMilestoneToTag(0, new Set()) === 0)
+  assert('totalAccumulatedTime=0 already tagged -> no mark (not re-tagged)', nextMilestoneToTag(0, new Set([0])) === null)
+  assert('totalAccumulatedTime=45, nothing tagged -> marks 0 (highest qualifying, untagged)', nextMilestoneToTag(45, new Set()) === 0)
+  assert('totalAccumulatedTime=45, 0 already tagged -> no mark yet (120 not reached)', nextMilestoneToTag(45, new Set([0])) === null)
+  assert('totalAccumulatedTime=125, 0 tagged -> marks 120', nextMilestoneToTag(125, new Set([0])) === 120)
+  assert(
+    'a big wall-clock-gap jump straight to 310s with nothing tagged -> marks 300 (highest), NOT 120',
+    nextMilestoneToTag(310, new Set()) === 300,
+  )
+  assert('all three marks already tagged -> no mark', nextMilestoneToTag(999, new Set(MILESTONE_SECONDS)) === null)
+}
+
+// ---------------------------------------------------------------------------
+// 4. detectTransition — synthetic edge cases not present in either real
 //    session, but worth locking down explicitly
 // ---------------------------------------------------------------------------
 {
@@ -362,7 +468,7 @@ function replay(frames) {
 }
 
 // ---------------------------------------------------------------------------
-// 4. assessAstrometryFreshness — SYNTHETIC fixtures only (see the module's
+// 5. assessAstrometryFreshness — SYNTHETIC fixtures only (see the module's
 //    own UNVALIDATED disclaimer; no real relay-reported timestamp/age exists
 //    yet to replay).
 // ---------------------------------------------------------------------------

@@ -322,6 +322,37 @@ function coordinateJumpDeg(previous: ObservationFrameInput, current: Observation
 export const MILESTONE_SECONDS = [0, 120, 300] as const
 export type MilestoneSeconds = (typeof MILESTONE_SECONDS)[number]
 
+// Which milestone mark (if any) `totalAccumulatedTime` newly qualifies for
+// on THIS frame, given which marks the current stack run has already
+// tagged. Pure decision only — the caller (app/api/ingest/route.ts) owns
+// persisting the tag and querying `alreadyTagged` for the open stack run.
+//
+// "Closest frame AT-OR-AFTER crossing a threshold" (per the product rule):
+// returns the LARGEST untagged mark that `totalAccumulatedTime` has reached
+// or passed, not the smallest — so a frame that jumps straight from 40s to
+// 310s (a slow/delayed poll) tags 300 (5min) on arrival rather than
+// retroactively also claiming 120 (2min), which this frame was never
+// actually AT. Only one mark is ever returned per call: if a frame
+// legitimately qualifies for multiple untagged marks at once (a big
+// wall-clock gap crossing more than one threshold between polls — seen for
+// real in the Astir data, e.g. 760s -> 1310s), only the highest is tagged;
+// the lower one is intentionally left untagged rather than backfilled onto
+// a frame that wasn't really "at" that mark. A stack run beginning a fresh
+// reset (totalAccumulatedTime having just reset to a low value) should have
+// `alreadyTagged` cleared by the caller for the NEW run before calling this
+// — this function has no notion of "which run" on its own.
+export function nextMilestoneToTag(
+  totalAccumulatedTime: number | null | undefined,
+  alreadyTagged: ReadonlySet<MilestoneSeconds>,
+): MilestoneSeconds | null {
+  if (!isUsableNumber(totalAccumulatedTime)) return null
+  const candidates = MILESTONE_SECONDS.filter(
+    (mark) => totalAccumulatedTime >= mark && !alreadyTagged.has(mark),
+  )
+  if (candidates.length === 0) return null
+  return candidates[candidates.length - 1]
+}
+
 // ---------------------------------------------------------------------------
 // assessAstrometryFreshness
 // ---------------------------------------------------------------------------

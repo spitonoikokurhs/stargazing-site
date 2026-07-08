@@ -40,19 +40,28 @@ model Session {
 // One row per object viewed within a session.
 // source: "pegasus" | "seestar" (plain String — keeps migrations simple if devices are added).
 model Observation {
-  id            String    @id @default(cuid())
-  sessionId     String
-  session       Session   @relation(fields: [sessionId], references: [id])
-  objectName    String // pretty display name, e.g. "M31 — Andromeda Galaxy"
-  rawTargetName String? // exact unprocessed target string as reported by the device; new-object detection compares raw strings
-  objectType    String? // e.g. "Galaxy", "Nebula", "Planet" — drives the object-type badge
-  source        String // "pegasus" | "seestar"
-  startedAt     DateTime // first frame of this object
-  endedAt       DateTime? // set when object changes or session ends
-  metadata      Json? // device-reported target data (RA/Dec, magnitude, constellation, ...)
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  frames        Frame[]
+  id                    String    @id @default(cuid())
+  sessionId             String
+  session               Session   @relation(fields: [sessionId], references: [id])
+  objectName            String // pretty display name, e.g. "M31 — Andromeda Galaxy"
+  rawTargetName         String? // exact unprocessed target string as reported by the device; new-object detection compares raw strings
+  objectType            String? // e.g. "Galaxy", "Nebula", "Planet" — drives the object-type badge
+  source                String // "pegasus" | "seestar"
+  startedAt             DateTime // first frame of this object
+  endedAt               DateTime? // set when object changes or session ends
+  metadata              Json? // device-reported target data (RA/Dec, magnitude, constellation, ...)
+  // Wall-clock time of the most recent CONFIRMED stackRun 'new' verdict from
+  // lib/detect-transition.ts's detectTransition (see app/api/ingest/route.ts).
+  // Drives that function's settling window (a bouncy/resettling stacker
+  // must not thrash the milestone toggle with repeated false resets from one
+  // real restart) — read + rewritten by ingest on every frame belonging to
+  // this Observation. Null until the first confirmed reset; a fresh
+  // Observation row's own creation is itself an implicit reset, so this is
+  // set at creation time too, not left null until a SECOND reset occurs.
+  lastStackRunStartedAt DateTime?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+  frames                Frame[]
 
   @@index([sessionId, startedAt]) // serves both the FK lookup and time-ordered browsing
   @@index([source, startedAt])
@@ -70,7 +79,7 @@ model Frame {
   blobPath       String // Vercel Blob pathname — needed for deletion/cleanup operations
   thumbnailUrl   String? // populated when thumbnail generation lands at ingest (display)
   thumbnailPath  String? // Vercel Blob pathname of the thumbnail — for deletion/cleanup; populated together with thumbnailUrl
-  stackMilestone Int? // 0 | 60 | 180 | 300 for stacking-progression milestones; null for regular frames
+  stackMilestone Int? // 0 | 120 | 300 (First/2min/5min — see MILESTONE_SECONDS in lib/detect-transition.ts) for stacking-progression milestones; null for regular frames. No CHECK constraint; validity is enforced in application code.
   capturedAt     DateTime // device timestamp if known, else relay fetch time
   ingestedAt     DateTime    @default(now()) // when our server received the frame (distinct from capturedAt)
   sizeBytes      Int?
