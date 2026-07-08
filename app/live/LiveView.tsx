@@ -1985,6 +1985,7 @@ function ObjectDescription({
     if (displayObject.wowFacts && displayObject.visualHint && displayObject.drawer) {
       return (
         <EnrichedCard
+          type={displayObject.type}
           wowFacts={displayObject.wowFacts}
           visualHint={displayObject.visualHint}
           drawer={displayObject.drawer}
@@ -2048,10 +2049,12 @@ function drawerHeadingGlyphIsLarge(heading: string): boolean {
 // separate render branch (see LiveFrameView's isFullscreen check) that never
 // reaches ObjectDescription at all, so there's nothing extra to gate here.
 function EnrichedCard({
+  type,
   wowFacts,
   visualHint,
   drawer,
 }: {
+  type: string
   wowFacts: string[]
   visualHint: string
   drawer: { heading: string; body: string }[]
@@ -2063,8 +2066,16 @@ function EnrichedCard({
     <div className="live-object-desc enriched-card">
       <div className="enriched-wowfact-slot">
         <p className={`enriched-wowfact${visible ? ' is-visible' : ''}`}>
+          {/* The same illustrated TypeIcon the type pill uses (see
+              ObjectTypeLine), shrunk to sit inline before the fact — a
+              type-specific mark instead of a generic ✦. These icons carry
+              their own baked-in multi-stop gradients (deliberately not
+              currentColor/tintable — see TypeIcon's own doc comment), so
+              this is the icon's real colors at a smaller size, not a
+              var(--type-color)-tinted glyph the way the drawer headings'
+              Unicode marks are. */}
           <span className="enriched-wowfact-glyph" aria-hidden="true">
-            ✦
+            <TypeIcon type={type} />
           </span>
           {text}
         </p>

@@ -690,19 +690,25 @@
   transform: translateY(0);
 }
 
-/* Type-color accent leading each fact — a curated/highlighted feel, not just
-   plain body text, AND the object's color identity (inherited from .content,
-   see contentTypeColorVars in LiveView.tsx) showing up as a small structural
-   touch rather than in the prose itself — the fact TEXT stays neutral (see
-   .enriched-wowfact's own color below); only this glyph carries the tint.
-   Baseline-aligned with the text via inline-block + a fixed gap rather than
-   flex, so it reads as a glyph prefix within the sentence's own
-   text-wrap:balance flow instead of a separate row. Falls back to the
-   original gold if --type-color is ever unset. */
+/* The same illustrated TypeIcon the type pill uses (see EnrichedCard in
+   LiveView.tsx), shrunk to sit inline before the fact as a type-specific
+   mark instead of a generic ✦. These icons carry their own baked-in
+   multi-stop SVG gradients — deliberately not recolored (same as the type
+   pill's own icon, see TypeIcon's doc comment) — so there's no
+   var(--type-color) tint here; the icon's real illustrated colors ARE the
+   accent. Baseline-aligned with the text via inline-flex + a fixed gap so
+   it reads as an icon prefix within the sentence's own text-wrap:balance
+   flow instead of a separate row. */
 .enriched-wowfact-glyph {
-  display: inline-block;
-  color: var(--type-color, var(--gold));
+  display: inline-flex;
+  align-items: center;
+  vertical-align: -4px;
   margin-right: 8px;
+}
+
+.enriched-wowfact-glyph svg {
+  width: 18px;
+  height: 18px;
 }
 
 /* Static what-to-look-for line — secondary to the wowFact, muted and
