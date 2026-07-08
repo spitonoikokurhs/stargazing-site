@@ -39,6 +39,9 @@ type ObjectMatch = {
   constellation?: string
   distanceLy?: number
   sizeDescription?: string
+  wowFacts?: string[]
+  visualHint?: string
+  drawer?: { heading: string; body: string }[]
 }
 
 // Shared by the hotel dual-source path and the single-source extra-event
@@ -65,6 +68,9 @@ function resolveObjectMatch(telemetry: LatestFrame['telemetry']): ObjectMatch | 
     ...(result.match.constellation ? { constellation: result.match.constellation } : {}),
     ...(result.match.distanceLy ? { distanceLy: result.match.distanceLy } : {}),
     ...(result.match.sizeDescription ? { sizeDescription: result.match.sizeDescription } : {}),
+    ...(result.match.wowFacts ? { wowFacts: result.match.wowFacts } : {}),
+    ...(result.match.visualHint ? { visualHint: result.match.visualHint } : {}),
+    ...(result.match.drawer ? { drawer: result.match.drawer } : {}),
   }
 }
 

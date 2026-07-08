@@ -66,6 +66,9 @@ type StatusLive = {
     constellation?: string
     distanceLy?: number
     sizeDescription?: string
+    wowFacts?: string[]
+    visualHint?: string
+    drawer?: { heading: string; body: string }[]
   }
 }
 type StatusOffline = {
@@ -128,6 +131,14 @@ function isString(v: unknown): v is string {
   return typeof v === 'string'
 }
 
+function isStringArray(v: unknown): v is string[] {
+  return Array.isArray(v) && v.every(isString)
+}
+
+function isDrawerArray(v: unknown): v is { heading: string; body: string }[] {
+  return Array.isArray(v) && v.every((s) => isObject(s) && isString(s.heading) && isString(s.body))
+}
+
 function isSource(v: unknown): v is StatusLive['source'] {
   return isString(v) && v.length > 0
 }
@@ -175,7 +186,10 @@ function isValidObjectMatch(v: unknown): v is StatusLive['objectMatch'] {
     isString(v.type) &&
     (v.constellation === undefined || isString(v.constellation)) &&
     (v.distanceLy === undefined || typeof v.distanceLy === 'number') &&
-    (v.sizeDescription === undefined || isString(v.sizeDescription))
+    (v.sizeDescription === undefined || isString(v.sizeDescription)) &&
+    (v.wowFacts === undefined || isStringArray(v.wowFacts)) &&
+    (v.visualHint === undefined || isString(v.visualHint)) &&
+    (v.drawer === undefined || isDrawerArray(v.drawer))
   )
 }
 
@@ -274,6 +288,9 @@ function resolveDisplayObject(body: StatusLive): DisplayObject {
       constellation: body.objectMatch.constellation,
       distanceLy: body.objectMatch.distanceLy,
       sizeDescription: body.objectMatch.sizeDescription,
+      wowFacts: body.objectMatch.wowFacts,
+      visualHint: body.objectMatch.visualHint,
+      drawer: body.objectMatch.drawer,
     }
   }
   if (astrometryState !== undefined && MOVING_ASTROMETRY_STATES.has(astrometryState)) {
@@ -296,6 +313,7 @@ type DemoMode =
   | 'known-open-cluster'
   | 'known-planetary'
   | 'known-supernova-remnant'
+  | 'known-enriched'
   | 'moving'
   | 'fallback'
   | 'new-target'
@@ -309,6 +327,7 @@ const DEMO_MODES: DemoMode[] = [
   'known-open-cluster',
   'known-planetary',
   'known-supernova-remnant',
+  'known-enriched',
   'moving',
   'fallback',
   'new-target',
@@ -436,6 +455,11 @@ const KNOWN_DEMO_SOURCE: Record<string, { catalogId: string; blobUrl: string; to
     blobUrl: '/images/astro-04.jpg',
     totalAccumulatedTime: 2100,
   },
+  // The one enriched-content demo (M27 has wowFacts/visualHint/drawer as of
+  // fix/catalog-copy-accuracy; M31 and Saturn also have it, but this is the
+  // only demo key needed to review the EnrichedCard UI — see EnrichedCard in
+  // this file).
+  'known-enriched': { catalogId: 'M27', blobUrl: '/images/astro-05.jpg', totalAccumulatedTime: 1980 },
   // A target that JUST started — short accumulated time; the milestone
   // toggle correctly shows only 'Current View' as available here since real
   // milestone data (fetched via useMilestoneFrames) never gets constructed
@@ -457,6 +481,9 @@ const KNOWN_DEMOS: Record<
     constellation?: string
     distanceLy?: number
     sizeDescription?: string
+    wowFacts?: string[]
+    visualHint?: string
+    drawer?: { heading: string; body: string }[]
   }
 > = Object.fromEntries(
   Object.entries(KNOWN_DEMO_SOURCE).flatMap(([demoKey, source]) => {
@@ -474,6 +501,9 @@ const KNOWN_DEMOS: Record<
           constellation: catalogObject.constellation,
           distanceLy: catalogObject.distanceLy,
           sizeDescription: catalogObject.sizeDescription,
+          wowFacts: catalogObject.wowFacts,
+          visualHint: catalogObject.visualHint,
+          drawer: catalogObject.drawer,
         },
       ],
     ]
@@ -534,6 +564,9 @@ function getDemoStatusBody(): StatusResponse | null {
         constellation: known.constellation,
         distanceLy: known.distanceLy,
         sizeDescription: known.sizeDescription,
+        wowFacts: known.wowFacts,
+        visualHint: known.visualHint,
+        drawer: known.drawer,
       },
     }
   }
@@ -959,6 +992,13 @@ function LiveFrameView({
   // for anything else. See supportsNativeFullscreen()/handleToggleFullscreen
   // below for the feature-detection (never user-agent sniffing).
   const [fullscreenMode, setFullscreenMode] = useState<'off' | 'native' | 'css-fallback'>('off')
+  // Scroll target for EnrichedCard's drawer-close scroll (see EnrichedCard) —
+  // closing the drawer scrolls back up to reveal the image, not all the way
+  // to the page top (the LIVE/updated status bar doesn't need to be back in
+  // view). Threaded down as a plain ref rather than reached via
+  // document.querySelector, matching this file's existing ref-based
+  // conventions elsewhere.
+  const viewerRef = useRef<HTMLElement>(null)
   const [milestoneSelection, setMilestoneSelection] = useState<MilestoneKey>('current')
   // Demo mode is purely local synthetic data (see getDemoStatusBody) — never
   // fetch real milestone data for a fake observationId in that case.
@@ -1130,7 +1170,7 @@ function LiveFrameView({
           </div>
         </header>
 
-        <section className="viewer" aria-label="Live telescope image">
+        <section className="viewer" aria-label="Live telescope image" ref={viewerRef}>
           <div className="sky-square">
             {/* eslint-disable-next-line @next/next/no-img-element -- external Vercel Blob URL, no next/image domain config for v1 */}
             <img
@@ -1190,7 +1230,7 @@ function LiveFrameView({
           <Facts displayObject={lastLiveFrame.displayObject} />
 
           <div className="description">
-            <ObjectDescription displayObject={lastLiveFrame.displayObject} />
+            <ObjectDescription displayObject={lastLiveFrame.displayObject} viewerRef={viewerRef} />
           </div>
         </section>
 
@@ -1878,8 +1918,29 @@ function TypeIcon({ type }: { type: string }) {
 // Both transitional states also show a small rotating instruction line
 // beneath the main line (see TransitionCopy) — Option A structure: main line
 // prominent, instruction line smaller/dimmer.
-function ObjectDescription({ displayObject }: { displayObject: DisplayObject }) {
+function ObjectDescription({
+  displayObject,
+  viewerRef,
+}: {
+  displayObject: DisplayObject
+  viewerRef: React.RefObject<HTMLElement | null>
+}) {
   if (displayObject.kind === 'known') {
+    // Enriched content is authored as a complete set (see CatalogObject in
+    // lib/catalog.ts) — all three or none, so requiring all three here is a
+    // deliberate all-or-nothing gate, not an accidental one. Silent upgrade:
+    // an object without enriched content gets the exact plain card below,
+    // never a broken/partial enriched section.
+    if (displayObject.wowFacts && displayObject.visualHint && displayObject.drawer) {
+      return (
+        <EnrichedCard
+          wowFacts={displayObject.wowFacts}
+          visualHint={displayObject.visualHint}
+          drawer={displayObject.drawer}
+          viewerRef={viewerRef}
+        />
+      )
+    }
     return <p className="live-object-desc">{displayObject.description}</p>
   }
   if (displayObject.kind === 'moving') {
@@ -1891,6 +1952,89 @@ function ObjectDescription({ displayObject }: { displayObject: DisplayObject }) 
     return <TransitionCopy mainPhrases={MOVING_PHRASES} showLoader />
   }
   return <TransitionCopy mainPhrases={[FALLBACK_SUPPORTING_LINE]} />
+}
+
+// How often the wowFact rotates. Faster than the 25s transitional-copy
+// cadence — this is meant to be actively browsable ("did you know" moments),
+// not ambient background text.
+const WOW_FACT_ROTATE_MS = 15 * 1000
+
+// Enriched object-info card: a rotating "did you know" fact, a static
+// what-to-look-for hint, and a collapsed-by-default drawer of deeper sections
+// (see CatalogObject.wowFacts/visualHint/drawer in lib/catalog.ts). Reuses
+// .live-object-desc as the outer card so it sits identically to the plain
+// description it replaces — same box, same position in the layout, just
+// richer content. Never rendered in fullscreen: fullscreen is a wholly
+// separate render branch (see LiveFrameView's isFullscreen check) that never
+// reaches ObjectDescription at all, so there's nothing extra to gate here.
+function EnrichedCard({
+  wowFacts,
+  visualHint,
+  drawer,
+  viewerRef,
+}: {
+  wowFacts: string[]
+  visualHint: string
+  drawer: { heading: string; body: string }[]
+  viewerRef: React.RefObject<HTMLElement | null>
+}) {
+  const { text, visible } = useRotatingPhrase(wowFacts, WOW_FACT_ROTATE_MS)
+  const [open, setOpen] = useState(false)
+  const toggleRef = useRef<HTMLButtonElement>(null)
+  // Skips the scroll on mount — only a user's actual open/close tap should
+  // move the page; `open` starting at `false` must not fire a "close" scroll
+  // the instant this card first renders.
+  const hasInteracted = useRef(false)
+
+  useEffect(() => {
+    if (!hasInteracted.current) {
+      hasInteracted.current = true
+      return
+    }
+    // Opening: bring the toggle button (and the drawer that just appeared
+    // right below it) into view, landing near the top of the viewport — the
+    // image stays scrolled far enough up that it isn't pushed fully out.
+    // Closing: scroll back up to the image container, not all the way to the
+    // page top — the LIVE/updated status bar doesn't need to be back in view.
+    const target = open ? toggleRef.current : viewerRef.current
+    target?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }, [open, viewerRef])
+
+  return (
+    <div className="live-object-desc enriched-card">
+      <div className="enriched-wowfact-slot">
+        <p className={`enriched-wowfact${visible ? ' is-visible' : ''}`}>
+          <span className="enriched-wowfact-glyph" aria-hidden="true">
+            ✦
+          </span>
+          {text}
+        </p>
+      </div>
+      <p className="enriched-hint">{visualHint}</p>
+      <button
+        type="button"
+        className="enriched-drawer-toggle"
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        ref={toggleRef}
+      >
+        {open ? 'Less about this view' : 'More about this view'}
+        <span className={`enriched-drawer-chevron${open ? ' is-open' : ''}`} aria-hidden="true">
+          ⌄
+        </span>
+      </button>
+      {open ? (
+        <div className="enriched-drawer">
+          {drawer.map((section) => (
+            <div className="enriched-drawer-section" key={section.heading}>
+              <p className="enriched-drawer-heading">{section.heading}</p>
+              <p className="enriched-drawer-body">{section.body}</p>
+            </div>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  )
 }
 
 // Guest-facing label for the three display states — see DisplayObject in
@@ -1955,7 +2099,10 @@ const TRANSITION_PHRASE_FADE_MS = 600
 // line) just renders statically without ever rotating (the effect's interval
 // still runs but modulo-1 always re-selects the same index, and the identical
 // text skips the visible crossfade in practice).
-function useRotatingPhrase(phrases: string[]): { text: string; visible: boolean } {
+function useRotatingPhrase(
+  phrases: string[],
+  rotateMs: number = TRANSITION_PHRASE_ROTATE_MS,
+): { text: string; visible: boolean } {
   const [index, setIndex] = useState(() => Math.floor(Math.random() * phrases.length))
   const [visible, setVisible] = useState(true)
 
@@ -1968,15 +2115,15 @@ function useRotatingPhrase(phrases: string[]): { text: string; visible: boolean 
         setIndex((i) => (i + 1) % phrases.length)
         setVisible(true)
       }, TRANSITION_PHRASE_FADE_MS)
-    }, TRANSITION_PHRASE_ROTATE_MS)
+    }, rotateMs)
     return () => {
       clearInterval(rotate)
       if (fadeRef.id) clearTimeout(fadeRef.id)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- phrases is a
-    // module-level constant array per call site; re-running on identity
-    // would restart rotation needlessly since it's never actually new.
-  }, [phrases.length])
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- phrases/rotateMs
+    // are module-level constants per call site; re-running on identity would
+    // restart rotation needlessly since neither is ever actually new.
+  }, [phrases.length, rotateMs])
 
   return { text: phrases[index], visible }
 }

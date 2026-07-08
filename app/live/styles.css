@@ -622,6 +622,203 @@
   }
 }
 
+/* Enriched object-info card (see EnrichedCard in LiveView.tsx) — a silent
+   upgrade over the plain .live-object-desc card, same box, richer content.
+   Column layout for the stacked wowFact/hint/toggle/drawer, replacing the
+   single-<p> content the plain card has. */
+.enriched-card {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+
+/* Reserves space for the longest plausible fact (~3 lines at the wowfact's
+   16px/1.44 upper clamp bound: 16 * 1.44 * 3 ≈ 69px, rounded up) so rotating
+   between a 1-line and a 3-line fact never shifts the visualHint/toggle/chips
+   below it. A separate wrapper (not min-height directly on .enriched-wowfact)
+   because the wowfact <p> holds the glyph span + text as INLINE content —
+   making IT the flex container would force the glyph onto its own line
+   instead of prefixing the text. flex-direction:column + justify-content
+   center vertically centers the (unchanged, still-inline) <p> within the
+   reserved height; align-items stays default stretch so the paragraph keeps
+   its full width and its own text-align/text-wrap:balance keep controlling
+   horizontal layout exactly as before. */
+.enriched-wowfact-slot {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 70px;
+}
+
+/* The rotating "did you know" line — the prominent element, but "one
+   beautiful sentence," not a headline: sized close to the plain card's own
+   text, just slightly warmer and not italic (this is a stated fact, not
+   ambient/uncertain copy the way transitional phrases are). */
+.enriched-wowfact {
+  margin: 0;
+  font-size: clamp(14px, 4vw, 16px);
+  line-height: 1.44;
+  font-weight: 550;
+  color: var(--text);
+  text-wrap: balance;
+  opacity: 0;
+  /* Rests 8px below its final position while hidden, so each new fact rises
+     into place as it fades in — the "editorial slide" moment users actually
+     watch. The outgoing fact mirrors this (fades out while easing slightly
+     downward), which reads as smooth rather than jarring since opacity is
+     the dominant cue during exit. */
+  transform: translateY(8px);
+  transition:
+    opacity 600ms ease,
+    transform 600ms ease;
+}
+
+.enriched-wowfact.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Small gold accent leading each fact — a curated/highlighted feel, not just
+   plain body text. Baseline-aligned with the text via inline-block + a fixed
+   gap rather than flex, so it reads as a glyph prefix within the sentence's
+   own text-wrap:balance flow instead of a separate row. */
+.enriched-wowfact-glyph {
+  display: inline-block;
+  color: var(--gold);
+  margin-right: 8px;
+}
+
+/* Static what-to-look-for line — secondary to the wowFact, muted and
+   smaller, no rotation of its own (one hint per object, not a pool). */
+.enriched-hint {
+  margin: 8px 0 0;
+  font-size: clamp(12px, 3.4vw, 13px);
+  line-height: 1.4;
+  font-style: italic;
+  color: var(--muted);
+  text-wrap: balance;
+}
+
+/* Minimal text+chevron control, not a heavy button — matches the site's
+   restrained chrome (c.f. .fullscreen-button). Centered under the hint. */
+.enriched-drawer-toggle {
+  align-self: center;
+  margin-top: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: none;
+  border: none;
+  padding: 4px 2px;
+  color: var(--gold);
+  font-size: clamp(11px, 3.2vw, 12.5px);
+  letter-spacing: 0.03em;
+  cursor: pointer;
+}
+
+.enriched-drawer-toggle:hover,
+.enriched-drawer-toggle:focus-visible {
+  color: var(--text);
+}
+
+.enriched-drawer-chevron {
+  display: inline-block;
+  transition: transform 200ms ease;
+  line-height: 1;
+}
+
+.enriched-drawer-chevron.is-open {
+  transform: rotate(180deg);
+}
+
+/* Expanded drawer — secondary/depth content, so it stays visually quieter
+   than the wowFact: smaller heading label (same treatment as .fact span's
+   uppercase micro-label) and body text matching the plain card's own scale. */
+.enriched-drawer {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Each section cascades in on open — first immediately, each following one
+   ~100ms later — rather than the whole drawer appearing as one block. Reads
+   as "depth unfolding" instead of a wall of text landing at once. Targeted by
+   nth-child (not inline style/JS index) since drawer sections are always the
+   same fixed, catalog-authored order (see drawer's own doc comment). */
+.enriched-drawer-section {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  opacity: 0;
+  animation: enriched-drawer-section-in 400ms ease forwards;
+}
+
+.enriched-drawer-section:nth-child(1) {
+  animation-delay: 0ms;
+}
+.enriched-drawer-section:nth-child(2) {
+  animation-delay: 100ms;
+}
+.enriched-drawer-section:nth-child(3) {
+  animation-delay: 200ms;
+}
+.enriched-drawer-section:nth-child(4) {
+  animation-delay: 300ms;
+}
+
+@keyframes enriched-drawer-section-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Small gold left-border accent — elevates the heading from plain uppercase
+   label text to a curated pull-quote-style section marker. */
+.enriched-drawer-heading {
+  margin: 0;
+  padding-left: 8px;
+  border-left: 3px solid var(--gold);
+  color: rgba(168, 166, 160, 0.75);
+  font-size: clamp(8px, 2.35vw, 10px);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.enriched-drawer-body {
+  margin: 0;
+  font-size: clamp(13px, 3.8vw, 15px);
+  line-height: 1.42;
+  color: rgba(237, 234, 227, 0.82);
+  text-wrap: balance;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .enriched-wowfact,
+  .enriched-drawer-chevron {
+    transition: none;
+  }
+  .enriched-wowfact {
+    transform: none;
+  }
+  /* animation:none alone would leave sections stuck at the keyframes'
+     opacity:0 starting point (the "forwards" fill that resolves to opacity:1
+     never runs) — explicitly restoring full opacity/position here so
+     reduced-motion never means invisible. */
+  .enriched-drawer-section {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+}
+
 /* Share card — lifted from the mockup's .share-card/.share-grid/.share-btn.
    Only 4 buttons (Share/WhatsApp/X/Copy), NOT the mockup's 5-across
    Facebook/Messenger/Instagram grid — those can't pre-fill share text. */

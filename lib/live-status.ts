@@ -42,6 +42,13 @@ export type DisplayObject =
       // Guest-relatable apparent size (vs. the Moon), NOT physical size —
       // see CatalogObject.sizeDescription in lib/catalog.ts.
       sizeDescription?: string
+      // Enriched-card content — see CatalogObject.wowFacts/visualHint/drawer
+      // in lib/catalog.ts. Optional/additive like the fields above; the
+      // enriched card renders only when present, falling back to the plain
+      // card otherwise (see EnrichedCard in app/live/LiveView.tsx).
+      wowFacts?: string[]
+      visualHint?: string
+      drawer?: { heading: string; body: string }[]
     }
   | { kind: 'moving' }
   | { kind: 'fallback' }
