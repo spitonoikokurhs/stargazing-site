@@ -314,16 +314,80 @@ const DEMO_MODES: DemoMode[] = [
   'finished',
 ]
 
-// DEMO-MOCK ONLY (see SnapshotToggle). 'current' always exists; the others
-// are only available once the observation has aged enough to have that many
-// stacked frames. ?demo=new-target simulates a target that JUST started
-// (only 'current' exists yet); every other demo mode simulates an
-// established observation with the full history available.
-type SnapshotKey = 'current' | 'first' | 'one-min' | 'two-min'
+// Stacking-progression milestone marks — see MILESTONE_SECONDS in
+// lib/detect-transition.ts (First=0s, 2min=120s, 5min=300s) and
+// app/api/observations/[id]/milestones/route.ts, which this key set mirrors
+// exactly. 'current' always exists (it's just the live frame); the other
+// three are only available once the CURRENT stack run has genuinely reached
+// that mark — see useMilestoneFrames below for the fetch/poll that backs this.
+type MilestoneKey = 'current' | 'first' | 'twoMin' | 'fiveMin'
 
-function demoSnapshotsFor(mode: DemoMode | null): SnapshotKey[] {
-  if (mode === 'new-target') return ['current']
-  return ['current', 'first', 'one-min', 'two-min']
+type MilestoneFrame = { blobUrl: string; capturedAt: string }
+type MilestoneMarks = { first: MilestoneFrame | null; twoMin: MilestoneFrame | null; fiveMin: MilestoneFrame | null }
+
+const MILESTONE_POLL_MS = 10 * 1000
+
+// Fetches /api/observations/[id]/milestones for the given observation and
+// polls it every MILESTONE_POLL_MS while `open` — new marks land as a real
+// stack run progresses (First is available immediately, 2min/5min arrive
+// later), so this can't be a one-shot fetch. Resets to "nothing available"
+// immediately on an observationId change (a target change) rather than
+// showing the PREVIOUS observation's milestone frames under the new one's
+// toggle, even for the instant before the new fetch resolves.
+function useMilestoneFrames(observationId: string | null, open: boolean): MilestoneMarks | null {
+  const [marks, setMarks] = useState<MilestoneMarks | null>(null)
+
+  useEffect(() => {
+    setMarks(null) // clear immediately on observationId change — see doc above
+    if (observationId === null) return
+
+    let cancelled = false
+    const controller = new AbortController()
+
+    async function fetchOnce() {
+      try {
+        const res = await fetch(`/api/observations/${encodeURIComponent(observationId as string)}/milestones`, {
+          signal: controller.signal,
+          cache: 'no-store',
+        })
+        if (!res.ok) return // leave marks as last-known-good; a transient failure shouldn't blank the toggle
+        const body = await res.json()
+        if (cancelled) return
+        if (
+          isObject(body) &&
+          isObject(body.marks) &&
+          isMilestoneFrameOrNull(body.marks.first) &&
+          isMilestoneFrameOrNull(body.marks.twoMin) &&
+          isMilestoneFrameOrNull(body.marks.fiveMin)
+        ) {
+          setMarks({ first: body.marks.first, twoMin: body.marks.twoMin, fiveMin: body.marks.fiveMin })
+        }
+      } catch {
+        // Network error/abort — leave marks as last-known-good, same as a
+        // non-OK response; this is a supplementary feature, never worth
+        // disrupting the main live view over.
+      }
+    }
+
+    fetchOnce()
+    // Only poll while the observation is still open — once it's closed (a
+    // target change or session end), its milestone set is final and will
+    // never change again, so continuing to poll would be pure waste.
+    const interval = open ? setInterval(fetchOnce, MILESTONE_POLL_MS) : null
+
+    return () => {
+      cancelled = true
+      controller.abort()
+      if (interval) clearInterval(interval)
+    }
+  }, [observationId, open])
+
+  return marks
+}
+
+function isMilestoneFrameOrNull(v: unknown): v is MilestoneFrame | null {
+  if (v === null) return true
+  return isObject(v) && typeof v.blobUrl === 'string' && typeof v.capturedAt === 'string'
 }
 
 function getDemoMode(): DemoMode | null {
@@ -353,9 +417,11 @@ const KNOWN_DEMO_SOURCE: Record<string, { catalogId: string; blobUrl: string; to
     blobUrl: '/images/astro-04.jpg',
     totalAccumulatedTime: 2100,
   },
-  // A target that JUST started — short accumulated time, and (see
-  // demoSnapshotsFor) only 'current' exists yet in the progress-toggle mock,
-  // since there hasn't been time to accumulate a 1min/2min stack.
+  // A target that JUST started — short accumulated time; the milestone
+  // toggle correctly shows only 'Current View' as available here since real
+  // milestone data (fetched via useMilestoneFrames) never gets constructed
+  // in demo mode (see isDemo in LiveFrameView) — this entry is purely for
+  // reviewing the "just started" object-card content, not the toggle.
   'new-target': { catalogId: 'M20', blobUrl: '/images/nebula-trifid-m20.jpg', totalAccumulatedTime: 22 },
 }
 
@@ -573,6 +639,7 @@ export default function LiveView({ statusUrl = '/api/status' }: { statusUrl?: st
                 ingestedAt: body.frame.ingestedAt,
                 objectName: body.observation.objectName,
                 displayObject: resolveDisplayObject(body),
+                observationId: body.observation.observationId,
                 totalAccumulatedTime: body.telemetry?.totalAccumulatedTime,
               },
               loadedAt: current.lastLiveFrame.loadedAt,
@@ -591,6 +658,7 @@ export default function LiveView({ statusUrl = '/api/status' }: { statusUrl?: st
                   ingestedAt: body.frame.ingestedAt,
                   objectName: body.observation.objectName,
                   displayObject: resolveDisplayObject(body),
+                  observationId: body.observation.observationId,
                   totalAccumulatedTime: body.telemetry?.totalAccumulatedTime,
                 },
                 loadedAt: Date.now(),
@@ -847,13 +915,7 @@ function LiveViewPresentation({ state }: { state: LiveStatusState }) {
     return <StatusScreen heading="Checking…" />
   }
 
-  return (
-    <LiveFrameView
-      uiState={uiState}
-      lastLiveFrame={lastLiveFrame}
-      demoSnapshots={demoSnapshotsFor(getDemoMode())}
-    />
-  )
+  return <LiveFrameView uiState={uiState} lastLiveFrame={lastLiveFrame} />
 }
 
 // Split out so it (and its fullscreenMode state) only mounts once we
@@ -863,11 +925,9 @@ function LiveViewPresentation({ state }: { state: LiveStatusState }) {
 function LiveFrameView({
   uiState,
   lastLiveFrame,
-  demoSnapshots,
 }: {
   uiState: LiveStatusState['uiState']
   lastLiveFrame: NonNullable<LiveStatusState['lastLiveFrame']>
-  demoSnapshots: SnapshotKey[]
 }) {
   // 'off': normal circular view. 'native': the real Fullscreen API is active
   // (Android/desktop — unaffected by this change). 'css-fallback': a fixed
@@ -878,13 +938,17 @@ function LiveFrameView({
   // for anything else. See supportsNativeFullscreen()/handleToggleFullscreen
   // below for the feature-detection (never user-agent sniffing).
   const [fullscreenMode, setFullscreenMode] = useState<'off' | 'native' | 'css-fallback'>('off')
-  // DEMO-MOCK ONLY — see SnapshotToggle's doc comment. Resets to 'current'
-  // whenever the available set changes (e.g. demo mode swapped) so a stale
-  // selection can never point at a snapshot that no longer exists.
-  const [snapshotSelection, setSnapshotSelection] = useState<SnapshotKey>('current')
+  const [milestoneSelection, setMilestoneSelection] = useState<MilestoneKey>('current')
+  // Demo mode is purely local synthetic data (see getDemoStatusBody) — never
+  // fetch real milestone data for a fake observationId in that case.
+  const isDemo = getDemoMode() !== null
+  const milestoneMarks = useMilestoneFrames(isDemo ? null : lastLiveFrame.observationId, uiState === 'live' || uiState === 'reconnecting')
+  // Resets to 'current' whenever the observation changes (a target change) —
+  // a stale selection must never keep pointing at the PREVIOUS observation's
+  // milestone frame under the new one's toggle.
   useEffect(() => {
-    setSnapshotSelection('current')
-  }, [demoSnapshots])
+    setMilestoneSelection('current')
+  }, [lastLiveFrame.observationId])
 
   useEffect(() => {
     function onFullscreenChange() {
@@ -954,6 +1018,26 @@ function LiveFrameView({
     }
   }
 
+  // Which frame is actually shown: 'current' is always the live frame; any
+  // other selection shows that milestone's stored frame IF it's still
+  // available — a milestone frame can become unavailable mid-view (e.g. the
+  // target changed and milestoneMarks hasn't refetched yet for the new
+  // observation), in which case this falls back to 'current' rather than
+  // rendering a broken/stale image src. Computed once, above BOTH the
+  // fullscreen and normal render paths, so a guest who opens fullscreen
+  // while viewing a milestone frame sees that same frame maximized, not a
+  // silent swap back to the live feed.
+  const selectedMilestoneFrame =
+    milestoneSelection === 'first'
+      ? milestoneMarks?.first
+      : milestoneSelection === 'twoMin'
+        ? milestoneMarks?.twoMin
+        : milestoneSelection === 'fiveMin'
+          ? milestoneMarks?.fiveMin
+          : undefined
+  const viewingHistorical = milestoneSelection !== 'current' && selectedMilestoneFrame != null
+  const displaySrc = viewingHistorical ? selectedMilestoneFrame.blobUrl : lastLiveFrame.blobUrl
+
   if (fullscreenMode !== 'off') {
     return (
       <div className="live-root live-root--fullscreen">
@@ -975,8 +1059,9 @@ function LiveFrameView({
             only difference between them is how fullscreenMode gets set/
             cleared (a real browser API vs. plain React state), not how this
             is rendered, so the zoomable-image experience is exactly the
-            same either way. */}
-        <PannableZoomImage src={lastLiveFrame.blobUrl} alt={objectLabel(lastLiveFrame.displayObject)} />
+            same either way. displaySrc (not always lastLiveFrame.blobUrl) so
+            fullscreen respects whichever milestone frame is selected. */}
+        <PannableZoomImage src={displaySrc} alt={objectLabel(lastLiveFrame.displayObject)} />
       </div>
     )
   }
@@ -989,7 +1074,7 @@ function LiveFrameView({
             live/updated status remains. */}
         <header className="topbar" aria-label="Live page status">
           <div className="topbar__live">
-            {snapshotSelection === 'current' ? (
+            {!viewingHistorical ? (
               <>
                 <span className={`red-dot${uiState === 'reconnecting' ? ' reconnecting' : ''}`} aria-hidden="true" />
                 {/* Each "· "-joined segment is its own span (not one long
@@ -1003,10 +1088,10 @@ function LiveFrameView({
                 ) : null}
               </>
             ) : (
-              // Viewing a historical frame (demo-mock only, see SnapshotToggle):
-              // the red pulse turns OFF and this label makes it unmistakable
-              // that this is NOT the live view, so a guest never mistakes a
-              // frozen old frame for the current feed.
+              // Viewing a milestone frame (First/2min/5min): the red pulse
+              // turns OFF and this label makes it unmistakable that this is
+              // NOT the live view, so a guest never mistakes a frozen earlier
+              // frame for the current feed.
               <span className="viewing-earlier-badge">VIEWING AN EARLIER FRAME · NOT LIVE</span>
             )}
           </div>
@@ -1016,7 +1101,7 @@ function LiveFrameView({
           <div className="sky-square">
             {/* eslint-disable-next-line @next/next/no-img-element -- external Vercel Blob URL, no next/image domain config for v1 */}
             <img
-              src={lastLiveFrame.blobUrl}
+              src={displaySrc}
               alt={objectLabel(lastLiveFrame.displayObject)}
               className="fov-image"
             />
@@ -1054,10 +1139,10 @@ function LiveFrameView({
           </button>
         </section>
 
-        <SnapshotToggle
-          demoSnapshots={demoSnapshots}
-          selection={snapshotSelection}
-          onSelect={setSnapshotSelection}
+        <MilestoneToggle
+          marks={milestoneMarks}
+          selection={milestoneSelection}
+          onSelect={setMilestoneSelection}
         />
 
         <section className="content" aria-live="polite">
@@ -1425,51 +1510,42 @@ function Facts({ displayObject }: { displayObject: DisplayObject }) {
   )
 }
 
-// Progress toggle — DEMO-MOCK ONLY. There is no real backend support for
-// this yet: /api/status only ever exposes the LATEST frame, so "First / 1
-// min / 2 min" have no real data behind them. This component exists purely
-// to demonstrate the CORRECT interaction/visual states ahead of that backend
-// work, per explicit instruction — it must never be mistaken for a working
-// feature.
-//
-// TODO(future branch): a real implementation needs (1) a backend endpoint
-// exposing frame history for the CURRENT observation (frames already exist
-// in Postgres — see Frame/Observation — just not exposed via any route), and
-// (2) Tier-2 target-change detection so the client knows which frames belong
-// to the observation currently being viewed and resets the toggle when the
-// target changes. Neither exists yet.
-function SnapshotToggle({
-  demoSnapshots,
+// Stacking-progression toggle — backed by real frame data from
+// /api/observations/[id]/milestones (see useMilestoneFrames above). A mark
+// button is disabled whenever its frame isn't available: the observation
+// hasn't reached that mark yet, milestoneMarks hasn't loaded, or (a short
+// stack that ends before 5min, say) it will never be reached — all three
+// look identical to a guest (a disabled button), which is the correct
+// behavior per product guidance: never show a broken/empty/mislabeled frame.
+function MilestoneToggle({
+  marks,
   selection,
   onSelect,
 }: {
-  demoSnapshots: SnapshotKey[]
-  selection: SnapshotKey
-  onSelect: (key: SnapshotKey) => void
+  marks: MilestoneMarks | null
+  selection: MilestoneKey
+  onSelect: (key: MilestoneKey) => void
 }) {
-  const options: { key: SnapshotKey; label: string }[] = [
-    { key: 'first', label: 'First' },
-    { key: 'one-min', label: '1 min' },
-    { key: 'two-min', label: '2 min' },
-    { key: 'current', label: 'Current View' },
+  const options: { key: MilestoneKey; label: string; available: boolean }[] = [
+    { key: 'first', label: 'First', available: marks?.first != null },
+    { key: 'twoMin', label: '2 min', available: marks?.twoMin != null },
+    { key: 'fiveMin', label: '5 min', available: marks?.fiveMin != null },
+    { key: 'current', label: 'Current View', available: true },
   ]
   return (
-    <div className="snapshot-toggle" role="group" aria-label="Compare stack age (demo only — not real frame history)">
-      {options.map((opt) => {
-        const available = demoSnapshots.includes(opt.key)
-        return (
-          <button
-            key={opt.key}
-            type="button"
-            className="snap"
-            aria-pressed={selection === opt.key}
-            disabled={!available}
-            onClick={() => available && onSelect(opt.key)}
-          >
-            {opt.label}
-          </button>
-        )
-      })}
+    <div className="snapshot-toggle" role="group" aria-label="Compare stack age">
+      {options.map((opt) => (
+        <button
+          key={opt.key}
+          type="button"
+          className="snap"
+          aria-pressed={selection === opt.key}
+          disabled={!opt.available}
+          onClick={() => opt.available && onSelect(opt.key)}
+        >
+          {opt.label}
+        </button>
+      ))}
     </div>
   )
 }

@@ -51,6 +51,11 @@ export type LiveFrame = {
   blobUrl: string
   objectName: string
   displayObject: DisplayObject
+  // Which Observation this frame belongs to — drives the stacking-milestone
+  // toggle's fetch (see app/api/observations/[id]/milestones/route.ts and
+  // MilestoneToggle in app/live/LiveView.tsx). Changes whenever the target
+  // changes, which is exactly when the milestone toggle needs to reset/refetch.
+  observationId: string
   // Seconds of exposure the device has accumulated, when telemetry reported
   // it. "Total accumulated" (not per-object) — see the render label; absent
   // on Tier-1-only frames or when the device didn't send it.
@@ -98,6 +103,7 @@ type LiveFramePayload = {
   ingestedAt: string
   objectName: string
   displayObject: DisplayObject
+  observationId: string
   totalAccumulatedTime?: number
 }
 
@@ -136,6 +142,7 @@ export function liveStatusReducer(state: LiveStatusState, event: LiveStatusEvent
         blobUrl: event.frame.blobUrl,
         objectName: event.frame.objectName,
         displayObject: event.frame.displayObject,
+        observationId: event.frame.observationId,
         totalAccumulatedTime: event.frame.totalAccumulatedTime,
         ingestedAt: event.frame.ingestedAt,
         loadedAt: event.loadedAt,
