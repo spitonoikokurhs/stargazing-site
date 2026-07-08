@@ -350,6 +350,33 @@ function assert(label, cond, detail) {
   const rM94 = matchCoordinates(m94.raDeg, m94.decDeg)
   assert('M94 exact coords -> match M94', rM94.match?.id === 'M94', `got ${rM94.match?.id ?? 'null'}`)
   assert('M94 exact coords -> high confidence', rM94.confidence === 'high', `got ${rM94.confidence}`)
+
+  // May-October seasonal additions (config/catalog.json's 17 newest entries).
+  const m87 = byId('M87')
+  assert('catalog contains M87', m87 !== undefined)
+  assert('M87 uses the plain Galaxy type', m87?.type === 'Galaxy', `got ${m87?.type}`)
+  const rM87 = matchCoordinates(m87.raDeg, m87.decDeg)
+  assert('M87 exact coords -> match M87', rM87.match?.id === 'M87', `got ${rM87.match?.id ?? 'null'}`)
+  assert('M87 exact coords -> high confidence', rM87.confidence === 'high', `got ${rM87.confidence}`)
+  // M87 sits in the crowded Virgo cluster alongside M84/M86 — confirm it's
+  // clear of both (well outside combined display radii), so it's a genuine
+  // distinct match rather than one that happens to win only on priority.
+  const m84 = byId('M84')
+  const m86 = byId('M86')
+  assert(
+    'M87 does not collide with the nearby M84',
+    angularSeparationDeg(m87.raDeg, m87.decDeg, m84.raDeg, m84.decDeg) > m87.displayRadiusDeg + m84.displayRadiusDeg,
+  )
+  assert(
+    'M87 does not collide with the nearby M86',
+    angularSeparationDeg(m87.raDeg, m87.decDeg, m86.raDeg, m86.decDeg) > m87.displayRadiusDeg + m86.displayRadiusDeg,
+  )
+
+  const m64 = byId('M64')
+  assert('catalog contains M64', m64 !== undefined)
+  const rM64 = matchCoordinates(m64.raDeg, m64.decDeg)
+  assert('M64 exact coords -> match M64', rM64.match?.id === 'M64', `got ${rM64.match?.id ?? 'null'}`)
+  assert('M64 exact coords -> high confidence', rM64.confidence === 'high', `got ${rM64.confidence}`)
 }
 
 console.log('')

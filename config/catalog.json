@@ -3008,6 +3008,721 @@
           "body": "This is a star pattern target. Look for a loose, balanced scattering of bright points rather than a fuzzy nebula."
         }
       ]
+    },
+    {
+      "id": "M64",
+      "primaryName": "Black Eye Galaxy",
+      "aliases": [
+        "M64",
+        "NGC 4826",
+        "Evil Eye Galaxy"
+      ],
+      "type": "Spiral Galaxy",
+      "raDeg": 194.1821,
+      "decDeg": 21.6827,
+      "displayRadiusDeg": 0.2,
+      "priority": 76,
+      "description": "A spiral galaxy with a dark dust lane across its bright core, giving it the famous black-eye look.",
+      "constellation": "Coma Berenices",
+      "distanceLy": 17000000,
+      "sizeDescription": "about one-third of the full Moon",
+      "wowFacts": [
+        "The Black Eye Galaxy gets its nickname from a dark lane of dust crossing the bright face of the galaxy.",
+        "Its inner and outer gas appear to rotate in opposite directions, a clue to a past galactic encounter or merger.",
+        "The light in tonight's view has traveled for roughly 17 million years.",
+        "In the live image, the prize is the contrast: a bright core with a subtle dark bruise beside it."
+      ],
+      "visualHint": "Look for a bright oval core; the dark dust feature is subtle and needs a good stack and dark sky.",
+      "drawer": [
+        {
+          "heading": "What you're seeing",
+          "body": "M64 is a spiral galaxy in Coma Berenices. Its famous dark patch is dust inside the galaxy blocking some of the starlight behind it."
+        },
+        {
+          "heading": "Why it matters",
+          "body": "The galaxy's unusual gas motion suggests its history was not quiet. It may have absorbed or interacted with another system, leaving the galaxy with layers that do not all move the same way."
+        },
+        {
+          "heading": "The human story",
+          "body": "Nicknames like Black Eye help guests recognize real structure rather than just seeing another faint smudge. This is one of the best spring galaxies for that kind of visual storytelling."
+        },
+        {
+          "heading": "How to spot it",
+          "body": "The central glow should appear first. The dark feature is not a bold black stripe in a live stack; look for an uneven edge or shadow near the bright center."
+        }
+      ]
+    },
+    {
+      "id": "M53",
+      "primaryName": "M53 Globular Cluster",
+      "aliases": [
+        "M53",
+        "NGC 5024"
+      ],
+      "type": "Globular Cluster",
+      "raDeg": 198.2302,
+      "decDeg": 18.1682,
+      "displayRadiusDeg": 0.18,
+      "priority": 66,
+      "description": "A distant ancient globular cluster in Coma Berenices, seen as a compact grainy glow.",
+      "constellation": "Coma Berenices",
+      "distanceLy": 58000,
+      "sizeDescription": "about one-third of the full Moon",
+      "wowFacts": [
+        "M53 is much farther away than many showpiece globular clusters, so its ancient stars blur into a compact glow.",
+        "Its stars belong to one of the Milky Way's old halo populations.",
+        "From Earth, this dense swarm sits near the soft star fields of Coma Berenices.",
+        "In the live image, watch the edge turn grainy as the telescope starts resolving the brightest stars."
+      ],
+      "visualHint": "Look for a small round glow with a brighter center and slight grain around the edge.",
+      "drawer": [
+        {
+          "heading": "What you're seeing",
+          "body": "M53 is a globular cluster, a dense ball of old stars orbiting far out in the Milky Way's halo. Its distance makes it harder to resolve than brighter summer globulars."
+        },
+        {
+          "heading": "Why it matters",
+          "body": "Globular clusters are fossils of the early galaxy. M53 adds a more distant example to the familiar nearby cluster showpieces."
+        },
+        {
+          "heading": "The human story",
+          "body": "Coma Berenices is named for Berenice's hair, a royal story preserved in the sky. M53 turns that gentle constellation into a deep-time target."
+        },
+        {
+          "heading": "How to spot it",
+          "body": "Expect a compact glow rather than a dramatic spray of stars. A longer stack may bring out a grainy outer halo."
+        }
+      ]
+    },
+    {
+      "id": "M106",
+      "primaryName": "M106",
+      "aliases": [
+        "M106",
+        "NGC 4258"
+      ],
+      "type": "Spiral Galaxy",
+      "raDeg": 184.7401,
+      "decDeg": 47.3037,
+      "displayRadiusDeg": 0.3,
+      "priority": 82,
+      "description": "A large spiral galaxy with an active core and strange extra arms revealed in deeper wavelengths.",
+      "constellation": "Canes Venatici",
+      "distanceLy": 24000000,
+      "sizeDescription": "a little over half the full Moon",
+      "wowFacts": [
+        "M106 helped astronomers measure galaxy distances using water-vapor masers orbiting near its central black hole.",
+        "It has ordinary spiral arms plus strange extra arms that show up strongly outside visible light.",
+        "Its light has traveled for roughly 24 million years to arrive tonight.",
+        "In the live image, look for a long soft oval with a bright center rather than crisp spiral arms."
+      ],
+      "visualHint": "Look for an elongated galaxy glow with a stronger core; the outer disk is broad and subtle.",
+      "drawer": [
+        {
+          "heading": "What you're seeing",
+          "body": "M106 is a spiral galaxy in Canes Venatici. It is tilted toward us, so its disk appears as a broad oval rather than a perfect face-on spiral."
+        },
+        {
+          "heading": "Why it matters",
+          "body": "M106 is scientifically famous because precise radio observations of water masers near its center helped anchor the cosmic distance scale. It is both beautiful and useful."
+        },
+        {
+          "heading": "The human story",
+          "body": "This galaxy was discovered by Pierre Mechain and later became part of the extended Messier catalog. Modern instruments turned it from a faint patch into a measuring tool for the universe."
+        },
+        {
+          "heading": "How to spot it",
+          "body": "The bright core should appear quickly. The larger disk is faint, so judge the view by the growing oval shape rather than expecting obvious arms."
+        }
+      ]
+    },
+    {
+      "id": "M97",
+      "primaryName": "Owl Nebula",
+      "aliases": [
+        "M97",
+        "NGC 3587"
+      ],
+      "type": "Planetary Nebula",
+      "raDeg": 168.6988,
+      "decDeg": 55.019,
+      "displayRadiusDeg": 0.12,
+      "priority": 66,
+      "description": "A round planetary nebula whose darker internal patches inspired the nickname Owl Nebula.",
+      "constellation": "Ursa Major",
+      "distanceLy": 2030,
+      "sizeDescription": "a small disk — telescope only",
+      "wowFacts": [
+        "The Owl Nebula is the glowing outer atmosphere of a dying star, shaped into a faint round shell.",
+        "Its owl-like face comes from darker internal regions, not from solid holes in space.",
+        "It is only a few thousand light-years away, close enough for telescopes to show its rounded form.",
+        "In the live image, the face may be subtle: first look for the pale circular disk."
+      ],
+      "visualHint": "Look for a faint round disk; the owl-eye dark patches are delicate and may need a longer stack.",
+      "drawer": [
+        {
+          "heading": "What you're seeing",
+          "body": "M97 is a planetary nebula in Ursa Major. A dying star has shed gas into space, and the hot remnant lights that gas from within."
+        },
+        {
+          "heading": "Why it matters",
+          "body": "Planetary nebulae show how Sun-like stars return material to the galaxy. The Owl Nebula is a gentle-looking example of a dramatic stellar ending."
+        },
+        {
+          "heading": "The human story",
+          "body": "The nickname comes from Lord Rosse's 19th-century drawings, where the darker patches suggested an owl's face. It is a reminder that observers have always used imagination to navigate faint things."
+        },
+        {
+          "heading": "How to spot it",
+          "body": "This is a low-surface-brightness object, so it may look ghostly. Let the stack build before hunting for the inner patches."
+        }
+      ]
+    },
+    {
+      "id": "M108",
+      "primaryName": "Surfboard Galaxy",
+      "aliases": [
+        "M108",
+        "NGC 3556"
+      ],
+      "type": "Spiral Galaxy",
+      "raDeg": 167.879,
+      "decDeg": 55.6741,
+      "displayRadiusDeg": 0.18,
+      "priority": 62,
+      "description": "A nearly edge-on spiral galaxy in Ursa Major, appearing as a narrow streak of distant starlight.",
+      "constellation": "Ursa Major",
+      "distanceLy": 46000000,
+      "sizeDescription": "about one-third of the full Moon",
+      "wowFacts": [
+        "M108 is a spiral galaxy seen almost edge-on, so its billions of stars compress into a thin streak.",
+        "Its nickname, the Surfboard Galaxy, comes from that long narrow shape.",
+        "The light in tonight's view left roughly 46 million years ago.",
+        "In the live image, the galaxy may look uneven or mottled rather than smooth."
+      ],
+      "visualHint": "Look for a faint narrow streak with a slightly brighter middle.",
+      "drawer": [
+        {
+          "heading": "What you're seeing",
+          "body": "M108 is a spiral galaxy in Ursa Major. Because we see it nearly edge-on, the disk appears as a slim line rather than a round spiral."
+        },
+        {
+          "heading": "Why it matters",
+          "body": "Edge-on galaxies reveal dust and structure in a different way from face-on spirals. They help guests understand that a galaxy's appearance depends strongly on viewing angle."
+        },
+        {
+          "heading": "The human story",
+          "body": "M108 sits near the Owl Nebula in the sky, making the pair a nice contrast: one dying star inside our galaxy, one whole galaxy far beyond it."
+        },
+        {
+          "heading": "How to spot it",
+          "body": "Do not expect spiral arms. Look for a long, thin glow that slowly separates itself from the background stars."
+        }
+      ]
+    },
+    {
+      "id": "M84",
+      "primaryName": "M84",
+      "aliases": [
+        "M84",
+        "NGC 4374"
+      ],
+      "type": "Galaxy",
+      "raDeg": 186.2656,
+      "decDeg": 12.8869,
+      "displayRadiusDeg": 0.11,
+      "priority": 60,
+      "description": "A bright galaxy in the Virgo Cluster, part of the rich galaxy field around Markarian's Chain.",
+      "constellation": "Virgo",
+      "distanceLy": 60000000,
+      "sizeDescription": "a small oval — telescope only",
+      "wowFacts": [
+        "M84 is part of the Virgo Cluster, a city of galaxies rather than a single isolated island.",
+        "In this region of sky, several galaxies can crowd into the same telescope neighborhood.",
+        "Its light has crossed roughly 60 million years of space before reaching tonight's screen.",
+        "In the live image, the magic is context: a small glow that belongs to a much larger galaxy swarm."
+      ],
+      "visualHint": "Look for a compact oval glow; nearby faint smudges may be other Virgo Cluster galaxies.",
+      "drawer": [
+        {
+          "heading": "What you're seeing",
+          "body": "M84 is a bright galaxy in the Virgo Cluster. It appears as a smooth glow rather than a spiral with dramatic arms."
+        },
+        {
+          "heading": "Why it matters",
+          "body": "The Virgo Cluster is the nearest large galaxy cluster to our Local Group. Observing it is like looking toward a crowded downtown of galaxies."
+        },
+        {
+          "heading": "The human story",
+          "body": "M84 lies in the famous Markarian's Chain region. For observers, this field is a rite of passage because the view can contain multiple galaxies at once."
+        },
+        {
+          "heading": "How to spot it",
+          "body": "Expect a small, smooth, pale oval. The field may reward careful looking more than instant drama."
+        }
+      ]
+    },
+    {
+      "id": "M86",
+      "primaryName": "M86",
+      "aliases": [
+        "M86",
+        "NGC 4406"
+      ],
+      "type": "Galaxy",
+      "raDeg": 186.5492,
+      "decDeg": 12.9461,
+      "displayRadiusDeg": 0.11,
+      "priority": 60,
+      "description": "A bright Virgo Cluster galaxy often viewed beside M84 in the Markarian's Chain region.",
+      "constellation": "Virgo",
+      "distanceLy": 52000000,
+      "sizeDescription": "a small oval — telescope only",
+      "wowFacts": [
+        "M86 is one member of the Virgo Cluster, where galaxies gather by the thousands.",
+        "It sits close to M84 in the sky, turning one telescope view into a small tour of galaxy clustering.",
+        "Its light has traveled for roughly 50 million years.",
+        "In the live image, look for a quiet oval glow that gains meaning from its galactic neighborhood."
+      ],
+      "visualHint": "Look for a smooth oval glow near other faint galaxy smudges.",
+      "drawer": [
+        {
+          "heading": "What you're seeing",
+          "body": "M86 is a bright galaxy in Virgo. It is part of the same rich cluster environment as M84 and M87."
+        },
+        {
+          "heading": "Why it matters",
+          "body": "Galaxy clusters show that galaxies are not sprinkled randomly through space. Gravity gathers them into enormous families and filaments."
+        },
+        {
+          "heading": "The human story",
+          "body": "This is a classic spring galaxy-hopping target. It is less about one famous shape and more about realizing how crowded the deep universe can be."
+        },
+        {
+          "heading": "How to spot it",
+          "body": "Look for a soft, round-to-oval glow. If the frame is placed well, more than one galaxy may be visible."
+        }
+      ]
+    },
+    {
+      "id": "M87",
+      "primaryName": "Virgo A",
+      "aliases": [
+        "M87",
+        "NGC 4486",
+        "Virgo A"
+      ],
+      "type": "Galaxy",
+      "raDeg": 187.7059,
+      "decDeg": 12.3911,
+      "displayRadiusDeg": 0.15,
+      "priority": 84,
+      "description": "A giant galaxy in Virgo whose central black hole became the first black hole ever directly imaged.",
+      "constellation": "Virgo",
+      "distanceLy": 55000000,
+      "sizeDescription": "a small bright glow — telescope only",
+      "wowFacts": [
+        "M87 contains the black hole that became humanity's first directly imaged black hole in 2019.",
+        "That central black hole has a mass of billions of Suns.",
+        "M87 is a giant galaxy near the heart of the Virgo Cluster.",
+        "In the live image, the black hole is far too small to see; the glow is the galaxy around it."
+      ],
+      "visualHint": "Look for a smooth bright oval; the famous black hole is not visible, but it sits at the galaxy's core.",
+      "drawer": [
+        {
+          "heading": "What you're seeing",
+          "body": "M87 is a giant galaxy in Virgo. In a live telescope image it appears as a smooth bright glow, not a spiral or detailed black-hole image."
+        },
+        {
+          "heading": "Why it matters",
+          "body": "M87 is one of the great landmarks of modern astronomy because the Event Horizon Telescope imaged the shadow of its central black hole. The guest view shows the host galaxy of that historic target."
+        },
+        {
+          "heading": "The human story",
+          "body": "The 2019 black-hole image was made by linking radio telescopes around Earth into a planet-sized instrument. A faint glow in Virgo became a global scientific icon."
+        },
+        {
+          "heading": "How to spot it",
+          "body": "Expect a compact smooth glow. The story is larger than the visible detail: you are looking at the galaxy that holds the first black hole ever photographed."
+        }
+      ]
+    },
+    {
+      "id": "M9",
+      "primaryName": "M9 Globular Cluster",
+      "aliases": [
+        "M9",
+        "NGC 6333"
+      ],
+      "type": "Globular Cluster",
+      "raDeg": 259.7991,
+      "decDeg": -18.5163,
+      "displayRadiusDeg": 0.12,
+      "priority": 56,
+      "description": "A compact globular cluster in Ophiuchus, shining from the dusty direction toward the Milky Way's center.",
+      "constellation": "Ophiuchus",
+      "distanceLy": 26000,
+      "sizeDescription": "a small round glow",
+      "wowFacts": [
+        "M9 sits in the rich, dusty direction toward the inner Milky Way.",
+        "Its old stars are packed into a compact ball tens of thousands of light-years away.",
+        "Dust between us and the cluster dims and reddens some of its light.",
+        "In the live image, expect a modest ancient glow rather than a wide resolved swarm."
+      ],
+      "visualHint": "Look for a small compact glow with a brighter middle and only slight grain at the edge.",
+      "drawer": [
+        {
+          "heading": "What you're seeing",
+          "body": "M9 is a globular cluster in Ophiuchus. It is an old star swarm seen through a busy, dusty part of our galaxy."
+        },
+        {
+          "heading": "Why it matters",
+          "body": "Clusters like M9 help trace the Milky Way's halo and inner regions. Even modest globulars are ancient records of galactic history."
+        },
+        {
+          "heading": "The human story",
+          "body": "Ophiuchus is a rich summer constellation packed with globular clusters. M9 is one stop in that dense deep-sky landscape."
+        },
+        {
+          "heading": "How to spot it",
+          "body": "The cluster may stay compact in the live view. Watch for a small round haze that becomes slightly textured as stacking improves."
+        }
+      ]
+    },
+    {
+      "id": "M28",
+      "primaryName": "M28 Globular Cluster",
+      "aliases": [
+        "M28",
+        "NGC 6626"
+      ],
+      "type": "Globular Cluster",
+      "raDeg": 276.1367,
+      "decDeg": -24.8698,
+      "displayRadiusDeg": 0.14,
+      "priority": 62,
+      "description": "A compact globular cluster near the Sagittarius star fields and the direction of the Milky Way's center.",
+      "constellation": "Sagittarius",
+      "distanceLy": 18000,
+      "sizeDescription": "a small round glow",
+      "wowFacts": [
+        "M28 lies in Sagittarius, close to the spectacular star fields toward the Milky Way's center.",
+        "It is an ancient star swarm, much older than the Sun.",
+        "A millisecond pulsar was discovered in M28, showing that dense clusters can host exotic stellar remnants.",
+        "In the live image, it should appear as a compact glow with a bright core."
+      ],
+      "visualHint": "Look for a small dense ball of light, with grainy edges if the stack is strong.",
+      "drawer": [
+        {
+          "heading": "What you're seeing",
+          "body": "M28 is a globular cluster in Sagittarius. It is a dense collection of old stars orbiting the Milky Way."
+        },
+        {
+          "heading": "Why it matters",
+          "body": "Dense clusters can contain unusual objects such as pulsars, the fast-spinning remains of dead stars. They are old systems with surprisingly energetic interiors."
+        },
+        {
+          "heading": "The human story",
+          "body": "Sagittarius is one of the richest summer regions from Greece. M28 adds a compact ancient cluster to a sky already full of nebulae and star clouds."
+        },
+        {
+          "heading": "How to spot it",
+          "body": "Expect a small round glow. It will not fill the frame, so look for brightness and concentration rather than size."
+        }
+      ]
+    },
+    {
+      "id": "M54",
+      "primaryName": "M54 Globular Cluster",
+      "aliases": [
+        "M54",
+        "NGC 6715"
+      ],
+      "type": "Globular Cluster",
+      "raDeg": 283.7639,
+      "decDeg": -30.4799,
+      "displayRadiusDeg": 0.12,
+      "priority": 64,
+      "description": "A dense globular cluster associated with the Sagittarius Dwarf Galaxy, far beyond most familiar Milky Way globulars.",
+      "constellation": "Sagittarius",
+      "distanceLy": 87000,
+      "sizeDescription": "a compact glow — telescope only",
+      "wowFacts": [
+        "M54 is not just another Milky Way globular: it is associated with the Sagittarius Dwarf Galaxy.",
+        "For more than two centuries it was treated as a normal globular cluster before its extragalactic connection became clear.",
+        "Its light comes from roughly 87,000 light-years away, far beyond many familiar globular clusters.",
+        "In the live image, it may stay compact and smooth because it is so distant."
+      ],
+      "visualHint": "Look for a small concentrated glow; individual stars may be hard to resolve.",
+      "drawer": [
+        {
+          "heading": "What you're seeing",
+          "body": "M54 is a dense globular cluster in Sagittarius. It is associated with the Sagittarius Dwarf Galaxy, a small galaxy being disrupted by the Milky Way."
+        },
+        {
+          "heading": "Why it matters",
+          "body": "M54 connects a simple telescope view to galaxy cannibalism. The Milky Way is still growing by pulling apart smaller companions."
+        },
+        {
+          "heading": "The human story",
+          "body": "Charles Messier cataloged M54 in 1778, long before astronomers knew it was tied to another galaxy. Its deeper identity was discovered only with modern measurements."
+        },
+        {
+          "heading": "How to spot it",
+          "body": "Expect a compact bright spot rather than a widely resolved cluster. Its story is more dramatic than its visible size."
+        }
+      ]
+    },
+    {
+      "id": "M30",
+      "primaryName": "M30 Globular Cluster",
+      "aliases": [
+        "M30",
+        "NGC 7099"
+      ],
+      "type": "Globular Cluster",
+      "raDeg": 325.0922,
+      "decDeg": -23.1799,
+      "displayRadiusDeg": 0.12,
+      "priority": 58,
+      "description": "A compact late-season globular cluster in Capricornus with a dense bright core.",
+      "constellation": "Capricornus",
+      "distanceLy": 27000,
+      "sizeDescription": "a small round glow",
+      "wowFacts": [
+        "M30 is an ancient globular cluster visible later in the summer and into autumn evenings.",
+        "Its core is especially concentrated, giving it a tight bright center.",
+        "The cluster's stars formed long before the Sun existed.",
+        "In the live image, look for a small bright heart with a faint grainy halo."
+      ],
+      "visualHint": "Look for a compact round cluster with a strong center and subtle outer grain.",
+      "drawer": [
+        {
+          "heading": "What you're seeing",
+          "body": "M30 is a globular cluster in Capricornus. It is a dense ball of old stars far beyond the Sun."
+        },
+        {
+          "heading": "Why it matters",
+          "body": "Its concentrated core helps show how gravity can reshape a cluster over billions of years. Globular clusters are not static; they slowly evolve."
+        },
+        {
+          "heading": "The human story",
+          "body": "M30 is one of the later-season Messier globulars for evening observing. It is less famous than M13 or M22 but still carries the same deep-time feeling."
+        },
+        {
+          "heading": "How to spot it",
+          "body": "This is a compact target. Look for the bright core first, then the softer halo around it."
+        }
+      ]
+    },
+    {
+      "id": "NGC6826",
+      "primaryName": "Blinking Planetary Nebula",
+      "aliases": [
+        "NGC 6826",
+        "Blinking Planetary"
+      ],
+      "type": "Planetary Nebula",
+      "raDeg": 296.2004,
+      "decDeg": 50.5253,
+      "displayRadiusDeg": 0.08,
+      "priority": 70,
+      "description": "A small bright planetary nebula in Cygnus, famous for its blinking effect in visual observing.",
+      "constellation": "Cygnus",
+      "distanceLy": 2200,
+      "sizeDescription": "a tiny disk — telescope only",
+      "wowFacts": [
+        "The Blinking Planetary is a dying star's glowing shell wrapped around a hot central remnant.",
+        "Its nickname comes from a visual trick: the nebula can seem to blink when your eye shifts attention.",
+        "It is small but bright, making it a good live target when conditions are steady.",
+        "In the live image, look for a tiny blue-green disk rather than a wide cloud."
+      ],
+      "visualHint": "Look for a very small bright bluish-green disk with a star-like center.",
+      "drawer": [
+        {
+          "heading": "What you're seeing",
+          "body": "NGC 6826 is a planetary nebula in Cygnus. A dying star has shed gas, and its hot remnant makes the shell glow."
+        },
+        {
+          "heading": "Why it matters",
+          "body": "It is a compact example of the same stellar end-stage as the Ring and Dumbbell Nebulae. Small targets like this show that planetary nebulae come in many shapes and scales."
+        },
+        {
+          "heading": "The human story",
+          "body": "The blinking effect is a classic observer's experience, caused by how direct and averted vision respond differently to the bright central star and surrounding glow."
+        },
+        {
+          "heading": "How to spot it",
+          "body": "Do not expect a large nebula. The target is tiny; focus on color, compactness, and the difference between the central point and the surrounding disk."
+        }
+      ]
+    },
+    {
+      "id": "IC5146",
+      "primaryName": "Cocoon Nebula",
+      "aliases": [
+        "IC 5146",
+        "Cocoon Nebula",
+        "Caldwell 19"
+      ],
+      "type": "Diffuse Nebula",
+      "raDeg": 328.3625,
+      "decDeg": 47.2669,
+      "displayRadiusDeg": 0.35,
+      "priority": 74,
+      "description": "A star-forming nebula in Cygnus where a glowing cloud sits at the end of a dark dust lane.",
+      "constellation": "Cygnus",
+      "distanceLy": 3300,
+      "sizeDescription": "a little over half the full Moon",
+      "wowFacts": [
+        "The Cocoon Nebula is a stellar nursery wrapped in dust, with young stars lighting the gas around them.",
+        "A dark lane of dust leads toward it, like a path through the Milky Way's star fields.",
+        "Its red glow comes from hydrogen gas excited by young hot stars.",
+        "In the live image, the nebula may appear as a soft red patch embedded in a rich star field."
+      ],
+      "visualHint": "Look for a soft reddish glow with dark dust nearby; the surrounding star field is part of the scene.",
+      "drawer": [
+        {
+          "heading": "What you're seeing",
+          "body": "IC 5146 is a star-forming nebula in Cygnus. Young stars inside and around the cloud light up gas and dust."
+        },
+        {
+          "heading": "Why it matters",
+          "body": "The Cocoon is a good example of stars emerging from the material that formed them. It connects glowing gas, dark dust, and newborn stars in one view."
+        },
+        {
+          "heading": "The human story",
+          "body": "The nickname works because the object feels wrapped and sheltered. It is a gentle way to explain stellar birth without turning the card into a textbook."
+        },
+        {
+          "heading": "How to spot it",
+          "body": "Expect a soft glow, not a sharp object. Darker dust lanes and faint red color improve with longer stacking and darker skies."
+        }
+      ]
+    },
+    {
+      "id": "SH2-101",
+      "primaryName": "Tulip Nebula",
+      "aliases": [
+        "Sh2-101",
+        "Tulip Nebula"
+      ],
+      "type": "Diffuse Nebula",
+      "raDeg": 296.405,
+      "decDeg": 35.221,
+      "displayRadiusDeg": 0.45,
+      "priority": 68,
+      "description": "A faint emission nebula in Cygnus, named for its flower-like arcs of glowing hydrogen.",
+      "constellation": "Cygnus",
+      "distanceLy": 6000,
+      "sizeDescription": "close to the full Moon",
+      "wowFacts": [
+        "The Tulip Nebula is a cloud of hydrogen glowing in the crowded summer Milky Way.",
+        "Its flower-like shape is real structure, but it is faint and rewards patient stacking.",
+        "Nearby lies one of the sky's famous X-ray binary systems, Cygnus X-1, though it is not visible as the nebula's shape.",
+        "In the live image, look for soft red arcs rather than a crisp flower."
+      ],
+      "visualHint": "Look for faint red nebulosity and curved edges; this is a subtle dark-sky target.",
+      "drawer": [
+        {
+          "heading": "What you're seeing",
+          "body": "Sh2-101 is an emission nebula in Cygnus. Hot young stars make hydrogen gas glow across a broad, faint cloud."
+        },
+        {
+          "heading": "Why it matters",
+          "body": "It is part of the rich Cygnus star-forming region, where dust, gas, and massive stars shape the Milky Way's summer glow."
+        },
+        {
+          "heading": "The human story",
+          "body": "The Tulip nickname gives guests a visual anchor, but the live view should be described honestly: more soft cosmic cloud than sharp flower."
+        },
+        {
+          "heading": "How to spot it",
+          "body": "This needs dark skies and stacking. Look for uneven red glow and curved boundaries rather than bright central detail."
+        }
+      ]
+    },
+    {
+      "id": "NGC6940",
+      "primaryName": "NGC 6940",
+      "aliases": [
+        "NGC 6940"
+      ],
+      "type": "Open Cluster",
+      "raDeg": 308.625,
+      "decDeg": 28.283,
+      "displayRadiusDeg": 0.35,
+      "priority": 62,
+      "description": "A rich open cluster near Cygnus and Vulpecula, scattered across a beautiful Milky Way star field.",
+      "constellation": "Vulpecula",
+      "distanceLy": 2500,
+      "sizeDescription": "a little over half the full Moon",
+      "wowFacts": [
+        "NGC 6940 is a broad open cluster, a loose family of stars born together.",
+        "It sits in a rich Milky Way region where the background is almost part of the object.",
+        "The cluster is old enough for its brightest stars to include warmer golden tones among the white stars.",
+        "In the live image, the beauty is a glittering field rather than one dense center."
+      ],
+      "visualHint": "Look for a wide, loose concentration of stars spread across the frame.",
+      "drawer": [
+        {
+          "heading": "What you're seeing",
+          "body": "NGC 6940 is an open cluster near Vulpecula and Cygnus. Its stars formed together and now spread across a generous patch of sky."
+        },
+        {
+          "heading": "Why it matters",
+          "body": "Open clusters show stars in families rather than alone. They help make the Milky Way feel local and textured, not just distant and abstract."
+        },
+        {
+          "heading": "The human story",
+          "body": "This is a quieter target, best for guests who enjoy the feeling of flying through a dense star field. It pairs nicely with brighter nebulae as a visual breather."
+        },
+        {
+          "heading": "How to spot it",
+          "body": "Do not look for a tight ball. Look for a wide region where the stars seem more numerous and organized than the surrounding field."
+        }
+      ]
+    },
+    {
+      "id": "NGC7331",
+      "primaryName": "NGC 7331",
+      "aliases": [
+        "NGC 7331"
+      ],
+      "type": "Spiral Galaxy",
+      "raDeg": 339.2671,
+      "decDeg": 34.4156,
+      "displayRadiusDeg": 0.18,
+      "priority": 72,
+      "description": "A bright tilted spiral galaxy in Pegasus, often used as a gateway to deeper autumn galaxy fields.",
+      "constellation": "Pegasus",
+      "distanceLy": 40000000,
+      "sizeDescription": "about one-third of the full Moon",
+      "wowFacts": [
+        "NGC 7331 is a large spiral galaxy tilted toward us, giving it a bright elongated shape.",
+        "Its light has traveled for roughly 40 million years.",
+        "It is often used as a signpost for deeper galaxy hunting in Pegasus.",
+        "In the live image, look for a bright core wrapped in a soft slanted disk."
+      ],
+      "visualHint": "Look for an elongated glow with a bright center; nearby tiny companion galaxies may be too faint for casual viewing.",
+      "drawer": [
+        {
+          "heading": "What you're seeing",
+          "body": "NGC 7331 is a spiral galaxy in Pegasus. It is tilted enough that its disk appears as an elongated oval."
+        },
+        {
+          "heading": "Why it matters",
+          "body": "Galaxies like NGC 7331 are useful visual bridges between famous Messier showpieces and fainter deep-sky observing. They show that the catalog can keep going deeper."
+        },
+        {
+          "heading": "The human story",
+          "body": "Pegasus rises well for late-summer and autumn sessions. This galaxy is a satisfying step beyond the most familiar Messier objects."
+        },
+        {
+          "heading": "How to spot it",
+          "body": "Expect a bright core and a soft elongated halo. Spiral structure is subtle; the tilted shape is the main thing to catch."
+        }
+      ]
     }
   ]
 }
