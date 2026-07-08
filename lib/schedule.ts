@@ -2,16 +2,27 @@ import scheduleData from '@/config/schedule.json'
 
 // Schedule as data. Session.date and the inputs/outputs here are all
 // Athens-local YYYY-MM-DD calendar dates (see route.ts for the ingest-time
-// date semantics). eventFor honors the season bounds and the timeShifts
-// (e.g. the Sept 1 shift to earlier start/end); scheduledHotelFor is a thin
-// wrapper kept for /api/ingest, which only needs the weekly hotel mapping.
+// date semantics). eventFor honors dateOverrides first, then the season
+// bounds and the timeShifts (e.g. the Sept 1 shift to earlier start/end);
+// scheduledHotelFor is a thin wrapper kept for /api/ingest, which only needs
+// the weekly hotel mapping.
 type DaySlot = { hotelId: string; start: string; end: string } | null
+
+// A one-off exception for a single calendar date — e.g. a hotel's usual night
+// moves for one week because the host is away at an external event.
+// `{ hotelId: null }` blanks the date out entirely (no event that day, even if
+// the weekly pattern would otherwise put one there); the other shape fully
+// specifies that date's event (even on a day the weekly pattern leaves empty).
+// Hand-maintained in config/schedule.json alongside timeShifts, same spirit —
+// exceptions live as data, not code.
+type DateOverride = { hotelId: null } | { hotelId: string; start: string; end: string }
 
 type Schedule = {
   season: { start: string; end: string }
   timezone: string
   weekly: Record<string, DaySlot>
   timeShifts: { from: string; start: string; end: string }[]
+  dateOverrides?: Record<string, DateOverride>
 }
 
 const schedule = scheduleData as Schedule
@@ -58,7 +69,17 @@ function addDays(date: string, n: number): string {
 // timeShifts apply (date on or after `from`), the latest applicable shift's
 // start/end override the weekly slot's — the hotel is unchanged.
 export function eventFor(date: string): ScheduledEvent | null {
-  const { season, weekly, timeShifts } = schedule
+  const { season, weekly, timeShifts, dateOverrides } = schedule
+
+  // dateOverrides win outright, before season bounds or the weekly pattern —
+  // an override is the COMPLETE final answer for that date (no timeShift
+  // layered on top either), so a one-off exception never has to reason about
+  // what the normal rule would have said.
+  const override = dateOverrides?.[date]
+  if (override) {
+    return override.hotelId === null ? null : { hotelId: override.hotelId, start: override.start, end: override.end }
+  }
+
   if (date < season.start || date > season.end) return null
   const dow = new Date(`${date}T00:00:00Z`).getUTCDay()
   const slot = weekly[DAY_KEYS[dow]]
