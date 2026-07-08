@@ -32,6 +32,7 @@ import { typeColor } from '@/lib/type-colors'
 import catalogData from '@/config/catalog.json'
 import type { CatalogObject } from '@/lib/catalog'
 import { computeRunKey } from '@/lib/detect-transition'
+import { nextEvent } from '@/lib/schedule'
 
 // Crossfade duration for a flavor-line swap; must match the opacity transition
 // in styles.css (.status-flavor).
@@ -520,14 +521,23 @@ function getDemoStatusBody(): StatusResponse | null {
 
   // Finished is a live:false shape (unlike every other demo mode, which is
   // live:true) — handled first and separately so the rest of this function
-  // can stay focused on constructing StatusLive bodies.
+  // can stay focused on constructing StatusLive bodies. `next` used to be
+  // hardcoded to a fixed hotel/date (always "today" at OKU) — on any day
+  // that isn't actually OKU's real weekly slot, that showed a guest the
+  // WRONG next session (e.g. "Wednesday at OKU" when Wednesday has no
+  // session and OKU is actually Tuesday's hotel). Real production status
+  // walks forward from tomorrow via nextEvent() — see athensTomorrow +
+  // nextEvent in app/api/status/route.ts — so the demo does the same lookup
+  // here instead of fabricating a next session that may not exist.
   if (mode === 'finished') {
-    const today = new Date().toISOString().slice(0, 10)
+    const today = athensTodayDate()
+    const tomorrow = addAthensDays(today, 1)
+    const next = nextEvent(tomorrow)
     return {
       live: false,
       finished: true,
       date: today,
-      next: { date: today, hotelId: 'oku-kos', start: '21:30', end: '22:30' },
+      next: next ? { date: next.date, hotelId: next.hotelId, start: next.start, end: next.end } : null,
     }
   }
 
@@ -602,6 +612,16 @@ function athensTodayDate(): string {
     month: '2-digit',
     day: '2-digit',
   }).format(new Date())
+}
+
+// Add n calendar days to a YYYY-MM-DD date — same pure UTC arithmetic as
+// addDays/athensTomorrow in lib/schedule.ts / app/api/status/route.ts, kept
+// as its own tiny helper here since nextEvent() itself is imported but the
+// server route's athensTomorrow() is not exported.
+function addAthensDays(date: string, n: number): string {
+  const d = new Date(`${date}T00:00:00Z`)
+  d.setUTCDate(d.getUTCDate() + n)
+  return d.toISOString().slice(0, 10)
 }
 
 // statusUrl defaults to the normal hotel endpoint. /live/[event] passes

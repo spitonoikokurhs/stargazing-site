@@ -1890,9 +1890,14 @@
    stage, right where the UFO normally sits — nudge the whole slot (UFO +
    its flash/sparks/bursts/bubble, so they all move together) down out of
    the way for the duration of the finale. See onUfoClick's TAP_TIER_3
-   branch for exactly when this is toggled. */
+   branch for exactly when this is toggled. Bumped from 38px to 58px — the
+   flag's 9-row grid was still reaching down far enough to touch/overlap the
+   UFO's antenna at 38px. .farewell-reward is positioned independently
+   (absolute, top: 48.3% — see .farewell-reward above), not affected by this
+   transform, so there's still clear room before the "You really looked up
+   tonight" reward text. */
 .farewell-ufo-slot--finale {
-  transform: translateY(38px);
+  transform: translateY(58px);
 }
 
 /* Wraps goodnight/heading/next-session/flavor — hidden for the duration of
@@ -2696,7 +2701,7 @@
    actually be legible — small enough to read as a quiet accent, not a
    second competing headline. */
 .farewell-next-logo {
-  height: 30px;
+  height: 42px;
   width: auto;
   max-width: 60vw;
   object-fit: contain;

@@ -26,16 +26,17 @@ export const FAREWELL_VARIANT_IDS: FarewellVariantId[] = ['aegean-ufo']
 // same line together, and it naturally rotates to a different one on the
 // next scheduled night with no new server-side state.
 const NEXT_SESSION_LEAD_LINES = [
-  'Same sky, same place.',
-  'The stars will be waiting.',
-  'We’ll meet under the stars again.',
-  'This sky has more stories to tell.',
-  'Same island, new stars.',
-  'The telescope will be waiting.',
-  'Another night, another universe.',
-  'Come back when the stars return.',
-  'Kos has more sky to show you.',
-  'Your next window to the universe is set.',
+  'Until the next clear sky.',
+  'The night will open again.',
+  'More stars are waiting for you.',
+  'We’ll save you a place under the sky.',
+  'The universe will be here when you return.',
+  'Another sky story is waiting.',
+  'Next time, we look deeper.',
+  'Tonight ends, but the sky continues.',
+  'The island sky will be waiting.',
+  'One night ends. The universe does not.',
+  'The night sky has more stories to tell.',
 ]
 
 // Small, stable string hash (djb2) — good enough for picking an index out of
