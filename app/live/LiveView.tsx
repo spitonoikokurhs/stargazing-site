@@ -2351,11 +2351,35 @@ const UNIVERSAL_PHRASES = [
 // telescope is between targets). Rotates gently, same mechanism/cadence as
 // the old universal phrases.
 const MOVING_PHRASES = [
-  'Turning toward the next view…',
-  'The telescope is moving through the night…',
-  'On our way to the next object…',
-  'Crossing to another part of the sky…',
   'A new patch of sky is coming into view…',
+  'Making the jump…',
+  'Engaging the next target…',
+  'New coordinates — let’s see what’s out there…',
+  'Onwards and skywards…',
+  'The universe just got a little more interesting…',
+  'Don’t panic — the telescope knows where it’s going…',
+  'Let’s see what’s on the other side…',
+  'The night is young and the sky is wide…',
+  'Another corner of the cosmos, coming up…',
+  'Second star to the right, and straight on till morning…',
+  'Rotating to the next chapter of tonight’s story…',
+  'The best views are never in the same place twice…',
+  'One more wonder before the night is through…',
+  'Looking for something older than history…',
+  'We’re not lost. We’re exploring.',
+  'Finding the next excuse to say wow.',
+  'Following the oldest travelers in the universe.',
+  'Changing targets, not changing wonder.',
+  'Following ancient light…',
+  'Next stop: the past…',
+  'Searching the archives of the universe…',
+  'This next object is not just far away — it is long ago…',
+  'The sky keeps records. We are opening one now…',
+  'Another fossil of light is coming into view…',
+  'The next target is a postcard from the past…',
+  'We are not just changing direction — we are changing time…',
+  'Old light, new wonder…',
+  'The telescope is collecting yesterday’s universe…',
 ]
 
 // Shown for kind: 'fallback' (solved, but no confident catalog match) as the
@@ -2367,11 +2391,6 @@ const MOVING_PHRASES = [
 //   'Gathering light while we get our bearings…'
 //   'Somewhere out there, still finding the name for this…'
 const FALLBACK_SUPPORTING_LINE = 'Collecting light from this part of the sky…'
-
-// Small instruction line rotating beneath the main transitional phrase (both
-// 'moving' and 'fallback') — Option A: dimmer/smaller than the main line,
-// just enough reassurance that nothing is broken.
-const INSTRUCTION_PHRASES = ['just a moment', 'one moment', 'the view returns shortly', 'back in a moment']
 
 const TRANSITION_PHRASE_ROTATE_MS = 25 * 1000
 const TRANSITION_PHRASE_FADE_MS = 600
@@ -2411,6 +2430,48 @@ function useRotatingPhrase(
   return { text: phrases[index], visible }
 }
 
+const MOVING_PHRASE_ROTATE_MS = 10 * 1000
+
+// Same crossfade mechanism as useRotatingPhrase (identical fade timing/
+// interval shape), but TRUE random selection each tick instead of sequential
+// (i+1) % length — and never repeats the immediately-previous pick, so a
+// large pool doesn't visibly loop back-to-back by chance. Purpose-built for
+// MOVING_PHRASES rather than generalizing useRotatingPhrase itself: the
+// other three call sites (wowFact, RotatingPhrase, the instruction line)
+// keep their existing sequential behavior unchanged, so this is additive,
+// not a behavior change to shared code.
+function useRandomNoRepeatPhrase(phrases: string[], rotateMs: number): { text: string; visible: boolean } {
+  const [index, setIndex] = useState(() => Math.floor(Math.random() * phrases.length))
+  const [visible, setVisible] = useState(true)
+
+  useEffect(() => {
+    if (phrases.length <= 1) return
+    const fadeRef = { id: null as ReturnType<typeof setTimeout> | null }
+    const rotate = setInterval(() => {
+      setVisible(false)
+      fadeRef.id = setTimeout(() => {
+        setIndex((current) => {
+          // Pick uniformly among every index EXCEPT the current one, rather
+          // than rejection-sampling Math.random() until it differs — avoids
+          // an (unbounded, if unlikely) retry loop and stays O(1).
+          const next = Math.floor(Math.random() * (phrases.length - 1))
+          return next >= current ? next + 1 : next
+        })
+        setVisible(true)
+      }, TRANSITION_PHRASE_FADE_MS)
+    }, rotateMs)
+    return () => {
+      clearInterval(rotate)
+      if (fadeRef.id) clearTimeout(fadeRef.id)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- phrases/rotateMs
+    // are module-level constants per call site, same reasoning as
+    // useRotatingPhrase above.
+  }, [phrases.length, rotateMs])
+
+  return { text: phrases[index], visible }
+}
+
 // Gently rotating universal phrase with a crossfade — used when no catalog
 // description is available. Rotation cadence is calm (25s) so it reads as
 // ambient, not attention-grabbing. Kept as the plain single-line variant
@@ -2425,8 +2486,11 @@ function RotatingPhrase() {
 
 // Option A structure for the two transitional states (moving/fallback): the
 // poetic/supporting line is the prominent element, with a small, dimmer,
-// independently-rotating instruction line beneath it — same card, same
-// rotation cadence/crossfade as RotatingPhrase, just two lines instead of one.
+// STATIC instruction line beneath it. The main line rotates every 10s to a
+// random pool entry (never repeating the immediately-previous one — see
+// useRandomNoRepeatPhrase); the instruction line stays fixed at "one moment"
+// rather than also rotating, so guest attention isn't split between two
+// simultaneously-changing lines — only the main phrase above moves.
 function TransitionCopy({
   mainPhrases,
   showLoader,
@@ -2434,13 +2498,12 @@ function TransitionCopy({
   mainPhrases: string[]
   showLoader?: boolean
 }) {
-  const main = useRotatingPhrase(mainPhrases)
-  const instruction = useRotatingPhrase(INSTRUCTION_PHRASES)
+  const main = useRandomNoRepeatPhrase(mainPhrases, MOVING_PHRASE_ROTATE_MS)
   return (
     <div className="live-object-desc live-object-desc--transition">
       {showLoader ? <TelescopeLoader small /> : null}
       <p className={`transition-main${main.visible ? ' is-visible' : ''}`}>{main.text}</p>
-      <p className={`transition-instruction${instruction.visible ? ' is-visible' : ''}`}>{instruction.text}</p>
+      <p className="transition-instruction is-visible">one moment</p>
     </div>
   )
 }
