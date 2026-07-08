@@ -410,14 +410,30 @@
   cursor: not-allowed;
 }
 
+/* Wraps the two rows when there are 6+ history entries (see HISTORY_ROW_MAX
+   in SessionHistoryStrip) — just a vertical stack with a small gap between
+   rows. Absent entirely for 5-or-fewer entries (SessionHistoryStrip renders
+   a single bare .history-strip in that case, no wrapper needed). */
+.history-strip-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin: 8px auto 0;
+  width: min(100%, 540px);
+}
+
+.history-strip-rows .history-strip {
+  margin: 0;
+}
+
 /* Tonight's session-history strip — a timeline/breadcrumb, deliberately NOT
    styled like .snapshot-toggle/.snap above it: no shared pill-group
    background, no grid of equal-width segments, nothing that reads as a
    navigation control (these pills aren't tappable — see SessionHistoryStrip
-   in LiveView.tsx). Horizontal scroll (not wrap) so a longer session degrades
-   to a swipeable row instead of a second line pushing the object name down;
-   scrollbar hidden since the row itself is the visual affordance, not a
-   scroll-styled widget. */
+   in LiveView.tsx). Overflow-x stays as a defensive fallback (e.g. an
+   unusually wide phone-in-landscape edge case), but the primary answer to
+   "too many pills" is now wrapping to a second row (see .history-strip-rows
+   above) rather than scrolling — every pill stays visible at once. */
 .history-strip {
   display: flex;
   align-items: center;
@@ -433,6 +449,15 @@
   display: none;
 }
 
+/* The bottom row (1-4 leftover pills after the first 5) is just another
+   .history-strip — same width as the top row (.history-strip-rows sets a
+   shared width on both), with its own flex:1 1 0 pills (see .history-pill
+   below) dividing that width evenly among however many pills actually
+   landed in this row. No extra cap here: an earlier version of this rule
+   capped the ROW's max-width to a single pill's width, which squeezed the
+   entire bottom row down to one pill's worth of space instead of letting
+   its few pills share the full row width the same way the top row's do. */
+
 /* --object-type-border/--object-type-bg-subtle are set per-pill inline (see
    SessionHistoryStrip) rather than inherited from .content — each pill can
    represent a DIFFERENT object type than the one currently on screen, so
@@ -442,19 +467,22 @@
    colored per entry.
 
    flex: 1 1 0 (equal basis, ignoring content width) makes every pill share
-   the strip's full width evenly regardless of count — 3 pills tonight means
+   its row's full width evenly regardless of count — 3 pills tonight means
    3 equal thirds, not 3 pills sized to their own label length with empty
-   space at the end. min-width holds a floor so a longer session (6+ runs)
-   degrades to horizontal scroll (.history-strip's own overflow-x) once equal
-   division would otherwise squeeze pills illegibly, rather than shrinking
-   labels into unreadable slivers. justify-content centers each pill's own
+   space at the end. min-width:0 overrides flex's own default (auto, which
+   refuses to shrink a flex item below its CONTENT width) — without it,
+   .history-pill-label's text-overflow:ellipsis below can never actually
+   trigger, since the pill would just grow to fit its full label instead of
+   truncating. min-height keeps every pill (icon-only settling pill included)
+   the same height as a labeled one. justify-content centers each pill's own
    icon+label since the pill is now wider than its intrinsic content. */
 .history-pill {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   flex: 1 1 0;
-  min-width: 64px;
+  min-width: 0;
+  min-height: 30px;
   gap: 4px;
   padding: 5px 10px;
   border-radius: 999px;
@@ -499,8 +527,16 @@
   height: 13px;
 }
 
+/* Overflow safety net beneath shortHistoryLabel's own JS-side shortening
+   (see LiveView.tsx) — belt and suspenders: even if a future/unusual label
+   is still too long for its pill's share of the row, it truncates cleanly
+   with an ellipsis instead of visually bleeding into the next pill's icon.
+   min-width:0 on .history-pill above is what makes this actually trigger
+   (a flex item won't shrink below its text's natural width otherwise). */
 .history-pill-label {
+  overflow: hidden;
   white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .content {

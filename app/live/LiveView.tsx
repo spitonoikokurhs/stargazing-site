@@ -2008,46 +2008,105 @@ function isDisplayableRun(run: HistoryEntry): boolean {
   return run.objectId !== null && HISTORY_CONFIDENT_TIERS.has(run.confidence ?? '')
 }
 
+// A catalog id like "M13"/"M27" is already the natural pill label — short,
+// recognizable, exactly what's printed on a star chart. Real catalog ids top
+// out at 7 characters ("NGC7000") except for a handful of hyphenated/multi-
+// number ones ("NGC6960-6992", "NGC869-884", "LEO-TRIPLET", each 10-12
+// chars) that run long enough to force equal-width pills into an illegibly
+// narrow slice once there are 5+ objects. IDs at or under
+// HISTORY_LABEL_ID_FITS_CHARS stay exactly as printed — "NGC7000" is left
+// alone, not swapped for "North" just because "North" is shorter; a
+// technically-shorter but less recognizable label is not an improvement.
+// Only IDs past that length get the name-based shortening: the object's own
+// primaryName, first word only ("Veil Nebula" -> "Veil", "Leo Triplet" ->
+// "Leo") since the pill's type icon right next to the label already implies
+// "Nebula"/"Cluster"/"Galaxy" etc. If even that first word is still long,
+// it's hard-truncated with an ellipsis as a last resort. The full id/name/
+// type always still goes in title/aria-label — this only ever shortens the
+// VISIBLE label.
+const HISTORY_LABEL_ID_FITS_CHARS = 7
+const HISTORY_LABEL_MAX_CHARS = 8
+
+function shortHistoryLabel(objectId: string, objectName: string | null): string {
+  if (objectId.length <= HISTORY_LABEL_ID_FITS_CHARS) return objectId
+  if (!objectName) return objectId
+
+  const firstWord = objectName.split(' ')[0]
+  if (firstWord.length <= HISTORY_LABEL_MAX_CHARS) return firstWord
+  return `${firstWord.slice(0, HISTORY_LABEL_MAX_CHARS)}…`
+}
+
+function HistoryPill({ run }: { run: HistoryEntry }) {
+  const isSettling = !isDisplayableRun(run)
+  const label = isSettling ? '…' : shortHistoryLabel(run.objectId!, run.objectName)
+  const title = isSettling
+    ? 'Telescope is settling on a new target'
+    : [run.objectId, run.objectName, run.objectType].filter(Boolean).join(', ')
+  const colorVars = isSettling
+    ? undefined
+    : ({
+        '--object-type-border': `color-mix(in srgb, ${typeColor(run.objectType ?? '')} 21%, rgba(237, 234, 227, 0.085))`,
+        '--object-type-bg-subtle': `color-mix(in srgb, ${typeColor(run.objectType ?? '')} 6%, rgba(237, 234, 227, 0.043))`,
+        '--type-color': typeColor(run.objectType ?? ''),
+      } as React.CSSProperties)
+  return (
+    <div
+      role="listitem"
+      className={`history-pill${run.active ? ' is-active' : ''}${isSettling ? ' is-unresolved' : ''}`}
+      style={colorVars}
+      title={title}
+      aria-label={title}
+      aria-current={run.active ? 'true' : undefined}
+    >
+      {!isSettling && (
+        <span className="history-pill-icon" aria-hidden="true">
+          <TypeIcon type={run.objectType ?? ''} />
+        </span>
+      )}
+      <span className="history-pill-label">{label}</span>
+    </div>
+  )
+}
+
+// More than HISTORY_ROW_MAX objects wraps to a second row rather than
+// horizontal scroll or shrinking pills further — every pill stays fully
+// visible and its label stays readable, at the cost of a second short row.
+// The bottom row is capped at HISTORY_ROW_MAX-width (via CSS, matching the
+// row above it) rather than stretching its few pills to fill the full
+// strip width — a lone 6th pill spanning 100% would look like a totally
+// different (and much wider) kind of pill than the five above it.
+const HISTORY_ROW_MAX = 5
+
 function SessionHistoryStrip({ history }: { history: HistoryEntry[] }) {
   if (history.length === 0) return null
 
   const visible = history.filter((run) => isDisplayableRun(run) || (run.active && !isDisplayableRun(run)))
   if (visible.length === 0) return null
 
+  if (visible.length <= HISTORY_ROW_MAX) {
+    return (
+      <div className="history-strip" role="list" aria-label="Tonight's observed objects">
+        {visible.map((run) => (
+          <HistoryPill key={run.id} run={run} />
+        ))}
+      </div>
+    )
+  }
+
+  const topRow = visible.slice(0, HISTORY_ROW_MAX)
+  const bottomRow = visible.slice(HISTORY_ROW_MAX)
   return (
-    <div className="history-strip" role="list" aria-label="Tonight's observed objects">
-      {visible.map((run) => {
-        const isSettling = !isDisplayableRun(run)
-        const label = isSettling ? '…' : run.objectId!
-        const title = isSettling
-          ? 'Telescope is settling on a new target'
-          : [run.objectId, run.objectName, run.objectType].filter(Boolean).join(', ')
-        const colorVars = isSettling
-          ? undefined
-          : ({
-              '--object-type-border': `color-mix(in srgb, ${typeColor(run.objectType ?? '')} 21%, rgba(237, 234, 227, 0.085))`,
-              '--object-type-bg-subtle': `color-mix(in srgb, ${typeColor(run.objectType ?? '')} 6%, rgba(237, 234, 227, 0.043))`,
-              '--type-color': typeColor(run.objectType ?? ''),
-            } as React.CSSProperties)
-        return (
-          <div
-            key={run.id}
-            role="listitem"
-            className={`history-pill${run.active ? ' is-active' : ''}${isSettling ? ' is-unresolved' : ''}`}
-            style={colorVars}
-            title={title}
-            aria-label={title}
-            aria-current={run.active ? 'true' : undefined}
-          >
-            {!isSettling && (
-              <span className="history-pill-icon" aria-hidden="true">
-                <TypeIcon type={run.objectType ?? ''} />
-              </span>
-            )}
-            <span className="history-pill-label">{label}</span>
-          </div>
-        )
-      })}
+    <div className="history-strip-rows" role="list" aria-label="Tonight's observed objects">
+      <div className="history-strip">
+        {topRow.map((run) => (
+          <HistoryPill key={run.id} run={run} />
+        ))}
+      </div>
+      <div className="history-strip history-strip--bottom-row">
+        {bottomRow.map((run) => (
+          <HistoryPill key={run.id} run={run} />
+        ))}
+      </div>
     </div>
   )
 }
