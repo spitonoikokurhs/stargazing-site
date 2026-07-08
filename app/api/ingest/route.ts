@@ -14,6 +14,13 @@ import {
 } from '@/lib/redis'
 import { athensToday, scheduledHotelFor } from '@/lib/schedule'
 import { extraEventFor } from '@/lib/extra-events'
+import {
+  detectTransition,
+  nextMilestoneToTag,
+  MILESTONE_SECONDS,
+  type MilestoneSeconds,
+  type ObservationFrameInput,
+} from '@/lib/detect-transition'
 
 // Node runtime required: crypto.timingSafeEqual, createHash, Buffer.
 export const runtime = 'nodejs'
@@ -27,6 +34,23 @@ const PNG_MAGIC = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
 
 function badRequest(error: string) {
   return NextResponse.json({ error }, { status: 400 })
+}
+
+// Extracts the fields lib/detect-transition.ts's detectTransition needs from
+// a raw metadata value — same fields, same lenient shape as the Redis
+// telemetry subset built further below, but needed earlier here (inside the
+// DB transaction, before the Frame row is created) so stackMilestone can be
+// set at insert time rather than backfilled after the fact.
+function extractObservationFrameInput(metadata: Prisma.InputJsonValue | null): ObservationFrameInput {
+  if (metadata === null || typeof metadata !== 'object' || Array.isArray(metadata)) {
+    return { totalAccumulatedTime: null, raDegrees: null, decDegrees: null }
+  }
+  const m = metadata as Record<string, unknown>
+  return {
+    totalAccumulatedTime: typeof m.totalAccumulatedTime === 'number' ? m.totalAccumulatedTime : null,
+    raDegrees: typeof m.raDegrees === 'number' ? m.raDegrees : null,
+    decDegrees: typeof m.decDegrees === 'number' ? m.decDegrees : null,
+  }
 }
 
 function isP2002(e: unknown): e is Prisma.PrismaClientKnownRequestError {
@@ -275,6 +299,7 @@ export async function POST(req: NextRequest) {
             observation = null
           }
         }
+        const isFreshObservation = !observation
         if (!observation) {
           observation = await tx.observation.create({
             data: {
@@ -287,7 +312,107 @@ export async function POST(req: NextRequest) {
           })
         }
 
-        // 6c. Insert the Frame.
+        // 6c. Stacking-progression milestone tagging (lib/detect-transition.ts).
+        // Additive only — never affects session/observation resolution above,
+        // dedup, or the frame write's other fields. Best-effort: any
+        // unexpected shape here just leaves stackMilestone null rather than
+        // failing the whole ingest (matches this route's existing "a bad
+        // metadata string must never fail the request" discipline).
+        //
+        // `previous` is the last frame in THIS observation with usable
+        // totalAccumulatedTime — per detectTransition's caller contract,
+        // frames with unusable timing are skipped, never advancing the
+        // baseline. A freshly-created Observation (this request) has no
+        // prior frames at all, so `previous` is null there — trivially
+        // stackRun 'new' via detectTransition's own null-previous branch.
+        let stackMilestone: MilestoneSeconds | null = null
+        if (isFreshObservation) {
+          await tx.observation.update({
+            where: { id: observation.id },
+            data: { lastStackRunStartedAt: now },
+          })
+          stackMilestone = nextMilestoneToTag(extractObservationFrameInput(metadata).totalAccumulatedTime, new Set())
+        } else {
+          // `previous`: the last frame in this observation with usable
+          // totalAccumulatedTime — per detectTransition's caller contract, a
+          // frame with unusable timing must be skipped, never becoming (or
+          // being compared against as) the reset baseline. Ordered by
+          // ingestedAt (server-assigned, always monotonic), not capturedAt
+          // (client-reported, best-effort — a retried/delayed frame can
+          // arrive with an OLDER capturedAt than a frame already processed,
+          // which would silently pick the wrong "previous" telemetry).
+          // Bounded lookback (20 frames back) covers the defensive case of
+          // several consecutive unusable-metadata frames without an
+          // unbounded scan; if usable timing is that sparse, detectTransition
+          // correctly falls through to its own 'uncertain' handling anyway
+          // (see below).
+          const lookback = await tx.frame.findMany({
+            where: { observationId: observation.id },
+            select: { metadata: true },
+            orderBy: { ingestedAt: 'desc' },
+            take: 20,
+          })
+          const previousFrame = lookback
+            .map((f) => extractObservationFrameInput(f.metadata as Prisma.InputJsonValue | null))
+            .find((f) => f.totalAccumulatedTime !== null)
+          const previous = previousFrame ?? null
+          const current = extractObservationFrameInput(metadata)
+
+          const result = detectTransition(previous, current, {
+            nowMs: now.getTime(),
+            lastStackRunStartedAtMs: observation.lastStackRunStartedAt?.getTime() ?? null,
+          })
+
+          if (result.stackRun === 'new') {
+            await tx.observation.update({
+              where: { id: observation.id },
+              data: { lastStackRunStartedAt: now },
+            })
+            stackMilestone = nextMilestoneToTag(current.totalAccumulatedTime, new Set())
+          } else if (result.stackRun === 'same') {
+            // Marks already tagged WITHIN the current stack run — scoped by
+            // ingestedAt, NOT a fixed row-count lookback (a run can span 50+
+            // frames in real sessions — see scripts/fixtures/astir-2026-07-06
+            // .json's longest run, 54 frames — so a bounded take() here would
+            // silently miss earlier tags and risk re-tagging a mark).
+            //
+            // ingestedAt, not capturedAt: capturedAt is a client-reported,
+            // best-effort device/relay timestamp (see its parsing above) that
+            // can legitimately land BEFORE lastStackRunStartedAt (which is
+            // stamped from the server's own `now` at the moment the reset was
+            // recognized) — e.g. network latency between the relay capturing
+            // a frame and this request being processed. Filtering by
+            // capturedAt >= runStart risked excluding the very frame that
+            // established the run, silently re-tagging mark 0 on every
+            // subsequent same-run frame. ingestedAt is always assigned from
+            // the same server clock lastStackRunStartedAt is, so the two are
+            // always comparable.
+            //
+            // A null lastStackRunStartedAt (pre-migration row, or a row that
+            // has never had a confirmed reset) is treated as "the whole
+            // observation is one run," the correct fallback since every
+            // frame in it then belongs to the same (only) run.
+            const runStart = observation.lastStackRunStartedAt
+            const taggedFrames = await tx.frame.findMany({
+              where: {
+                observationId: observation.id,
+                stackMilestone: { not: null },
+                ...(runStart !== null ? { ingestedAt: { gte: runStart } } : {}),
+              },
+              select: { stackMilestone: true },
+            })
+            const tagged = new Set<MilestoneSeconds>(
+              taggedFrames
+                .map((f) => f.stackMilestone as number)
+                .filter((m): m is MilestoneSeconds => (MILESTONE_SECONDS as readonly number[]).includes(m)),
+            )
+            stackMilestone = nextMilestoneToTag(current.totalAccumulatedTime, tagged)
+          }
+          // stackRun 'uncertain': leave stackMilestone null — neither tag a
+          // fresh run nor assume continuation of the old one.
+        }
+
+        // 6d. Insert the Frame.
         const frame = await tx.frame.create({
           data: {
             observationId: observation.id,
@@ -297,6 +422,7 @@ export async function POST(req: NextRequest) {
             sha256,
             capturedAt,
             sizeBytes: bytes.length,
+            ...(stackMilestone !== null ? { stackMilestone } : {}),
             ...(metadata !== null ? { metadata } : {}),
           },
         })
