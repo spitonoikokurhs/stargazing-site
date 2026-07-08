@@ -107,6 +107,82 @@ type ObjectMatch = {
   drawer?: { heading: string; body: string }[]
 }
 
+type HistoryEntry = {
+  // StackRun.id — the correct React key on the client (see LiveView.tsx):
+  // startedAt is a timestamp string, and same-millisecond StackRun rows are
+  // possible under concurrent ingest requests, which would collide as a key.
+  // id is the DB primary key, always unique.
+  id: string
+  objectId: string | null
+  objectName: string | null
+  objectType: string | null
+  confidence: string | null
+  startedAt: string
+  endedAt: string | null
+  blobUrl: string | null
+  active: boolean
+}
+
+// Tonight's session-history strip data (app/live/LiveView.tsx) — every
+// StackRun row for this session+source, chronological (startedAt asc), raw
+// and unfiltered. Client-side display rules (omit old null-identity runs,
+// show a neutral pill only for an unresolved ACTIVE run, etc. — see
+// LiveView.tsx) are deliberately NOT applied here, matching this codebase's
+// existing pattern of endpoints returning raw data and letting the client
+// decide presentation (e.g. /api/observations/[id]/milestones). `active` is
+// true for exactly the row with endedAt: null (there is at most one open
+// StackRun per session+source at a time, by construction — see the
+// updateMany-then-create sequencing in app/api/ingest/route.ts). blobUrl is
+// resolved from latestFrameId, falling back to firstFrameId if the latest
+// frame lookup somehow misses (defensive; should not normally happen) —
+// null (never a broken image) if neither frame can be found.
+//
+// Never fails the caller: any Postgres error here degrades to an empty
+// array, exactly like the offline path's own cancellation-read guard — a
+// missing history strip is cosmetic, unlike the live frame itself.
+// Defensive cap — a real session rarely exceeds 5-6 runs, but this bounds
+// the query and the response regardless. Queried DESC + take, then reversed
+// back to chronological order, so a long session's cap keeps the MOST
+// RECENT 20 runs (including the active one), not an arbitrary first-20 that
+// could silently drop the current target off the end of a long night.
+const HISTORY_MAX_RUNS = 20
+
+async function fetchHistory(sessionId: string, source: string): Promise<HistoryEntry[]> {
+  try {
+    const recentDesc = await prisma.stackRun.findMany({
+      where: { sessionId, source },
+      orderBy: { startedAt: 'desc' },
+      take: HISTORY_MAX_RUNS,
+    })
+    const runs = recentDesc.slice().reverse()
+    if (runs.length === 0) return []
+
+    const frameIds = Array.from(
+      new Set(runs.flatMap((r) => [r.latestFrameId, r.firstFrameId]).filter((id): id is string => id !== null)),
+    )
+    const frames = await prisma.frame.findMany({
+      where: { id: { in: frameIds } },
+      select: { id: true, blobUrl: true },
+    })
+    const blobById = new Map(frames.map((f) => [f.id, f.blobUrl]))
+
+    return runs.map((r) => ({
+      id: r.id,
+      objectId: r.objectId,
+      objectName: r.objectName,
+      objectType: r.objectType,
+      confidence: r.confidence,
+      startedAt: r.startedAt.toISOString(),
+      endedAt: r.endedAt ? r.endedAt.toISOString() : null,
+      blobUrl: (r.latestFrameId && blobById.get(r.latestFrameId)) || (r.firstFrameId && blobById.get(r.firstFrameId)) || null,
+      active: r.endedAt === null,
+    }))
+  } catch (e) {
+    console.error('/api/status: history fetch failed, degrading to empty', e)
+    return []
+  }
+}
+
 // Shared by the hotel dual-source path and the single-source extra-event
 // path: object-name fields are added ONLY when astrometryState is 'solved'
 // AND both coordinates are present — any other astrometryState (or missing
@@ -256,6 +332,7 @@ async function extraEventStatus(slug: Source, viewerId: string | null): Promise<
     // this response, which is unchanged from before viewer tracking existed.
     if (withinWindow) await trackViewer('event', slug, specialEventKey, viewerId)
     const objectMatch = resolveObjectMatch(frame.telemetry)
+    const history = await fetchHistory(frame.sessionId, slug)
     return json({
       live: true,
       source: slug,
@@ -268,6 +345,7 @@ async function extraEventStatus(slug: Source, viewerId: string | null): Promise<
       observation: { observationId: frame.observationId, objectName: frame.objectName },
       sessionId: frame.sessionId,
       viewers: null,
+      history,
       sources: { [slug]: { fresh: true, ageSeconds: Math.max(0, Math.round((nowMs - new Date(frame.ingestedAt).getTime()) / 1000)) } },
       ...(frame.telemetry
         ? {
@@ -421,6 +499,7 @@ export async function GET(req: NextRequest) {
       // solved+coordinates gating.
       const telemetry = f.telemetry
       const objectMatch = resolveObjectMatch(telemetry)
+      const history = await fetchHistory(f.sessionId, chosen)
 
       return json({
         live: true,
@@ -434,6 +513,7 @@ export async function GET(req: NextRequest) {
         observation: { observationId: f.observationId, objectName: f.objectName },
         sessionId: f.sessionId,
         viewers: null,
+        history,
         sources,
         ...(telemetry
           ? {

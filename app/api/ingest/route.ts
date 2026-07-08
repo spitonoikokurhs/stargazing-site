@@ -21,6 +21,7 @@ import {
   type MilestoneSeconds,
   type ObservationFrameInput,
 } from '@/lib/detect-transition'
+import { matchCoordinates, type Confidence } from '@/lib/catalog'
 
 // Node runtime required: crypto.timingSafeEqual, createHash, Buffer.
 export const runtime = 'nodejs'
@@ -50,6 +51,44 @@ function extractObservationFrameInput(metadata: Prisma.InputJsonValue | null): O
     totalAccumulatedTime: typeof m.totalAccumulatedTime === 'number' ? m.totalAccumulatedTime : null,
     raDegrees: typeof m.raDegrees === 'number' ? m.raDegrees : null,
     decDegrees: typeof m.decDegrees === 'number' ? m.decDegrees : null,
+  }
+}
+
+// Strict confidence ordering for StackRun's opportunistic identity upgrade
+// (see the doc comment on the StackRun model in prisma/schema.prisma) — a
+// higher-ranked match may replace a lower-ranked or absent one, but NEVER
+// the reverse. 'null' (no stored match yet) ranks below every real
+// Confidence value, so any real match on a still-unidentified StackRun
+// counts as an upgrade.
+const CONFIDENCE_RANK: Record<Confidence, number> = { none: 0, low: 1, medium: 2, high: 3 }
+function confidenceRank(c: Confidence | null): number {
+  return c === null ? -1 : CONFIDENCE_RANK[c]
+}
+
+// The catalog match for a StackRun, from a frame's astrometry — same
+// gating discipline as /api/status's resolveObjectMatch: ONLY trust
+// raDegrees/decDegrees when astrometryState is exactly 'solved', otherwise
+// there is no confident identity to store (the freshness caveat in
+// StackRun's own doc comment: real relay-reported astrometry-age fields
+// don't exist in production data yet — see lib/detect-transition.ts's
+// AstrometryFreshnessInput doc comment — so matchCoordinates' own
+// confidence tiers, which already penalize larger separations and crowded
+// fields, are the only signal available/trustworthy today).
+function resolveStackRunMatch(
+  metadata: Prisma.InputJsonValue | null,
+): { objectId: string; objectName: string; objectType: string; confidence: Confidence } | null {
+  if (metadata === null || typeof metadata !== 'object' || Array.isArray(metadata)) return null
+  const m = metadata as Record<string, unknown>
+  if (m.astrometryState !== 'solved') return null
+  if (typeof m.raDegrees !== 'number' || typeof m.decDegrees !== 'number') return null
+
+  const result = matchCoordinates(m.raDegrees, m.decDegrees)
+  if (!result.match) return null
+  return {
+    objectId: result.match.id,
+    objectName: result.match.primaryName,
+    objectType: result.match.type,
+    confidence: result.confidence,
   }
 }
 
@@ -325,6 +364,11 @@ export async function POST(req: NextRequest) {
         // baseline. A freshly-created Observation (this request) has no
         // prior frames at all, so `previous` is null there — trivially
         // stackRun 'new' via detectTransition's own null-previous branch.
+        // Tracks whether THIS frame is the one that started a new stack run —
+        // drives StackRun creation below (6e), independent of stackMilestone
+        // (a fresh Observation's first frame is always a new stack run, exactly
+        // mirroring the isFreshObservation branch just below).
+        let stackRunIsNew = false
         let stackMilestone: MilestoneSeconds | null = null
         if (isFreshObservation) {
           await tx.observation.update({
@@ -332,6 +376,7 @@ export async function POST(req: NextRequest) {
             data: { lastStackRunStartedAt: now },
           })
           stackMilestone = nextMilestoneToTag(extractObservationFrameInput(metadata).totalAccumulatedTime, new Set())
+          stackRunIsNew = true
         } else {
           // `previous`: the last frame in this observation with usable
           // totalAccumulatedTime — per detectTransition's caller contract, a
@@ -369,6 +414,7 @@ export async function POST(req: NextRequest) {
               data: { lastStackRunStartedAt: now },
             })
             stackMilestone = nextMilestoneToTag(current.totalAccumulatedTime, new Set())
+            stackRunIsNew = true
           } else if (result.stackRun === 'same') {
             // Marks already tagged WITHIN the current stack run — scoped by
             // ingestedAt, NOT a fixed row-count lookback (a run can span 50+
@@ -426,6 +472,101 @@ export async function POST(req: NextRequest) {
             ...(metadata !== null ? { metadata } : {}),
           },
         })
+
+        // 6e. StackRun (session-history strip — see the model's own doc
+        // comment in prisma/schema.prisma). Purely additive: never affects
+        // Observation/Frame/milestone logic above, and any failure here must
+        // not fail the ingest — same "best-effort, degrade silently"
+        // discipline as stackMilestone tagging. Two cases:
+        //
+        //   - stackRunIsNew: close whatever StackRun was previously open for
+        //     this Observation (a fresh Observation has none to close — the
+        //     updateMany below is simply a no-op then) and open a new one,
+        //     attempting a catalog match from THIS frame's astrometry. If
+        //     astrometry hasn't solved yet (common mid-slew), the new row
+        //     starts with null identity — see the opportunistic upgrade
+        //     branch below for how that gets resolved a frame or two later.
+        //   - otherwise: this frame belongs to the currently-open StackRun.
+        //     Always bump latestFrameId so the history endpoint's blobUrl
+        //     stays current. Then attempt the SAME catalog match and apply
+        //     it ONLY if strictly better than whatever's already stored
+        //     (confidenceRank comparison) — this is what lets a run created
+        //     with a null identity during a slew resolve to a real object
+        //     once astrometry catches up, without ever downgrading an
+        //     already-good match back toward null/lower-confidence.
+        try {
+          if (stackRunIsNew) {
+            await tx.stackRun.updateMany({
+              where: { observationId: observation.id, endedAt: null },
+              data: { endedAt: now },
+            })
+            const match = resolveStackRunMatch(metadata)
+            await tx.stackRun.create({
+              data: {
+                sessionId: session.id,
+                observationId: observation.id,
+                source,
+                startedAt: now,
+                firstFrameId: frame.id,
+                latestFrameId: frame.id,
+                ...(match
+                  ? {
+                      objectId: match.objectId,
+                      objectName: match.objectName,
+                      objectType: match.objectType,
+                      confidence: match.confidence,
+                    }
+                  : {}),
+              },
+            })
+          } else {
+            const openRun = await tx.stackRun.findFirst({
+              where: { observationId: observation.id, endedAt: null },
+              orderBy: { startedAt: 'desc' },
+            })
+            if (openRun) {
+              const match = resolveStackRunMatch(metadata)
+              const isUpgrade = match !== null && confidenceRank(match.confidence) > confidenceRank(openRun.confidence as Confidence | null)
+
+              // Guard against concurrent frames for the same run processing
+              // out of order: only advance latestFrameId if THIS frame is
+              // actually newer than whatever is currently stored, using
+              // ingestedAt (server-assigned, monotonic — same reasoning as
+              // every other ordering decision in this route) rather than
+              // trusting arrival order. Without this, an older frame's
+              // request committing its transaction AFTER a newer frame's
+              // could point latestFrameId backward, showing a stale image
+              // for this run's history-strip thumbnail. Low risk if ingest
+              // requests are effectively serial, but cheap to guard.
+              const currentLatest = openRun.latestFrameId
+                ? await tx.frame.findUnique({ where: { id: openRun.latestFrameId }, select: { ingestedAt: true } })
+                : null
+              const isNewerFrame = !currentLatest || frame.ingestedAt > currentLatest.ingestedAt
+
+              await tx.stackRun.update({
+                where: { id: openRun.id },
+                data: {
+                  ...(isNewerFrame ? { latestFrameId: frame.id } : {}),
+                  ...(isUpgrade
+                    ? {
+                        objectId: match!.objectId,
+                        objectName: match!.objectName,
+                        objectType: match!.objectType,
+                        confidence: match!.confidence,
+                      }
+                    : {}),
+                },
+              })
+            }
+            // No open StackRun found for an existing (non-fresh) Observation
+            // is a pre-migration data gap (an Observation created before this
+            // feature shipped) — nothing to update, and nothing to create
+            // either, since creating one here would carry a wrong/fabricated
+            // startedAt. It stays historyless, same as it is today.
+          }
+        } catch (e) {
+          console.error('/api/ingest: StackRun tracking failed (non-fatal)', e)
+        }
 
         return {
           frameId: frame.id,

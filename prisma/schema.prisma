@@ -31,6 +31,7 @@ model Session {
   createdAt          DateTime      @default(now())
   updatedAt          DateTime      @updatedAt
   observations       Observation[]
+  stackRuns          StackRun[]
 
   @@unique([date, hotelId]) // business rule: one session per hotel per night; blocks duplicate rows from retries/admin actions. Also serves date-only lookups (date is the leading column).
   @@index([status, date]) // /live page's "is tonight cancelled?" check
@@ -62,9 +63,58 @@ model Observation {
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
   frames                Frame[]
+  stackRuns             StackRun[]
 
   @@index([sessionId, startedAt]) // serves both the FK lookup and time-ordered browsing
   @@index([source, startedAt])
+}
+
+// One row per DETECTED stack-run transition (lib/detect-transition.ts's
+// detectTransition, stackRun === 'new') — a parallel, purely additive record
+// alongside Observation.lastStackRunStartedAt, not a replacement for it.
+// Exists because Observation itself does NOT reliably split per real target
+// change in production: the rawTargetName-based split at ingest never fires
+// (the relay doesn't send targetName), so today every real session has
+// exactly ONE Observation row per source, always named "Unknown." StackRun
+// records the SAME transition moment ingest already detects for the
+// milestone toggle, but as its own row with a catalog match attached, giving
+// the session-history strip (app/live/LiveView.tsx) real per-target-change
+// data to render instead of nothing.
+//
+// Created at ingest in the exact two places lastStackRunStartedAt is set:
+// (1) a fresh Observation's first frame, (2) a detectTransition 'new'
+// verdict within an existing Observation. objectId/objectName/objectType/
+// confidence are populated from lib/catalog.ts's matchCoordinates ONLY when
+// the triggering frame's astrometryState is 'solved' and both coordinates
+// are present — otherwise left null (a slew-time stack run with no
+// confident identity yet). See the opportunistic-upgrade logic in
+// app/api/ingest/route.ts: on every SUBSEQUENT frame belonging to the
+// currently-open StackRun, a fresh matchCoordinates result is compared
+// against the stored confidence and only applied if it's a strict
+// improvement (none < low < medium < high) — this is what turns a
+// null-identity run (created mid-slew, before astrometry resolved) into a
+// correctly-named one a frame or two later, without ever downgrading an
+// already-good match.
+model StackRun {
+  id            String    @id @default(cuid())
+  sessionId     String
+  session       Session   @relation(fields: [sessionId], references: [id])
+  observationId String
+  observation   Observation @relation(fields: [observationId], references: [id])
+  source        String // "pegasus" | "seestar"
+  startedAt     DateTime // the moment stackRun 'new' fired (server `now`, same clock as lastStackRunStartedAt)
+  endedAt       DateTime? // set when the next stack run starts, or the session ends; null = this is the currently-active run
+  objectId      String? // catalog id (lib/catalog.ts CatalogObject.id), e.g. "M13" — the pill's display label
+  objectName    String? // catalog display name, e.g. "Hercules Globular Cluster"
+  objectType    String? // catalog type string, e.g. "Globular Cluster" — drives type-color tinting
+  confidence    String? // matchCoordinates' real Confidence value: "high" | "medium" | "low" | "none" — stored as-is, not collapsed; the client decides its own display threshold
+  firstFrameId  String? // the frame whose detectTransition verdict triggered this StackRun
+  latestFrameId String? // updated on every subsequent frame belonging to this run — feeds blobUrl in the history endpoint
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([sessionId, source, startedAt]) // the history endpoint's own query: this session, this source, chronological
+  @@index([observationId])
 }
 
 // One row per ingested image.

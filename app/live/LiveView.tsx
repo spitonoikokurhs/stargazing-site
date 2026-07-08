@@ -46,6 +46,27 @@ const RECONNECT_CHECK_MS = 1000 // how often we check the 45s give-up clause whi
 // Object-match confidence tiers as reported by lib/catalog.ts via /api/status.
 type ObjectMatchConfidence = 'high' | 'medium' | 'low' | 'none'
 
+// One entry in the session-history strip (see app/api/status/route.ts's
+// fetchHistory/HistoryEntry — kept in sync with that shape by hand, same as
+// every other /api/status field this file validates). confidence is left as
+// a plain string here (not narrowed to ObjectMatchConfidence) since the
+// server stores the real Confidence value as-is and this file's own
+// isValidHistoryEntry is what actually constrains which values pass through.
+type HistoryEntry = {
+  // StackRun.id — the React key (see SessionHistoryStrip). startedAt alone
+  // isn't safe as a key: same-millisecond StackRun rows are possible under
+  // concurrent ingest, which would collide; id is the DB primary key.
+  id: string
+  objectId: string | null
+  objectName: string | null
+  objectType: string | null
+  confidence: string | null
+  startedAt: string
+  endedAt: string | null
+  blobUrl: string | null
+  active: boolean
+}
+
 // Raw /api/status response shapes we care about. Anything not matching one of
 // these (network error, timeout, non-2xx, bad JSON) is POLL_FAILED — never
 // treated as offline. See lib/live-status.ts for the full contract notes.
@@ -58,6 +79,13 @@ type StatusLive = {
   frame: { frameId: string; blobUrl: string; capturedAt: string; ingestedAt: string }
   observation: { observationId: string; objectName: string }
   sessionId: string
+  // Tonight's session-history strip (app/api/status/route.ts's fetchHistory) —
+  // chronological StackRun rows for the current session+source. Optional and
+  // best-effort like telemetry/objectMatch below: absent, malformed, or
+  // individually-invalid entries must never invalidate the whole response or
+  // affect the live image — see isValidHistory, which silently DROPS bad
+  // items rather than failing the whole array.
+  history?: HistoryEntry[]
   telemetry?: { state?: string; totalAccumulatedTime?: number; astrometryState?: string }
   objectMatch?: {
     name: string
@@ -192,6 +220,33 @@ function isValidObjectMatch(v: unknown): v is StatusLive['objectMatch'] {
     (v.visualHint === undefined || isString(v.visualHint)) &&
     (v.drawer === undefined || isDrawerArray(v.drawer))
   )
+}
+
+// Deliberately NOT an all-or-nothing validator like isValidTelemetry/
+// isValidObjectMatch above — history is a nice-to-have strip, not core
+// live-view data, so a single malformed entry (or the whole field being an
+// unexpected shape) degrades to "drop that entry" / "empty strip" rather
+// than invalidating the entire /api/status response the way returning
+// false from here would. Called separately in the poll loop, never as part
+// of isLiveStatus's own pass/fail gate.
+function isValidHistoryEntry(v: unknown): v is HistoryEntry {
+  if (!isObject(v)) return false
+  return (
+    isString(v.id) &&
+    (v.objectId === null || isString(v.objectId)) &&
+    (v.objectName === null || isString(v.objectName)) &&
+    (v.objectType === null || isString(v.objectType)) &&
+    (v.confidence === null || isString(v.confidence)) &&
+    isString(v.startedAt) &&
+    (v.endedAt === null || isString(v.endedAt)) &&
+    (v.blobUrl === null || isString(v.blobUrl)) &&
+    typeof v.active === 'boolean'
+  )
+}
+
+function sanitizeHistory(v: unknown): HistoryEntry[] {
+  if (!Array.isArray(v)) return []
+  return v.filter(isValidHistoryEntry)
 }
 
 function isLiveStatus(v: Record<string, unknown>): v is StatusLive {
@@ -676,6 +731,16 @@ export default function LiveView({ statusUrl = '/api/status' }: { statusUrl?: st
   // "updated Xs ago" ticks on its own timer, independent of polling.
   const [, forceTick] = useState(0)
 
+  // Tonight's session-history strip — updated directly from every live poll
+  // (see the poll effect below), independent of the reducer/lastLiveFrame
+  // dedup: a new StackRun can appear on a poll that reuses the SAME frame
+  // (e.g. the frame hasn't changed but a fresh detection just landed), so
+  // this must not wait on a frame-identity change the way milestone marks
+  // legitimately do. Reset to [] on any non-live poll result (offline/
+  // finished/degraded) so a stale night's history can never linger into a
+  // different state.
+  const [history, setHistory] = useState<HistoryEntry[]>([])
+
   useEffect(() => {
     let cancelled = false
 
@@ -721,21 +786,40 @@ export default function LiveView({ statusUrl = '/api/status' }: { statusUrl?: st
           // server's own ordering. This must win even if the client were
           // somehow mid-way through rendering a fresh "live" frame; a
           // deliberate finish always overrides.
+          setHistory([])
           dispatch({ type: 'POLL_FINISHED', payload: { date: body.date, next: body.next } })
         } else if (body.live === false && body.specialEventFinished === true) {
           // Same "always wins" priority as POLL_FINISHED, for a special
           // event's own scoped finished flag (see extraEventStatus in
           // app/api/status/route.ts) — routes to 'special-event-finished',
           // never 'finished', so the UFO farewell can never render here.
+          setHistory([])
           dispatch({ type: 'POLL_SPECIAL_EVENT_FINISHED' })
         } else if (body.live === false && body.degraded === true) {
+          // Resets history same as the other non-live branches — a degraded
+          // poll means the CURRENT status couldn't be confirmed, so a stale
+          // history strip must not linger as if it were still authoritative.
+          setHistory([])
           dispatch({ type: 'POLL_DEGRADED' })
         } else if (body.live === false) {
+          setHistory([])
           dispatch({ type: 'POLL_OFFLINE', payload: { tonight: body.tonight, next: body.next } })
         } else {
+          // live:true. nextHistory is computed here but NOT applied yet for
+          // the new-frame path below — see the two dispatch sites: history
+          // must only advance in lockstep with the frame actually being
+          // shown, never before. Applying it immediately (the previous
+          // behavior) could show the history strip pointing at a NEW target
+          // while the OLD image was still on screen, if that new image's
+          // preload failed and POLL_LIVE_IMAGE_FAILED left the old frame
+          // displayed.
+          const nextHistory = sanitizeHistory(body.history)
           // live:true — never dispatch "live" until the image actually preloads.
           const current = stateRef.current
           if (current.lastLiveFrame?.frameId === body.frame.frameId) {
+            // Same frame we already showed — no new image to wait on, so
+            // history is safe to apply immediately alongside this dispatch.
+            setHistory(nextHistory)
             // Same frame we already showed — no need to re-preload, just
             // refresh the "updated Xs ago" anchor via a synthetic reload event
             // using the existing loadedAt (recompute below is unnecessary;
@@ -761,6 +845,10 @@ export default function LiveView({ statusUrl = '/api/status' }: { statusUrl?: st
             try {
               await preloadImage(body.frame.blobUrl, imageController.signal)
               if (cancelled) return
+              // Only NOW, after preload succeeds, does history catch up to
+              // this poll — applied alongside the live-frame dispatch so the
+              // strip and the displayed image always advance together.
+              setHistory(nextHistory)
               dispatch({
                 type: 'POLL_LIVE_IMAGE_LOADED',
                 frame: {
@@ -776,6 +864,10 @@ export default function LiveView({ statusUrl = '/api/status' }: { statusUrl?: st
                 loadedAt: Date.now(),
               })
             } catch {
+              // Preload failed — the OLD frame stays on screen (see
+              // POLL_LIVE_IMAGE_FAILED in the reducer), so history must also
+              // stay as it was; nextHistory is deliberately dropped here,
+              // never applied.
               if (!cancelled) dispatch({ type: 'POLL_LIVE_IMAGE_FAILED' })
             } finally {
               if (activeImageControllerRef.current === imageController) activeImageControllerRef.current = null
@@ -858,7 +950,7 @@ export default function LiveView({ statusUrl = '/api/status' }: { statusUrl?: st
     return () => clearInterval(id)
   }, [state.uiState, lastLiveLoadedAt])
 
-  return <LiveViewPresentation state={state} />
+  return <LiveViewPresentation state={state} history={history} />
 }
 
 function secondsAgo(ms: number): number {
@@ -945,7 +1037,7 @@ function offlineCopy(state: LiveStatusState): { heading: string; sub?: string; l
   return { heading: 'No upcoming sessions scheduled', loader: false }
 }
 
-function LiveViewPresentation({ state }: { state: LiveStatusState }) {
+function LiveViewPresentation({ state, history }: { state: LiveStatusState; history: HistoryEntry[] }) {
   const { uiState, lastLiveFrame } = state
 
   if (uiState === 'checking') {
@@ -1033,7 +1125,7 @@ function LiveViewPresentation({ state }: { state: LiveStatusState }) {
     return <StatusScreen heading="Checking…" />
   }
 
-  return <LiveFrameView uiState={uiState} lastLiveFrame={lastLiveFrame} />
+  return <LiveFrameView uiState={uiState} lastLiveFrame={lastLiveFrame} history={history} />
 }
 
 // Split out so it (and its fullscreenMode state) only mounts once we
@@ -1043,9 +1135,11 @@ function LiveViewPresentation({ state }: { state: LiveStatusState }) {
 function LiveFrameView({
   uiState,
   lastLiveFrame,
+  history,
 }: {
   uiState: LiveStatusState['uiState']
   lastLiveFrame: NonNullable<LiveStatusState['lastLiveFrame']>
+  history: HistoryEntry[]
 }) {
   // 'off': normal circular view. 'native': the real Fullscreen API is active
   // (Android/desktop — unaffected by this change). 'css-fallback': a fixed
@@ -1281,6 +1375,8 @@ function LiveFrameView({
           selection={milestoneSelection}
           onSelect={setMilestoneSelection}
         />
+
+        <SessionHistoryStrip history={history} />
 
         <section
           className="content"
@@ -1710,6 +1806,78 @@ function MilestoneToggle({
           {opt.label}
         </button>
       ))}
+    </div>
+  )
+}
+
+// Tonight's session-history strip — "here's what's been observed tonight,"
+// informational only (no tap interaction, no frame preview yet — see the
+// StackRun/history feature brief). Sits directly below the milestone
+// toggle and above the object name: both are compact horizontal context
+// rows describing "what am I looking at / when in its stack" and "what
+// came before this," grouped together as one context zone between the
+// image and the full object-info section.
+//
+// Display rules (deliberately stricter than "objectId !== null"): only
+// high/medium confidence runs get a named pill — low/none confidence is
+// never shown as a name, because a wrong-looking name is worse than no
+// pill at all for a premium guest experience. The one exception is the
+// CURRENTLY ACTIVE run: if it is NOT displayable as a named pill — either
+// no identity at all (objectId === null) OR an identity that only cleared
+// low/none confidence — show a single neutral "settling" pill instead, so
+// the strip doesn't just vanish the instant the telescope slews to a new
+// target or lands on a weak/ambiguous match. That's the one moment guests
+// actively want confirmation "something changed, hang on." (A non-active
+// run failing to clear high/medium is different: that target's window has
+// closed, so it's simply omitted — only the CURRENT in-progress run gets
+// the settling treatment.) Old unresolved runs (never confidently
+// identified before the NEXT run started) are omitted entirely rather than
+// cluttering the strip with failed transitions.
+const HISTORY_CONFIDENT_TIERS = new Set(['high', 'medium'])
+function isDisplayableRun(run: HistoryEntry): boolean {
+  return run.objectId !== null && HISTORY_CONFIDENT_TIERS.has(run.confidence ?? '')
+}
+
+function SessionHistoryStrip({ history }: { history: HistoryEntry[] }) {
+  if (history.length === 0) return null
+
+  const visible = history.filter((run) => isDisplayableRun(run) || (run.active && !isDisplayableRun(run)))
+  if (visible.length === 0) return null
+
+  return (
+    <div className="history-strip" role="list" aria-label="Tonight's observed objects">
+      {visible.map((run) => {
+        const isSettling = !isDisplayableRun(run)
+        const label = isSettling ? '…' : run.objectId!
+        const title = isSettling
+          ? 'Telescope is settling on a new target'
+          : [run.objectId, run.objectName, run.objectType].filter(Boolean).join(', ')
+        const colorVars = isSettling
+          ? undefined
+          : ({
+              '--object-type-border': `color-mix(in srgb, ${typeColor(run.objectType ?? '')} 21%, rgba(237, 234, 227, 0.085))`,
+              '--object-type-bg-subtle': `color-mix(in srgb, ${typeColor(run.objectType ?? '')} 6%, rgba(237, 234, 227, 0.043))`,
+              '--type-color': typeColor(run.objectType ?? ''),
+            } as React.CSSProperties)
+        return (
+          <div
+            key={run.id}
+            role="listitem"
+            className={`history-pill${run.active ? ' is-active' : ''}${isSettling ? ' is-unresolved' : ''}`}
+            style={colorVars}
+            title={title}
+            aria-label={title}
+            aria-current={run.active ? 'true' : undefined}
+          >
+            {!isSettling && (
+              <span className="history-pill-icon" aria-hidden="true">
+                <TypeIcon type={run.objectType ?? ''} />
+              </span>
+            )}
+            <span className="history-pill-label">{label}</span>
+          </div>
+        )
+      })}
     </div>
   )
 }

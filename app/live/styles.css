@@ -397,6 +397,99 @@
   cursor: not-allowed;
 }
 
+/* Tonight's session-history strip — a timeline/breadcrumb, deliberately NOT
+   styled like .snapshot-toggle/.snap above it: no shared pill-group
+   background, no grid of equal-width segments, nothing that reads as a
+   navigation control (these pills aren't tappable — see SessionHistoryStrip
+   in LiveView.tsx). Horizontal scroll (not wrap) so a longer session degrades
+   to a swipeable row instead of a second line pushing the object name down;
+   scrollbar hidden since the row itself is the visual affordance, not a
+   scroll-styled widget. */
+.history-strip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 8px auto 0;
+  padding: 2px 4px;
+  width: min(100%, 540px);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.history-strip::-webkit-scrollbar {
+  display: none;
+}
+
+/* --object-type-border/--object-type-bg-subtle are set per-pill inline (see
+   SessionHistoryStrip) rather than inherited from .content — each pill can
+   represent a DIFFERENT object type than the one currently on screen, so
+   this can't reuse the shared .content-level variables the fact chips and
+   enriched card do. Same 21%/6% mix strength as those, though, so a pill
+   reads as the same "whisper of type color" family, just independently
+   colored per entry.
+
+   flex: 1 1 0 (equal basis, ignoring content width) makes every pill share
+   the strip's full width evenly regardless of count — 3 pills tonight means
+   3 equal thirds, not 3 pills sized to their own label length with empty
+   space at the end. min-width holds a floor so a longer session (6+ runs)
+   degrades to horizontal scroll (.history-strip's own overflow-x) once equal
+   division would otherwise squeeze pills illegibly, rather than shrinking
+   labels into unreadable slivers. justify-content centers each pill's own
+   icon+label since the pill is now wider than its intrinsic content. */
+.history-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1 1 0;
+  min-width: 64px;
+  gap: 4px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--object-type-border, rgba(237, 234, 227, 0.14));
+  background: var(--object-type-bg-subtle, rgba(237, 234, 227, 0.035));
+  color: rgba(237, 234, 227, 0.78);
+  font: 650 clamp(10px, 2.9vw, 12px) / 1 Inter, Lato, system-ui, sans-serif;
+  letter-spacing: 0.02em;
+}
+
+/* The currently-active run: visually brighter than the rest of the
+   timeline, but still not button-like — a soft glow/lift rather than a
+   filled/inverted state (contrast .snap[aria-pressed="true"]'s solid gold
+   fill above, which IS a real tappable control). */
+.history-pill.is-active {
+  border-color: var(--object-type-border, rgba(237, 234, 227, 0.14));
+  border-width: 1.5px;
+  background: var(--object-type-bg-subtle, rgba(237, 234, 227, 0.06));
+  color: rgba(237, 234, 227, 0.95);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--type-color, rgba(237, 234, 227, 0.5)) 35%, transparent);
+}
+
+/* The one neutral "still settling" pill — no type color available yet
+   (null identity), so no icon (there is no type to illustrate) and a
+   quieter, dashed treatment that reads as "in progress," not as a named
+   object the guest might mistake for a confirmed identification. */
+.history-pill.is-unresolved {
+  border-style: dashed;
+  border-color: rgba(237, 234, 227, 0.22);
+  background: rgba(237, 234, 227, 0.03);
+  color: rgba(168, 166, 160, 0.75);
+}
+
+.history-pill-icon {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.history-pill-icon svg {
+  width: 13px;
+  height: 13px;
+}
+
+.history-pill-label {
+  white-space: nowrap;
+}
+
 .content {
   text-align: center;
   padding: 0 2px;
