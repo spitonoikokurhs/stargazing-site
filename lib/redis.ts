@@ -92,6 +92,168 @@ export function eventFinishedKey(source: Source): string {
   return `live:event:finished:${source}`
 }
 
+// --- Private viewer analytics (see /api/status's viewer tracking and
+// /api/viewer-stats) --------------------------------------------------------
+//
+// This is NOT guest-facing — no count is ever rendered on /live. It exists
+// purely so the operator can privately check how many people are watching, at
+// GET /api/viewer-stats (bearer-token protected, same INGEST_SECRET as
+// /api/finish and /api/ingest). Three independent Redis structures, all keyed
+// by a per-viewer-tab random id (see VIEWER_ID_STORAGE_KEY in LiveView.tsx —
+// never an IP, cookie, or anything tied to a real identity):
+//
+//   1. "active" sorted set — member=viewerId, score=Date.now(). Currently-
+//      watching count is ZCOUNT of members scored within the last 60s
+//      (VIEWER_ACTIVE_WINDOW_MS); ZREMRANGEBYSCORE trims anything older than
+//      120s on every write so the set can't grow unboundedly over a long
+//      session. This key is intentionally NOT scoped by eventKey — it only
+//      ever needs to answer "who's active right now," and clearing it (or
+//      letting old members age out) between events is irrelevant to that
+//      question, unlike unique/max below which must reset per event.
+//   2. "unique" SET — member=viewerId, TTL VIEWER_STATS_TTL_S. SCARD gives
+//      the total distinct viewers seen this event. Scoped by eventKey (see
+//      viewerEventKey) so it resets on the next scheduled night rather than
+//      accumulating across the whole season.
+//   3. "max" — a single-member sorted set (member is a constant placeholder,
+//      the SCORE is the actual max value) updated via `ZADD ... GT`, Redis's
+//      own atomic "only write if the new score is greater" primitive. This
+//      is NOT a plain GET/compare/SET: an unguarded read-modify-write can
+//      regress under concurrency (poller A reads max=5 while current=10,
+//      poller B reads max=5 while current=6, A writes 10, B writes 6 — max
+//      goes DOWN if B's write lands last). ZADD GT pushes the compare into
+//      Redis itself, so two concurrent writers can never produce a lower
+//      final value than either of their inputs, no external locking needed.
+//      Same eventKey scoping and TTL as unique.
+//
+// Separate key prefixes for the hotel path vs. each special-event slug (see
+// viewerKeys) so a special event's numbers can never mix with the shared
+// hotel night's, or with another special event's — mirrors eventFinishedKey's
+// own per-slug isolation above.
+export const VIEWER_ACTIVE_WINDOW_MS = 60 * 1000
+const VIEWER_ACTIVE_CLEANUP_MS = 120 * 1000
+// 2 days: comfortably outlives the longest realistic single event night
+// (including the farewell/wind-down hour after `finished`), while still
+// guaranteeing the unique/max counters don't silently persist across an
+// entire season the way a TTL-less key would.
+const VIEWER_STATS_TTL_S = 60 * 60 * 48
+
+export type ViewerScope = 'hotel' | 'event'
+
+function viewerKeys(scope: ViewerScope, slug: Source | null, eventKey: string) {
+  const prefix = scope === 'hotel' ? 'live:viewers:hotel' : `live:viewers:event:${slug}`
+  return {
+    active: `${prefix}:active`,
+    unique: `${prefix}:unique:${eventKey}`,
+    max: `${prefix}:max:${eventKey}`,
+  }
+}
+
+// Stable per-event key for the HOTEL path so unique/max naturally reset on
+// the next scheduled night rather than accumulating forever: YYYY-MM-DD:
+// <hotelId> when tonight's scheduled hotel is known, or YYYY-MM-DD:hotel as
+// a fallback (e.g. an unscheduled/ad-hoc live session). Each hotel night IS
+// genuinely a separate event, so date-scoping is correct here — do NOT use
+// this for special events (see viewerSpecialEventKey below).
+export function viewerEventKey(todayAthens: string, hotelId: string | null): string {
+  return `${todayAthens}:${hotelId ?? 'hotel'}`
+}
+
+// Stable per-event key for a SPECIAL event (config/extra-events.json) —
+// deliberately NOT scoped by today's date, unlike viewerEventKey above. A
+// special event can span multiple calendar days (e.g. Parnonas running
+// 2026-07-10 through 2026-07-12 as ONE event) and "unique viewers during the
+// event" must count across the whole window, not reset at midnight each
+// night. Derived from the event's own config (revealAt/endsAt), which is
+// already the stable identity /api/finish and eventFinishedKey use to scope
+// a special event — reusing that same revealAt timestamp (rather than the
+// slug alone) means a slug that gets reused for a genuinely different future
+// occurrence (new revealAt/endsAt entry, same slug) still gets its own fresh
+// counters instead of silently inheriting a past occurrence's numbers.
+export function viewerSpecialEventKey(slug: string, revealAt: string): string {
+  return `${slug}:${revealAt}`
+}
+
+// Constant member name for the "max" single-member sorted set — only the
+// SCORE ever matters (see the doc comment above); the member string itself
+// is an arbitrary fixed placeholder so ZADD GT always targets the same slot.
+const MAX_SENTINEL_MEMBER = 'max'
+
+// Records one viewer's presence (active sorted set + unique set) and
+// atomically ratchets the running max via ZADD GT, all in one pipelined
+// round trip — no separate read-modify-write, so the race that could
+// regress max under concurrency (see the doc comment above VIEWER_ACTIVE_
+// WINDOW_MS) cannot happen. Returns the three current metrics, or null if
+// the pipeline itself failed — callers must treat a null return as "skip
+// viewer tracking for this poll," never as a reason to fail the request
+// (see the fail-open handling in app/api/status/route.ts and
+// /api/viewer-stats).
+export async function recordViewerActivity(
+  scope: ViewerScope,
+  slug: Source | null,
+  eventKey: string,
+  viewerId: string,
+): Promise<{ current: number; unique: number; maxConcurrent: number } | null> {
+  try {
+    const keys = viewerKeys(scope, slug, eventKey)
+    const now = Date.now()
+
+    const pipeline = redis.pipeline()
+    pipeline.zadd(keys.active, { score: now, member: viewerId })
+    pipeline.zremrangebyscore(keys.active, 0, now - VIEWER_ACTIVE_CLEANUP_MS)
+    pipeline.zcount(keys.active, now - VIEWER_ACTIVE_WINDOW_MS, now)
+    pipeline.sadd(keys.unique, viewerId)
+    pipeline.expire(keys.unique, VIEWER_STATS_TTL_S)
+    pipeline.scard(keys.unique)
+    const results = await pipeline.exec<[unknown, unknown, number, unknown, unknown, number]>()
+
+    const current = results[2]
+    const unique = results[5]
+    if (typeof current !== 'number' || typeof unique !== 'number') return null
+
+    // ZADD GT: writes score=current for MAX_SENTINEL_MEMBER only if greater
+    // than whatever score is already stored there — Redis performs the
+    // compare server-side, so this can never regress under concurrent
+    // callers, unlike a client-side GET-then-SET. Runs as its own command
+    // (not foldable into the pipeline above) because it depends on `current`,
+    // which the pipeline itself just computed.
+    await redis.zadd(keys.max, { gt: true }, { score: current, member: MAX_SENTINEL_MEMBER })
+    await redis.expire(keys.max, VIEWER_STATS_TTL_S)
+    const maxScore = await redis.zscore(keys.max, MAX_SENTINEL_MEMBER)
+    const maxConcurrent = typeof maxScore === 'number' ? maxScore : Number(maxScore) || current
+
+    return { current, unique, maxConcurrent }
+  } catch (e) {
+    console.error('recordViewerActivity failed', e)
+    return null
+  }
+}
+
+// Read-only variant for /api/viewer-stats — same three metrics, no writes at
+// all (a manual stats check should never itself count as a "viewer poll").
+export async function readViewerStats(
+  scope: ViewerScope,
+  slug: Source | null,
+  eventKey: string,
+): Promise<{ current: number; unique: number; maxConcurrent: number }> {
+  const keys = viewerKeys(scope, slug, eventKey)
+  const now = Date.now()
+  try {
+    const [current, unique, maxScore] = await Promise.all([
+      redis.zcount(keys.active, now - VIEWER_ACTIVE_WINDOW_MS, now),
+      redis.scard(keys.unique),
+      redis.zscore(keys.max, MAX_SENTINEL_MEMBER),
+    ])
+    return {
+      current: typeof current === 'number' ? current : 0,
+      unique: typeof unique === 'number' ? unique : 0,
+      maxConcurrent: typeof maxScore === 'number' ? maxScore : Number(maxScore) || 0,
+    }
+  } catch (e) {
+    console.error('readViewerStats failed', e)
+    return { current: 0, unique: 0, maxConcurrent: 0 }
+  }
+}
+
 // Telemetry subset carried in the Redis payload (see latestFrameKey doc
 // above). Every field is independently optional/nullable — a device can omit
 // any of them, and astrometryState governs whether ra/decDegrees are

@@ -56,10 +56,10 @@ export default function PrivacyPage() {
             <p>Subscriber email addresses are stored in our database (Neon Postgres, hosted in the EU / Frankfurt region). Emails are delivered through Resend, our email delivery provider.</p>
             <p>Every email we send includes a one-click unsubscribe link that works without logging in. When you unsubscribe, we stop sending emails immediately and delete your subscription record within 30 days. We keep your email address only until you unsubscribe.</p>
 
-            <h2>Anonymous viewer counts</h2>
-            <p>While you watch the live view, your browser sends a brief &ldquo;still here&rdquo; signal roughly every 30 seconds so we can show an accurate count of how many people are watching at the same time. Displaying that count is the only thing this signal is used for.</p>
-            <p>This does not identify you. There is no account, no login, and no persistent identifier. The signal uses only a short-lived random token generated in your browser for the duration of your visit. The token is held in memory only — it is not a cookie and is not stored on your device, and it disappears when you close the tab.</p>
-            <p>These counts are held in temporary storage (Upstash Redis, hosted in the EU / Frankfurt region) and the tokens expire automatically after five minutes of inactivity.</p>
+            <h2>Anonymous session analytics</h2>
+            <p>While you watch the live view, your browser includes a random, anonymous session identifier with each status check (roughly every 10 seconds) so we can privately understand how many people are watching during an event. This identifier is not currently used to show a viewer count on the page itself &mdash; it is for our own internal event analytics only.</p>
+            <p>This does not identify you. There is no account, no login, no IP address, and no device fingerprinting involved. The identifier is a random value generated in your browser, stored in your browser&rsquo;s session storage (not a cookie, and not <code>localStorage</code>) for the duration of your visit to that browser tab. It is automatically discarded when you close the tab, and a new one is generated the next time you visit.</p>
+            <p>We temporarily record this identifier (Upstash Redis, hosted in the EU / Frankfurt region) for up to 48 hours to calculate how many people were watching at once and in total during an event. This data is used only by us to understand event attendance; it is never displayed publicly and never linked to any other information about you.</p>
 
             <h2>Live session records</h2>
             <p>For each live stargazing session, we record details of the astronomical observation itself: the name of the object viewed (for example, &ldquo;M31 Andromeda Galaxy&rdquo;), the date and time, which telescope produced the image (Pegasus or Seestar), and the stacked images captured during the session.</p>

@@ -9,6 +9,9 @@ import {
   eventFinishedKey,
   HOTEL_SOURCES,
   isValidSource,
+  recordViewerActivity,
+  viewerEventKey,
+  viewerSpecialEventKey,
   type HotelSource,
   type Source,
   type LatestFrame,
@@ -29,6 +32,66 @@ const ACTIVE_SOURCE_TTL_S = 600 // 10-min TTL on the chosen-source key
 // Every response is uncacheable — /live polls this every 10s for current state.
 function json(body: unknown) {
   return NextResponse.json(body, { headers: { 'Cache-Control': 'no-store' } })
+}
+
+// A guest's random, per-tab viewer id (see VIEWER_ID_STORAGE_KEY in
+// LiveView.tsx) — NOT an IP, cookie, or anything tied to identity, purely a
+// dedup key for private viewer analytics (see lib/redis.ts's
+// recordViewerActivity / /api/viewer-stats). Loosely validated (bounded
+// length, safe charset) since it's untrusted input written straight into
+// Redis; missing/invalid values simply skip tracking for that poll rather
+// than failing the request — this endpoint's guest-facing behavior must
+// never depend on viewer tracking succeeding.
+const VIEWER_ID_PATTERN = /^[A-Za-z0-9-]{8,64}$/
+function readViewerId(req: NextRequest): string | null {
+  const raw = req.nextUrl.searchParams.get('viewerId')
+  return raw && VIEWER_ID_PATTERN.test(raw) ? raw : null
+}
+
+// Private analytics may NEVER slow the guest-facing hot path — a slow Redis
+// round trip here must not delay (and definitely must not fail) the actual
+// status response, which is what drives /live's live/reconnecting/offline
+// UI. Racing against a short timeout means the worst case is simply "this
+// one poll's viewer count didn't get recorded," never "a guest's frame
+// took an extra 2s to appear because Redis was having a bad moment."
+const VIEWER_TRACKING_TIMEOUT_MS = 250
+
+// Fail-open, time-boxed viewer tracking. Awaited (so serverless doesn't tear
+// down before the write lands, in the common case where it's fast) but
+// raced against VIEWER_TRACKING_TIMEOUT_MS and wrapped in try/catch: this
+// cannot delay the response beyond VIEWER_TRACKING_TIMEOUT_MS, though the
+// underlying Redis write may still complete afterward in the background
+// (Promise.race doesn't cancel the loser, it just stops waiting on it) — and
+// a failing Redis call can never throw into the response either way, since
+// recordViewerActivity already catches internally and returns null on
+// failure. This wrapper's job is to make both of those guarantees explicit
+// at the call site, not to claim tracking has zero footprint after the
+// timeout fires.
+async function trackViewer(
+  scope: 'hotel' | 'event',
+  slug: Source | null,
+  eventKey: string,
+  viewerId: string | null,
+): Promise<void> {
+  if (!viewerId) return
+  try {
+    await Promise.race([
+      recordViewerActivity(scope, slug, eventKey, viewerId),
+      new Promise((resolve) => setTimeout(resolve, VIEWER_TRACKING_TIMEOUT_MS)),
+    ])
+  } catch (e) {
+    console.error('/api/status: viewer tracking failed', e)
+  }
+}
+
+// Today's scheduled hotel event key (see viewerEventKey in lib/redis.ts) —
+// shared by every hotel-path branch that tracks viewers (live, finished,
+// reconnecting/degraded during a scheduled window), so they all land in the
+// SAME per-night bucket regardless of which specific state the guest's poll
+// happened to observe.
+function hotelViewerEventKey(): string {
+  const today = athensToday()
+  return viewerEventKey(today, eventFor(today)?.hotelId ?? null)
 }
 
 type ObjectMatch = {
@@ -85,6 +148,43 @@ function athensNowHHMM(): string {
   }).format(new Date())
 }
 
+// "HH:MM" -> minutes since midnight, for arithmetic comparisons that plain
+// string comparison can't safely do once a margin is involved (e.g. "22:30"
+// + 60min needs to become "23:30", which string comparison has no notion
+// of). Every hotel event currently configured (config/schedule.json) starts
+// and ends well within a single Athens calendar day even after a ±60min
+// margin, so this deliberately does NOT handle a margin pushing past
+// midnight — it's a same-day window check, matching how `tonight`/`today`
+// are already computed elsewhere in this file.
+function minutesSinceMidnight(hhmm: string): number {
+  const [h, m] = hhmm.split(':').map(Number)
+  return h * 60 + m
+}
+
+// Is `nowHHMM` within [start - marginMinutes, end + marginMinutes]? Used to
+// gate viewer tracking on the hotel offline path (see the P1 fix note below)
+// so a guest polling at 10am doesn't count toward tonight's 21:30-22:30
+// event just because `tonight` happens to be scheduled for later today.
+function withinEventWindow(nowHHMM: string, start: string, end: string, marginMinutes: number): boolean {
+  const now = minutesSinceMidnight(nowHHMM)
+  const windowStart = minutesSinceMidnight(start) - marginMinutes
+  const windowEnd = minutesSinceMidnight(end) + marginMinutes
+  return now >= windowStart && now <= windowEnd
+}
+
+// Same idea as withinEventWindow above, but for a special event's full
+// revealAt/endsAt ISO range rather than a same-day HH:MM pair — a special
+// event isn't bounded to "today," so this compares real timestamps. Used to
+// gate viewer tracking on the special-event path so an open tab left polling
+// ?event=<slug> well after the event's endsAt (+ a farewell grace period)
+// doesn't keep inflating that event's numbers indefinitely.
+function withinSpecialEventTrackingWindow(now: Date, revealAt: string, endsAt: string, marginMinutes: number): boolean {
+  const t = now.getTime()
+  const start = new Date(revealAt).getTime()
+  const end = new Date(endsAt).getTime() + marginMinutes * 60 * 1000
+  return t >= start && t <= end
+}
+
 // Tomorrow's Athens calendar date (UTC arithmetic = pure calendar-day math).
 function athensTomorrow(today: string): string {
   const d = new Date(`${today}T00:00:00Z`)
@@ -106,22 +206,55 @@ function athensTomorrow(today: string): string {
 // (see app/live/LiveView.tsx's 'special-event-finished' uiState). `source`
 // doubles as both the special-event slug and the ingest Source value (see
 // lib/extra-events.ts).
-async function extraEventStatus(slug: Source): Promise<NextResponse> {
+async function extraEventStatus(slug: Source, viewerId: string | null): Promise<NextResponse> {
+  // Stable per-event key derived from the event's OWN config (revealAt), not
+  // today's date — see viewerSpecialEventKey's doc comment. A special event
+  // can span multiple calendar days (e.g. a 3-night event), and "unique
+  // viewers during the event" must count across the whole window rather than
+  // resetting at midnight each night the way the hotel path's date-scoped
+  // key correctly does for genuinely separate hotel nights. extraEventFor
+  // returning null here (a slug this route was already handed but the
+  // config lookup somehow misses) degrades tracking to a generic per-slug
+  // key rather than blocking the response — same fail-open spirit as
+  // everything else viewer-tracking related.
+  const extraEvent = extraEventFor(slug)
+  const specialEventKey = viewerSpecialEventKey(slug, extraEvent?.revealAt ?? 'unknown')
+
   // Finished check FIRST, same ordering discipline as the hotel path below —
   // an explicit POST /api/finish?event=<slug> must win even over a
-  // still-fresh frame.
+  // still-fresh frame. Still tracked: a guest sitting on the farewell screen
+  // is still "on the live page during the event," which is what this metric
+  // means to capture (see the P2 fix note on tracking during all states).
+  // ALWAYS tracked once finished is set, regardless of the time-window check
+  // below — the finished flag itself is the authoritative "this is still
+  // (just barely) part of the event" signal, more reliable than a clock
+  // comparison for a farewell screen that can legitimately run past endsAt.
   const finishedRaw = await redis.get(eventFinishedKey(slug))
   if (finishedRaw != null) {
+    await trackViewer('event', slug, specialEventKey, viewerId)
     return json({ live: false, specialEventFinished: true })
   }
+
+  // Gates the two NOT-yet-finished tracking calls below: an open tab left
+  // polling ?event=<slug> long after endsAt (with the finished flag either
+  // never set or already expired) shouldn't keep inflating this event's
+  // numbers indefinitely — e.g. someone's phone left on the mystery-gate/
+  // live page overnight after a Sunday event must not bleed into whatever
+  // Monday's stats end up meaning. A 60-minute grace past endsAt covers the
+  // same "farewell wind-down" window the hotel path's own margin covers.
+  const now = new Date()
+  const withinWindow = extraEvent ? withinSpecialEventTrackingWindow(now, extraEvent.revealAt, extraEvent.endsAt, 60) : false
 
   const raw = await redis.get(latestFrameKey(slug))
   const frame = parseLatestFrame(raw)
 
-  const now = Date.now()
-  const fresh = frame ? now - new Date(frame.ingestedAt).getTime() < LIVE_WINDOW_MS : false
+  const nowMs = now.getTime()
+  const fresh = frame ? nowMs - new Date(frame.ingestedAt).getTime() < LIVE_WINDOW_MS : false
 
   if (frame && fresh) {
+    // Private analytics only — see trackViewer's doc comment. Never affects
+    // this response, which is unchanged from before viewer tracking existed.
+    if (withinWindow) await trackViewer('event', slug, specialEventKey, viewerId)
     const objectMatch = resolveObjectMatch(frame.telemetry)
     return json({
       live: true,
@@ -135,7 +268,7 @@ async function extraEventStatus(slug: Source): Promise<NextResponse> {
       observation: { observationId: frame.observationId, objectName: frame.objectName },
       sessionId: frame.sessionId,
       viewers: null,
-      sources: { [slug]: { fresh: true, ageSeconds: Math.max(0, Math.round((now - new Date(frame.ingestedAt).getTime()) / 1000)) } },
+      sources: { [slug]: { fresh: true, ageSeconds: Math.max(0, Math.round((nowMs - new Date(frame.ingestedAt).getTime()) / 1000)) } },
       ...(frame.telemetry
         ? {
             telemetry: {
@@ -148,6 +281,16 @@ async function extraEventStatus(slug: Source): Promise<NextResponse> {
       ...(objectMatch ? { objectMatch } : {}),
     })
   }
+
+  // Still tracked (subject to the same withinWindow gate as above): a stale/
+  // absent frame here covers both "relay restart mid-event" and "event
+  // hasn't started producing frames yet" — this route is only ever reached
+  // for a slug the caller already resolved as THIS event's page (see
+  // resolveSpecialEvent), so a guest polling here is, by construction, on
+  // the special event's live page during its window. But without the gate,
+  // an open tab left polling long after endsAt (finished flag already
+  // expired or never set) would keep counting indefinitely.
+  if (withinWindow) await trackViewer('event', slug, specialEventKey, viewerId)
 
   // Offline shape: no weekly schedule applies to an extra event, so `tonight`
   // is always null (nothing to cancel) and `next` is always null (this isn't
@@ -167,9 +310,10 @@ export async function GET(req: NextRequest) {
     //    cancellation/schedule lookups (a special event has no weekly
     //    schedule). An unknown/absent slug falls through to the normal hotel
     //    path unchanged.
+    const viewerId = readViewerId(req)
     const eventSlug = req.nextUrl.searchParams.get('event')
     if (eventSlug && isExtraEventSlug(eventSlug) && isValidSource(eventSlug)) {
-      return await extraEventStatus(eventSlug)
+      return await extraEventStatus(eventSlug, viewerId)
     }
 
     // 1. Redis reads in parallel, INCLUDING the finished flag — but the
@@ -206,6 +350,10 @@ export async function GET(req: NextRequest) {
     //      already uses below, so "Next session: Monday, 21:30" on the
     //      finished screen is never a second source of truth.
     if (finishedRaw != null) {
+      // Still tracked: a guest sitting on the farewell screen is still "on
+      // the live page during the event" — see the P2 fix note on tracking
+      // during all states, not only live:true.
+      await trackViewer('hotel', null, hotelViewerEventKey(), viewerId)
       const today = athensToday()
       const tonightEvent = eventFor(today)
       const next =
@@ -263,6 +411,12 @@ export async function GET(req: NextRequest) {
 
       const f = frames[chosen]!
 
+      // Private analytics only — see trackViewer's doc comment. Never affects
+      // this response, which is unchanged from before viewer tracking existed
+      // (viewers stays the same `null` placeholder guests have always seen;
+      // real numbers are readable only via the auth-gated /api/viewer-stats).
+      await trackViewer('hotel', null, hotelViewerEventKey(), viewerId)
+
       // Telemetry is best-effort passthrough — see resolveObjectMatch for the
       // solved+coordinates gating.
       const telemetry = f.telemetry
@@ -279,7 +433,7 @@ export async function GET(req: NextRequest) {
         },
         observation: { observationId: f.observationId, objectName: f.objectName },
         sessionId: f.sessionId,
-        viewers: null, // placeholder until /api/heartbeat lands; keeps /live on the final shape
+        viewers: null,
         sources,
         ...(telemetry
           ? {
@@ -341,6 +495,21 @@ export async function GET(req: NextRequest) {
         tonightEvent && athensNowHHMM() < tonightEvent.end
           ? { date: today, ...tonightEvent }
           : nextEvent(athensTomorrow(today))
+
+      // Still tracked, but ONLY when tonight is genuinely scheduled, not
+      // cancelled, AND the current time is within event.start-60min through
+      // event.end+60min — this is the "waiting for tonight's session to
+      // start" and "relay temporarily down mid-window" cases the P2 fix note
+      // calls out (reconnecting/degraded from the guest's perspective still
+      // lands here, since neither source is currently fresh). Without the
+      // time window, `tonight` being scheduled for LATER today would count a
+      // guest polling at 10am toward tonight's 21:30-22:30 event, which is
+      // wrong — they aren't waiting on anything yet. A cancelled night, or a
+      // night with nothing scheduled at all, is excluded regardless of time.
+      const TRACKING_WINDOW_MARGIN_MINUTES = 60
+      if (tonight && !tonight.cancelled && withinEventWindow(athensNowHHMM(), tonight.start, tonight.end, TRACKING_WINDOW_MARGIN_MINUTES)) {
+        await trackViewer('hotel', null, hotelViewerEventKey(), viewerId)
+      }
 
       return json({ live: false, tonight, next })
     } catch (e) {

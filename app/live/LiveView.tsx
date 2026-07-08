@@ -624,6 +624,31 @@ function addAthensDays(date: string, n: number): string {
   return d.toISOString().slice(0, 10)
 }
 
+// Purely local dedup key for PRIVATE viewer analytics (see recordViewerActivity
+// in lib/redis.ts and GET /api/viewer-stats) — a random id, NOT an IP, cookie,
+// or anything tied to the guest's identity, that exists only so the operator
+// can see how many distinct tabs are polling right now. Never rendered on
+// /live; guests never see this value or know it exists. sessionStorage (not a
+// plain in-memory ref) so a mid-session page refresh keeps the SAME id rather
+// than momentarily registering as a second viewer; it naturally disappears
+// when the tab closes, which is exactly when that viewer should stop counting.
+const VIEWER_ID_STORAGE_KEY = 'stargazing:viewerId'
+
+function getOrCreateViewerId(): string | null {
+  if (typeof window === 'undefined') return null
+  try {
+    const existing = window.sessionStorage.getItem(VIEWER_ID_STORAGE_KEY)
+    if (existing) return existing
+    const fresh = crypto.randomUUID()
+    window.sessionStorage.setItem(VIEWER_ID_STORAGE_KEY, fresh)
+    return fresh
+  } catch {
+    // Private-browsing/storage-disabled: viewer analytics quietly loses this
+    // guest, never a crash — the page itself must keep working regardless.
+    return null
+  }
+}
+
 // statusUrl defaults to the normal hotel endpoint. /live/[event] passes
 // '/api/status?event=<slug>' instead so the exact same component/state
 // machine/rendering serves a special event (see app/api/status/route.ts's
@@ -642,6 +667,11 @@ export default function LiveView({ statusUrl = '/api/status' }: { statusUrl?: st
   const activeControllerRef = useRef<AbortController | null>(null)
   const activeImageControllerRef = useRef<AbortController | null>(null)
   const pollGenerationRef = useRef(0)
+  // Generated once per mount (stable across every poll in this tab's
+  // lifetime) — see getOrCreateViewerId's doc comment for why this is
+  // private-analytics-only and never rendered.
+  const viewerIdRef = useRef<string | null>(null)
+  if (viewerIdRef.current === null) viewerIdRef.current = getOrCreateViewerId()
 
   // "updated Xs ago" ticks on its own timer, independent of polling.
   const [, forceTick] = useState(0)
@@ -666,7 +696,15 @@ export default function LiveView({ statusUrl = '/api/status' }: { statusUrl?: st
           // StatusLive bodies for visual review of the three display states.
           body = demoBody
         } else {
-          const res = await fetch(statusUrl, { signal: controller.signal, cache: 'no-store' })
+          // viewerId appended purely for private viewer analytics (see
+          // getOrCreateViewerId above) — never read back from the response,
+          // never affects rendering. Omitted entirely when unavailable
+          // (private browsing / storage disabled) rather than sending an
+          // empty/placeholder value.
+          const url = viewerIdRef.current
+            ? `${statusUrl}${statusUrl.includes('?') ? '&' : '?'}viewerId=${encodeURIComponent(viewerIdRef.current)}`
+            : statusUrl
+          const res = await fetch(url, { signal: controller.signal, cache: 'no-store' })
           if (!res.ok) throw new Error(`status ${res.status}`)
           body = await res.json()
         }
