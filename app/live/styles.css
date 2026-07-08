@@ -530,8 +530,7 @@
 
 .description {
   margin: 11px auto 0;
-  width: min(100%, 520px);
-  padding: 0 8px;
+  width: min(100%, 540px);
 }
 
 .type-description {
