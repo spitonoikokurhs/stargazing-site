@@ -274,6 +274,19 @@
   background: #000;
 }
 
+/* TransitionScreen's empty circular frame (see LiveView.tsx) — same .viewer/
+   .sky-square/.rim shell the real live view uses (so the page doesn't
+   visually jump/reflow between transition and live), but with no <img> at
+   all: .sky-square's own dark background alone IS the "empty telescope
+   frame." This modifier just centers the loader within it — the base
+   .sky-square rule above already has nothing to override for the dark
+   background itself. */
+.viewer--transition .sky-square {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 /* Circular FOV inset holding the REAL image (object-fit:cover). Border-radius
    50% + overflow:hidden gives the circular mask; the inset box-shadow
    (lifted from the mockup's .fov) adds the dark vignette around the edge of

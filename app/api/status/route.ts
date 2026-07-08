@@ -183,6 +183,20 @@ async function fetchHistory(sessionId: string, source: string): Promise<HistoryE
   }
 }
 
+// The currently-open StackRun's startedAt, straight from the SAME history
+// array already fetched above — not a second Postgres query. This is what
+// lets the client detect "a new stack run has started" from the main
+// /api/status poll alone (source+observationId+stackRunStartedAt, mirroring
+// computeRunKey in lib/detect-transition.ts), instead of depending on the
+// separate, independently-timed useMilestoneFrames poll cycle
+// (/api/observations/[id]/milestones) the way the milestone toggle's own
+// reset logic does. Deriving it from `history` also guarantees the two
+// values can never disagree with each other (a second independent query
+// could race and return an inconsistent snapshot).
+function activeStackRunStartedAt(history: HistoryEntry[]): string | null {
+  return history.find((h) => h.active)?.startedAt ?? null
+}
+
 // Shared by the hotel dual-source path and the single-source extra-event
 // path: object-name fields are added ONLY when astrometryState is 'solved'
 // AND both coordinates are present — any other astrometryState (or missing
@@ -346,6 +360,7 @@ async function extraEventStatus(slug: Source, viewerId: string | null): Promise<
       sessionId: frame.sessionId,
       viewers: null,
       history,
+      stackRunStartedAt: activeStackRunStartedAt(history),
       sources: { [slug]: { fresh: true, ageSeconds: Math.max(0, Math.round((nowMs - new Date(frame.ingestedAt).getTime()) / 1000)) } },
       ...(frame.telemetry
         ? {
@@ -514,6 +529,7 @@ export async function GET(req: NextRequest) {
         sessionId: f.sessionId,
         viewers: null,
         history,
+        stackRunStartedAt: activeStackRunStartedAt(history),
         sources,
         ...(telemetry
           ? {
