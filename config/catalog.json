@@ -271,7 +271,7 @@
       "sizeDescription": "a small spiral — telescope only",
       "wowFacts": [
         "M66 is a spiral galaxy whose shape has likely been disturbed by gravitational encounters with its neighbors.",
-        "Its light has been traveling for roughly 30 million years, long before humans existed.",
+        "Its light has been traveling for roughly 35 million years, long before humans existed.",
         "Several supernovae have been observed in M66, brief flashes from dying massive stars in another galaxy.",
         "In the live image, the uneven oval glow hints at a galaxy with a dynamic past."
       ],
@@ -2354,8 +2354,8 @@
       "sizeDescription": "about half the full Moon",
       "wowFacts": [
         "This cluster is an ancient swarm of stars bound together by gravity.",
-        "Many of its stars formed when the Milky Way was still young.",
-        "Globular clusters are like fossils from the early galaxy.",
+        "M3 holds one of the largest known populations of variable stars — hundreds of stars caught in the act of pulsing brighter and fainter.",
+        "It was one of the very first objects Charles Messier cataloged, back in 1764.",
         "In the live image, the glow turns grainy as the telescope begins to resolve individual stars."
       ],
       "visualHint": "Look for a bright round glow with a grainy outer edge and a dense center.",
@@ -2366,15 +2366,15 @@
         },
         {
           "heading": "Why it matters",
-          "body": "Globular clusters preserve some of the oldest stars in the galaxy. They are deep-time objects, carrying clues from the Milky Way's early history."
+          "body": "M3 is home to one of the largest known populations of RR Lyrae variable stars — hundreds of individual stars that rhythmically brighten and dim over hours or days. Astronomers use their pulses as reliable distance markers, making clusters like this one of the galaxy's own measuring tools."
         },
         {
           "heading": "The human story",
-          "body": "These clusters were once listed as fuzzy objects by early observers, but telescopes revealed them as swarms of stars. They are among the most satisfying objects to watch sharpen during live stacking."
+          "body": "M3 was one of the first objects Charles Messier discovered himself, in 1764 — not a comet he was ruling out, but a genuine new find that helped launch the catalog project. It became one of the objects that convinced him fuzzy patches in the sky were worth cataloging in their own right."
         },
         {
           "heading": "How to spot it",
-          "body": "Look for a round glow that becomes grainy. The outer edges may resolve into star points while the center stays bright and crowded."
+          "body": "M3 tends to look slightly less concentrated than clusters like M13 — expect a bright core with a more gradual fade toward the edges, rather than a sharp, tightly packed center. The outer stars may still resolve into points as the stack builds."
         }
       ]
     },
@@ -3527,17 +3527,17 @@
       "decDeg": 50.5253,
       "displayRadiusDeg": 0.08,
       "priority": 70,
-      "description": "A small bright planetary nebula in Cygnus, famous for its blinking effect in visual observing.",
+      "description": "A small bright planetary nebula in Cygnus, nicknamed for a blinking effect eyepiece observers notice.",
       "constellation": "Cygnus",
       "distanceLy": 2200,
       "sizeDescription": "a tiny disk — telescope only",
       "wowFacts": [
         "The Blinking Planetary is a dying star's glowing shell wrapped around a hot central remnant.",
-        "Its nickname comes from a visual trick: the nebula can seem to blink when your eye shifts attention.",
+        "Its nickname comes from eyepiece observers: the nebula seems to blink as their eye shifts between direct and averted vision.",
         "It is small but bright, making it a good live target when conditions are steady.",
         "In the live image, look for a tiny blue-green disk rather than a wide cloud."
       ],
-      "visualHint": "Look for a very small bright bluish-green disk with a star-like center.",
+      "visualHint": "Look for a very small, bright, blue-green disk with a star-like center — steady and unblinking in a stacked image.",
       "drawer": [
         {
           "heading": "What you're seeing",
@@ -3549,11 +3549,11 @@
         },
         {
           "heading": "The human story",
-          "body": "The blinking effect is a classic observer's experience, caused by how direct and averted vision respond differently to the bright central star and surrounding glow."
+          "body": "Visual observers gave this nebula its nickname because, at the eyepiece, it seems to blink as their eye shifts between direct and averted vision — a trick of human night vision, not of the nebula itself. That effect belongs to eyepiece viewing; in tonight's stacked image, the disk holds steady and just keeps gathering detail."
         },
         {
           "heading": "How to spot it",
-          "body": "Do not expect a large nebula. The target is tiny; focus on color, compactness, and the difference between the central point and the surrounding disk."
+          "body": "Do not expect a large nebula, and do not expect it to blink on screen. The target is tiny; focus on color, compactness, and the difference between the central point and the surrounding disk."
         }
       ]
     },
