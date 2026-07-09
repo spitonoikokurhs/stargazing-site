@@ -557,20 +557,27 @@
 }
 
 /* Split heading for a named Messier object (see headingParts in
-   LiveView.tsx) — "M13, Hercules": the catalog id stays present (guests
-   photographing/star-chart-following still see the number they'd look up)
-   but visually secondary to the proper name, which carries the same weight
-   as a plain (non-split) .title. The comma is real text, not decorative —
-   it's what reads naturally as "M13, [also known as] Hercules" alongside a
-   type pill underneath that already supplies "Globular Cluster". */
+   LiveView.tsx) — "M13, Hercules": the catalog id and the proper name read
+   as ONE unified heading, same color/weight, not one dimmed relative to the
+   other. Sized down slightly (0.62em) purely because "M13" is short and a
+   catalog code, not because it's secondary.
+   Deliberately NOT the display serif (Cormorant Garamond) — that face's
+   old-style figures render "1" as a thin stroke that's easy to misread as a
+   lowercase "l"/"I" at this size, exactly wrong for a catalog id a guest
+   might be cross-checking against a star chart. The body sans-serif stack
+   (same one used for UI labels elsewhere — see .content/.type-pill-label)
+   uses lining/tabular figures instead, so "M13" reads unambiguously as
+   M-one-three. */
 .title-id {
-  font-size: 0.55em;
-  font-weight: 500;
-  opacity: 0.68;
+  font-family: Inter, Lato, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 0.62em;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums lining-nums;
 }
 
 .title-id::after {
   content: ", ";
+  font-family: var(--font-display), "Cormorant Garamond", Georgia, "Times New Roman", serif;
 }
 
 .type-line {
