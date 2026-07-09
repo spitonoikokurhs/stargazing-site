@@ -547,9 +547,9 @@ const KNOWN_DEMO_SOURCE: Record<string, { catalogId: string; blobUrl: string; to
 // without writing anything to Postgres. Deliberately mixes short catalog ids
 // that print as-is (M13, M27, M31) with the long hyphenated ones
 // (NGC6960-6992, LEO-TRIPLET) that force shortHistoryLabel's name-based
-// fallback — 8 entries total, one more than HISTORY_ROW_MAX, so the strip
-// wraps to a second row of 3. The last entry is the active/current one
-// (matches the demo's own KNOWN_DEMOS['history-test'] = M13 card above).
+// fallback — 8 entries total, double HISTORY_ROW_MAX, so the strip wraps to
+// two even rows of 4. The last entry is the active/current one (matches
+// the demo's own KNOWN_DEMOS['history-test'] = M13 card above).
 const MOCK_HISTORY: HistoryEntry[] = [
   {
     id: 'mock-1',
@@ -2212,11 +2212,17 @@ function HistoryPill({ run }: { run: HistoryEntry }) {
 // More than HISTORY_ROW_MAX objects wraps to a second row rather than
 // horizontal scroll or shrinking pills further — every pill stays fully
 // visible and its label stays readable, at the cost of a second short row.
-// The bottom row is capped at HISTORY_ROW_MAX-width (via CSS, matching the
-// row above it) rather than stretching its few pills to fill the full
-// strip width — a lone 6th pill spanning 100% would look like a totally
-// different (and much wider) kind of pill than the five above it.
-const HISTORY_ROW_MAX = 5
+// The bottom row shares the SAME width as the top row (.history-strip-rows)
+// with its own flex:1 1 0 pills dividing it evenly — see .history-strip in
+// styles.css.
+//
+// 4, not 5: at narrow phone widths (375px), 5 equal-width pills per row
+// left no room for a 7-character id like "NGC7000" to render in full — it
+// had to CSS-ellipsis to "N…", which read as broken/truncated rather than
+// a deliberate design choice. Dropping to 4 gives each pill enough width
+// for the longest real catalog ids to render in full at 375px (verified —
+// see the ?demo=history-test screenshot this was checked against).
+const HISTORY_ROW_MAX = 4
 
 function SessionHistoryStrip({ history }: { history: HistoryEntry[] }) {
   if (history.length === 0) return null

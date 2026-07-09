@@ -483,8 +483,12 @@
   flex: 1 1 0;
   min-width: 0;
   min-height: 30px;
-  gap: 4px;
-  padding: 5px 10px;
+  gap: 3px;
+  /* Trimmed from 5px 10px — at 375px/4-per-row, the original padding left
+     under 47px of the pill's ~84px share for text, not enough for a
+     7-character id like "NGC7000" in bold 12px type. This buys back a few
+     px per side without the pill reading as visually cramped. */
+  padding: 5px 6px;
   border-radius: 999px;
   border: 1px solid var(--object-type-border, rgba(237, 234, 227, 0.14));
   background: var(--object-type-bg-subtle, rgba(237, 234, 227, 0.035));
@@ -523,8 +527,8 @@
 }
 
 .history-pill-icon svg {
-  width: 13px;
-  height: 13px;
+  width: 12px;
+  height: 12px;
 }
 
 /* Overflow safety net beneath shortHistoryLabel's own JS-side shortening
