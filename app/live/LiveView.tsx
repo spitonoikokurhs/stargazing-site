@@ -43,6 +43,29 @@ const FETCH_TIMEOUT_MS = 8 * 1000
 const IMAGE_PRELOAD_TIMEOUT_MS = 10 * 1000
 const RECONNECT_CHECK_MS = 1000 // how often we check the 45s give-up clause while reconnecting
 const TRANSITION_CHECK_MS = 1000 // how often we check the 5-min transition give-up clause (threshold itself lives in lib/live-status.ts's reducer, same pattern as RECONNECT_CHECK_MS/GIVE_UP_AFTER_MS)
+// How old the DISPLAYED frame's ingestedAt (server receipt time — see
+// lib/redis.ts's own "ingestedAt = server receipt" doc comment, the same
+// field /api/status's own freshness check already uses) can get before we
+// stop trusting it and show the transition screen instead, even though
+// run-change hasn't fired yet. Production logs showed real slews taking
+// 1.5-2.5 min with ZERO transition screens shown, because run-change alone
+// only detects a NEW stackRunStartedAt — which only appears at the same
+// moment as that run's first frame, not before. 75s sits comfortably below
+// that observed gap floor, so a guest watching through an ordinary slew
+// sees the transition screen well before the old image would otherwise
+// linger for the full 1.5-2.5 min.
+//
+// ingestedAt (not lastLiveFrame.loadedAt, this browser's own load time) is
+// the age source deliberately — a guest who opens /live mid-slew sees the
+// transition screen immediately if the frame the server hands them is
+// already stale, rather than a static "old" image that only later
+// transitions once ITS local load-to-now clock crosses the threshold.
+// Trades on server/client clock skew being a non-issue for this
+// deployment (single-timezone Greek hotels, Vercel-hosted, no known skew
+// problem) — if that ever changes, loadedAt is the safer (skew-immune)
+// fallback, at the cost of missing the mid-slew-open case above.
+const FRAME_STALE_AFTER_MS = 75 * 1000
+const FRAME_STALE_CHECK_MS = 1000 // same polling-independent timer pattern as RECONNECT_CHECK_MS/TRANSITION_CHECK_MS
 
 // Object-match confidence tiers as reported by lib/catalog.ts via /api/status.
 type ObjectMatchConfidence = 'high' | 'medium' | 'low' | 'none'
@@ -504,6 +527,20 @@ function getDemoMode(): DemoMode | null {
   return (DEMO_MODES as string[]).includes(raw ?? '') ? (raw as DemoMode) : null
 }
 
+// Test hook for the frame-staleness transition trigger (see
+// FRAME_STALE_AFTER_MS below) — ?demo=known&stale=90 backdates the demo
+// frame's ingestedAt by 90 seconds so the staleness timer fires almost
+// immediately, without needing to pause the real relay for 75+ real
+// seconds on every review pass. Only ever read from within getDemoStatusBody
+// (i.e. only has any effect when ?demo= is already a valid mode) — with no
+// ?demo= param this is inert, same guarantee as every other demo hook here.
+function getDemoStaleSeconds(): number {
+  if (typeof window === 'undefined') return 0
+  const raw = new URLSearchParams(window.location.search).get('stale')
+  const n = raw ? Number(raw) : 0
+  return Number.isFinite(n) && n > 0 ? n : 0
+}
+
 // One representative demo object per catalog type, so item 4's type icons +
 // definitions can each be reviewed in context (?demo=known-galaxy, etc.)
 // rather than only ever seeing the nebula case. Real image files already
@@ -807,6 +844,12 @@ function getDemoStatusBody(): StatusResponse | null {
   const known = KNOWN_DEMOS[knownKey]
 
   const now = new Date().toISOString()
+  // See getDemoStaleSeconds — backdating ONLY ingestedAt (not capturedAt)
+  // mirrors a real stale-relay scenario exactly: the telescope's own
+  // capture timestamp is whatever it is, it's specifically the SERVER'S
+  // receipt of a fresh frame that has stopped happening.
+  const staleSeconds = getDemoStaleSeconds()
+  const ingestedAt = staleSeconds > 0 ? new Date(Date.now() - staleSeconds * 1000).toISOString() : now
   const base = {
     live: true as const,
     source: 'pegasus' as const,
@@ -814,7 +857,7 @@ function getDemoStatusBody(): StatusResponse | null {
       frameId: `demo-${mode}`,
       blobUrl: known?.blobUrl ?? '/images/nebula-orion-m42.jpg',
       capturedAt: now,
-      ingestedAt: now,
+      ingestedAt,
     },
     observation: { observationId: 'demo-observation', objectName: known?.name ?? 'Unknown' },
     sessionId: 'demo-session',
@@ -1074,13 +1117,27 @@ export default function LiveView({ statusUrl = '/api/status' }: { statusUrl?: st
             // A no-op in the reducer if this poll is reporting the SAME
             // run key an earlier poll already started transitioning to
             // (see the reducer case); a genuinely newer run key here
-            // correctly supersedes it and restarts the give-up clock.
+            // correctly supersedes it and restarts the give-up clock. This
+            // ALSO correctly supersedes an in-progress frame-stale
+            // transition with no extra logic needed here — the reducer's
+            // POLL_RUN_TRANSITIONING case unconditionally overwrites
+            // transitionReason, so detecting a genuine run change always
+            // wins over "the old frame was just old."
             dispatch({ type: 'POLL_RUN_TRANSITIONING', runKey: incomingRunKey })
           }
 
           if (current.lastLiveFrame?.frameId === body.frame.frameId) {
             // Same frame we already showed — no new image to wait on, so
             // history is safe to apply immediately alongside this dispatch.
+            //
+            // NOTE: this branch deliberately does NOT exit a frame-stale
+            // transition — this is the SAME frameId as what's already
+            // displayed (and, if staleness were in progress, the same
+            // frameId transitioningFrameId is keyed to), so nothing has
+            // actually gotten fresher yet. The frame-stale timer effect
+            // will simply keep re-detecting staleness on its own schedule
+            // until a poll finally reports a genuinely different frame,
+            // which takes the else branch below instead.
             setHistory(nextHistory)
             // Same frame we already showed — no need to re-preload, just
             // refresh the "updated Xs ago" anchor via a synthetic reload event
@@ -1108,22 +1165,41 @@ export default function LiveView({ statusUrl = '/api/status' }: { statusUrl?: st
             try {
               await preloadImage(body.frame.blobUrl, imageController.signal)
               if (cancelled) return
-              // Guard against a stale-preload race. The poll loop itself is
+              // Guard against a stale-preload race — re-read stateRef.current
+              // here (rather than trusting incomingRunKey/current, captured
+              // before the await) since TRANSITION_TIMEOUT and the
+              // frame-staleness timer BOTH run on their own independent
+              // setIntervals (see their effects above) and can fire mid-await,
+              // changing what the guest is actually waiting for while this
+              // exact preload is still in flight. The poll loop itself is
               // serial (inFlightRef keeps a second /api/status fetch from
-              // starting until this one's preload fully settles), so this
-              // can't happen via two overlapping polls — but
-              // TRANSITION_TIMEOUT runs on its OWN independent setInterval
-              // (see the effect below) and can fire mid-await, superseding
-              // transitioningRunKey to suppress THIS run while this exact
-              // preload is still in flight. Re-reading stateRef.current here
-              // (rather than trusting incomingRunKey, captured before the
-              // await) catches that: if a transition is in progress and
-              // waiting on some OTHER run than the one this preload just
-              // loaded, this frame is stale — drop it rather than promoting
-              // an outdated/suppressed run to live.
+              // starting until this one's preload fully settles), so this can
+              // never happen via two overlapping POLLS — only via one of
+              // those two independent timers.
+              //
+              // The two transition reasons deliberately diverge here — this
+              // is the crux of the whole frame-stale feature:
+              //   - run-change: drop this frame unless it matches the
+              //     SPECIFIC run key being waited on (unchanged from before
+              //     frame-stale existed) — a run-change transition is
+              //     waiting for one particular new stack run, so a frame
+              //     from any OTHER run (stale-preload leftover, or simply
+              //     not the awaited one) must not be promoted.
+              //   - frame-stale: accept ANY successfully preloaded frame,
+              //     including one from the SAME stack run (e.g. a slow
+              //     upload cycle finally catching up) — frame-stale has no
+              //     "specific thing to wait for," only "prove the feed is
+              //     alive with anything fresher." The one guard that still
+              //     applies: if lastLiveFrame ALREADY shows this exact
+              //     frameId (a different code path — e.g. the "same frame"
+              //     branch above, on a later poll that raced ahead of this
+              //     preload — already promoted it), redispatching would be
+              //     redundant, not wrong, but there's nothing to gain by it.
               const stateNow = stateRef.current
-              if (stateNow.transitioningRunKey !== null && stateNow.transitioningRunKey !== incomingRunKey) {
-                return
+              if (stateNow.transitionReason === 'run-change') {
+                if (stateNow.transitioningRunKey !== incomingRunKey) return
+              } else if (stateNow.transitionReason === 'frame-stale') {
+                if (stateNow.lastLiveFrame?.frameId === body.frame.frameId) return
               }
               // Only NOW, after preload succeeds, does history catch up to
               // this poll — applied alongside the live-frame dispatch so the
@@ -1227,16 +1303,57 @@ export default function LiveView({ statusUrl = '/api/status' }: { statusUrl?: st
 
   // Transition give-up clause (5 min since transitionStartedAt) — same
   // wall-clock-driven pattern as the reconnecting one above, independent of
-  // poll cadence. Only meaningful while transitioningRunKey is actually
-  // set; the reducer's own TRANSITION_TIMEOUT case is a no-op otherwise, so
-  // this timer is safe to leave running even across an unrelated state
-  // change (it'll just keep firing no-ops until transitioningRunKey clears
-  // and the effect's dependency re-evaluates to stop it).
+  // poll cadence. Fires for EITHER transition reason (run-change or
+  // frame-stale) — the reducer's TRANSITION_TIMEOUT case branches
+  // internally on transitionReason, this effect just needs to know
+  // whether a transition of any kind is active. Only meaningful while
+  // transitionReason is actually set; the reducer's own TRANSITION_TIMEOUT
+  // case is a no-op otherwise, so this timer is safe to leave running even
+  // across an unrelated state change (it'll just keep firing no-ops until
+  // transitionReason clears and the effect's dependency re-evaluates to
+  // stop it).
   useEffect(() => {
-    if (state.transitioningRunKey === null) return
+    if (state.transitionReason === null) return
     const id = setInterval(() => dispatch({ type: 'TRANSITION_TIMEOUT' }), TRANSITION_CHECK_MS)
     return () => clearInterval(id)
-  }, [state.transitioningRunKey])
+  }, [state.transitionReason])
+
+  // Frame-staleness detection — timer-driven (not poll-driven), so a frame
+  // crossing FRAME_STALE_AFTER_MS is caught even BETWEEN polls, not only
+  // when a poll happens to land after the threshold (production logs
+  // showed a poll can go 1.5-2.5 min between reporting a genuinely new
+  // frame during a real slew — waiting for the next poll to notice
+  // staleness would be far too slow). Gated on ALL of:
+  //   - uiState === 'live' — never fires from reconnecting/offline/
+  //     finished/degraded/checking; those states already have their own
+  //     "something's wrong" signal, or don't have a displayed frame whose
+  //     age is meaningful at all.
+  //   - state.lastLiveFrame !== null — nothing to measure the age of
+  //     otherwise (shouldn't happen while uiState==='live' by the
+  //     reducer's own construction, but this effect re-reads
+  //     stateRef.current fresh on every tick rather than trusting a
+  //     render-time closure, so it's cheap insurance).
+  //   - state.transitionReason === null — never fires while a transition
+  //     of EITHER reason is already showing; staleness only ever STARTS a
+  //     transition, never interrupts one already in progress (see
+  //     POLL_FRAME_STALE's own doc comment in lib/live-status.ts).
+  // selectedHistoryRun is NOT checked here — this effect only decides
+  // whether to DISPATCH the event; the reducer/render layer is what
+  // actually suppresses the transition screen while browsing history (see
+  // LiveViewPresentation's render-priority ordering), so dispatching this
+  // while browsing is harmless (it updates transitionReason in state, but
+  // that state is simply not looked at until the guest returns to live).
+  useEffect(() => {
+    if (state.uiState !== 'live') return
+    const id = setInterval(() => {
+      const current = stateRef.current
+      if (current.uiState !== 'live' || current.lastLiveFrame === null || current.transitionReason !== null) return
+      const age = Date.now() - new Date(current.lastLiveFrame.ingestedAt).getTime()
+      if (age < FRAME_STALE_AFTER_MS) return
+      dispatch({ type: 'POLL_FRAME_STALE', frameId: current.lastLiveFrame.frameId })
+    }, FRAME_STALE_CHECK_MS)
+    return () => clearInterval(id)
+  }, [state.uiState])
 
   const lastLiveLoadedAt = state.lastLiveFrame?.loadedAt
 
@@ -1341,7 +1458,7 @@ function LiveViewPresentation({ state, history }: { state: LiveStatusState; hist
   // browse — lifted all the way up HERE, above the transition-screen/
   // LiveFrameView branch below, rather than living inside LiveFrameView's
   // own local state. This is deliberate, not incidental: LiveFrameView does
-  // NOT render at all during a transition (see the transitioningRunKey
+  // NOT render at all during a transition (see the transitionReason
   // branch further down) or during any of the terminal screens above it —
   // if this selection lived inside LiveFrameView, tapping a history pill and
   // then having a NEW live stack run start underneath would unmount
@@ -1615,17 +1732,20 @@ function LiveViewPresentation({ state, history }: { state: LiveStatusState; hist
   // if this transition itself times out — see TRANSITION_TIMEOUT) while
   // guaranteeing the OLD image/card can never render for even one frame.
   //
-  // Gated on uiState === 'live' as well as transitioningRunKey !== null:
-  // TRANSITION_TIMEOUT clears transitioningRunKey and moves uiState to
-  // 'reconnecting' together (see the reducer), so in practice these two
-  // conditions change atomically — but degraded/offline/finished can also
-  // be reached from 'live' via other events without necessarily routing
-  // through TRANSITION_TIMEOUT first (e.g. POLL_OFFLINE also clears
-  // transitioningRunKey, but belt-and-suspenders here means a future state
-  // that reaches this branch with a stale transitioningRunKey still falls
-  // through to the normal per-uiState rendering above instead of getting
-  // stuck on the transition screen.
-  if (uiState === 'live' && state.transitioningRunKey !== null) {
+  // Gated on uiState === 'live' as well as transitionReason !== null: this
+  // covers BOTH transition reasons (run-change and frame-stale — see
+  // transitionReason in lib/live-status.ts) with a single check, since both
+  // share the same TransitionScreen and the same "never show the old
+  // image/card" guarantee. TRANSITION_TIMEOUT clears transitionReason and
+  // moves uiState to 'reconnecting' together (see the reducer), so in
+  // practice these two conditions change atomically — but degraded/
+  // offline/finished can also be reached from 'live' via other events
+  // without necessarily routing through TRANSITION_TIMEOUT first (e.g.
+  // POLL_OFFLINE also clears transitionReason, but belt-and-suspenders here
+  // means a future state that reaches this branch with a stale
+  // transitionReason still falls through to the normal per-uiState
+  // rendering above instead of getting stuck on the transition screen.
+  if (uiState === 'live' && state.transitionReason !== null) {
     return (
       <TransitionScreen
         history={history}
@@ -1649,16 +1769,17 @@ function LiveViewPresentation({ state, history }: { state: LiveStatusState; hist
 }
 
 // Shown in place of the normal circular image + object card while
-// transitioningRunKey is set (see LiveViewPresentation above) — deliberately
-// NOT the old frame's image, per the feature's whole purpose. Reuses the
-// exact .viewer/.sky-square/.rim structure the real live view uses (so the
+// transitionReason is set, for EITHER reason — run-change or frame-stale
+// (see LiveViewPresentation above) — deliberately NOT the old frame's
+// image, per the feature's whole purpose. Reuses the exact
+// .viewer/.sky-square/.rim structure the real live view uses (so the
 // page doesn't visually jump/reflow between transition and live), just with
 // no <img> at all — .sky-square's own dark background IS the "empty
 // telescope frame" the spec asks for — plus the loader and the same
 // rotating moving-phrase copy TransitionCopy already uses for the
 // 'moving' DisplayObject.kind case (astrometryState-driven), so a guest
 // sees the same visual language whether the transition is "new stack run
-// detected" or "telescope reports it's slewing."
+// detected" or "telescope reports it's slewing" or "the feed's gone quiet."
 function TransitionScreen({
   history,
   selectedHistoryRunId,
@@ -1705,7 +1826,7 @@ function TransitionScreen({
       )}
 
       {/* History keeps updating during transition (see /api/status's history
-          field, refreshed on every poll regardless of transitioningRunKey) —
+          field, refreshed on every poll regardless of transitionReason) —
           the new active run shows up as SessionHistoryStrip's own neutral
           "…" settling pill (isDisplayableRun is false until a StackRun gets
           a confident object match), which is exactly the guest-facing signal
