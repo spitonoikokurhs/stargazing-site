@@ -1406,6 +1406,10 @@ function LiveViewPresentation({ state, history }: { state: LiveStatusState; hist
     historyPreloadControllerRef.current?.abort()
     setHistoryPreloadError(null)
     setSelectedHistoryRun(null)
+    // Returning to live should land the guest back at the top, same as
+    // switching TO a history run below — a consistent "the view just
+    // changed, start from the image" behavior in both directions.
+    window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   // The single entry point for every "tap a history pill" interaction,
@@ -1444,6 +1448,11 @@ function LiveViewPresentation({ state, history }: { state: LiveStatusState; hist
       // snapshot rather than a re-derived lookup against the live history
       // array on every render.
       setSelectedHistoryRun(run)
+      // The new object's view should start from the image, same as landing
+      // on the page fresh — without this, a guest who scrolled down into
+      // the previous object's facts/drawer would switch objects while
+      // still scrolled past the image, missing the new photo entirely.
+      window.scrollTo({ top: 0, behavior: 'smooth' })
     } catch {
       if (controller.signal.aborted) return
       setHistoryPreloadError('Image unavailable.')
@@ -1976,6 +1985,22 @@ function LiveFrameView({
     ? displayObjectForHistoryRun(selectedHistoryRun)
     : lastLiveFrame.displayObject
 
+  // Identity key for whichever object is CURRENTLY displayed — a history
+  // run's own StackRun id when browsing, otherwise the live frame's run
+  // key (computeRunKey — the same source+observationId+stackRunStartedAt
+  // identity state-aware-transition already uses elsewhere in this file).
+  // Passed as ObjectDescription's own key below so EnrichedCard fully
+  // remounts (drawer's local `open` state resets to false) whenever the
+  // DISPLAYED object actually changes — a live target transitioning to a
+  // new StackRun, or the guest tapping a different history pill — rather
+  // than leaving a guest's open drawer showing stale content, or worse,
+  // content that no longer matches the object now on screen. A same-object
+  // frame update (same run key) does NOT change this string, so the drawer
+  // correctly stays open/untouched across ordinary polling.
+  const effectiveObjectKey = selectedHistoryRun
+    ? `history:${selectedHistoryRun.id}`
+    : computeRunKey(lastLiveFrame.source, lastLiveFrame.observationId, lastLiveFrame.stackRunStartedAt)
+
   // The heading's actual content AND a flat-text version of the same,
   // computed together so useShrinkTitleToFit (called right below, BEFORE
   // any early return — hooks can't be conditional) has a plain string to
@@ -2208,7 +2233,7 @@ function LiveFrameView({
           <Facts displayObject={effectiveDisplayObject} />
 
           <div className="description">
-            <ObjectDescription displayObject={effectiveDisplayObject} />
+            <ObjectDescription key={effectiveObjectKey} displayObject={effectiveDisplayObject} />
           </div>
         </section>
 
@@ -3241,6 +3266,82 @@ function EnrichedCard({
 }) {
   const { text, visible } = useRotatingPhrase(wowFacts, WOW_FACT_ROTATE_MS)
   const [open, setOpen] = useState(false)
+  // The drawer's own grid wrapper (see .enriched-drawer's grid-template-rows
+  // transition in styles.css) — the transitionend LISTENER attaches here,
+  // since this is the element that actually has the CSS transition. The
+  // scroll TARGET itself is toggleRef below, not this.
+  const drawerRef = useRef<HTMLDivElement>(null)
+  // The toggle button is the scroll anchor in BOTH directions — on open,
+  // pinned as high as possible (block:'start') so "Less about this view"
+  // sits near the top of the viewport with drawer content filling the rest
+  // below it; on close, pinned at the bottom (block:'end') so "More about
+  // this view" (now showing that label again) sits at the bottom edge with
+  // the image/facts/wowfact visible above it. The button's own position
+  // barely moves when the drawer expands/collapses below it (it sits ABOVE
+  // the drawer in DOM order), which is exactly why it's a stable anchor
+  // for both directions rather than the drawer content itself.
+  const toggleRef = useRef<HTMLButtonElement>(null)
+  // Guards against scrolling on mount/unrelated re-renders — this component
+  // remounts fresh (open resets to false) every time the displayed object
+  // changes (see the key= on ObjectDescription's own caller), and a fresh
+  // mount must NEVER trigger a scroll on its own. Only an actual tap on the
+  // toggle button below ever sets this to true.
+  const hasInteractedRef = useRef(false)
+
+  function handleToggle() {
+    hasInteractedRef.current = true
+    setOpen((o) => !o)
+  }
+
+  useEffect(() => {
+    if (!hasInteractedRef.current) return
+    const el = drawerRef.current
+    if (!el) return
+
+    if (!open) {
+      // Closing: the toggle button's position doesn't shift when the
+      // drawer collapses below it (see toggleRef's own doc comment above),
+      // so unlike opening, there's no "still-growing element" to wait
+      // out — an immediate scroll can't overshoot into content that
+      // hasn't collapsed yet, because the button was never moving.
+      toggleRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
+      return
+    }
+
+    // Opening: wait for the grid-template-rows expand transition to
+    // actually finish before scrolling — scrollIntoView measures the
+    // element's CURRENT layout position, and mid-transition that position
+    // is still moving every frame. transitionend is the correct native
+    // signal for "the growth is done, the layout is final now" (rather
+    // than a guessed setTimeout matching the CSS duration, which drifts if
+    // that duration ever changes and isn't kept in sync by hand).
+    //
+    // The timeout fallback (matching .enriched-drawer's own 260ms — see
+    // styles.css) covers the case transitionend never fires at all:
+    // prefers-reduced-motion sets transition:none there, which means no
+    // transition ever starts, so there's nothing to end. Without this
+    // fallback, a reduced-motion guest's "More about this view" tap would
+    // silently never scroll. didScroll + clearing the timeout on whichever
+    // fires first keeps this from double-firing (transitionend AND the
+    // timeout both landing) on a normal-motion device.
+    const drawerEl = el
+    let didScroll = false
+    function scrollToToggle() {
+      if (didScroll) return
+      didScroll = true
+      toggleRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
+    function onTransitionEnd(e: TransitionEvent) {
+      if (e.target !== drawerEl || e.propertyName !== 'grid-template-rows') return
+      scrollToToggle()
+    }
+    drawerEl.addEventListener('transitionend', onTransitionEnd)
+    const fallbackTimer = setTimeout(scrollToToggle, 280)
+    return () => {
+      drawerEl.removeEventListener('transitionend', onTransitionEnd)
+      clearTimeout(fallbackTimer)
+    }
+  }, [open])
 
   return (
     <div className="live-object-desc enriched-card">
@@ -3264,7 +3365,8 @@ function EnrichedCard({
       <button
         type="button"
         className="enriched-drawer-toggle"
-        onClick={() => setOpen((o) => !o)}
+        ref={toggleRef}
+        onClick={handleToggle}
         aria-expanded={open}
       >
         {open ? 'Less about this view' : 'More about this view'}
@@ -3272,8 +3374,14 @@ function EnrichedCard({
           ⌄
         </span>
       </button>
-      {open ? (
-        <div className="enriched-drawer">
+      {/* Always mounted (not a conditional {open ? ... : null}) so the
+          grid-template-rows transition below has something to actually
+          ANIMATE between — the guest sees the drawer grow/shrink at their
+          tap point (item 5) instead of it snapping in/out instantly, and
+          the transitionend listener above has a real transition to listen
+          for in the first place. */}
+      <div className={`enriched-drawer${open ? ' enriched-drawer--open' : ''}`} ref={drawerRef}>
+        <div className="enriched-drawer-inner">
           {drawer.map((section) => (
             <div className="enriched-drawer-section" key={section.heading}>
               <p className="enriched-drawer-heading">
@@ -3289,7 +3397,7 @@ function EnrichedCard({
             </div>
           ))}
         </div>
-      ) : null}
+      </div>
     </div>
   )
 }

@@ -1068,14 +1068,48 @@
 
 /* Expanded drawer — secondary/depth content, so it stays visually quieter
    than the wowFact: smaller heading label (same treatment as .fact span's
-   uppercase micro-label) and body text matching the plain card's own scale. */
+   uppercase micro-label) and body text matching the plain card's own scale.
+   Always mounted now (see EnrichedCard in LiveView.tsx — no longer a
+   conditional {open ? ... : null}), animated open/closed via
+   grid-template-rows: 0fr/1fr — the same to/from-"auto"-height trick used
+   for the topbar's Back to Live row — so the guest actually SEES the
+   drawer grow/shrink at their tap point, and so a transitionend listener
+   has a real transition to fire on (see EnrichedCard's open-scroll
+   timing). border-top/padding-top are on THIS element (not .enriched-
+   drawer-inner) so they fade in/out smoothly as part of the same
+   transition, rather than snapping the instant the row starts growing. */
 .enriched-drawer {
+  display: grid;
+  grid-template-rows: 0fr;
+  margin-top: 0;
+  padding-top: 0;
+  border-top: 1px solid transparent;
+  transition:
+    grid-template-rows 260ms ease,
+    margin-top 260ms ease,
+    padding-top 260ms ease,
+    border-top-color 260ms ease;
+}
+
+.enriched-drawer--open {
+  grid-template-rows: 1fr;
   margin-top: 12px;
   padding-top: 12px;
-  border-top: 1px solid var(--line);
+  border-top-color: var(--line);
+}
+
+.enriched-drawer-inner {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  min-height: 0;
+  overflow: hidden;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .enriched-drawer {
+    transition: none;
+  }
 }
 
 /* Each section cascades in on open — first immediately, each following one
