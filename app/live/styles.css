@@ -545,7 +545,12 @@
 }
 
 .title {
-  margin: 0 auto;
+  /* Top margin only (bottom stays 0, flush against .type-line below) —
+     without it the heading sits almost touching whatever's directly above
+     (SessionHistoryStrip's pills, or MilestoneToggle when there's no
+     history yet), since neither .content nor .title had any top spacing of
+     their own to fall back on beyond .history-strip's OWN 8px top margin. */
+  margin: 14px auto 0;
   max-width: 96%;
   color: #f2eee6;
   font-family: var(--font-display), "Cormorant Garamond", Georgia, "Times New Roman", serif;
@@ -554,30 +559,30 @@
   line-height: 0.92;
   letter-spacing: 0.005em;
   text-wrap: balance;
+  /* Cormorant Garamond's DEFAULT figures are old-style (a "1" is a short
+     stroke that reads as a lowercase "l"/"I" at display size) — fine for
+     running prose, wrong for a catalog id like "M13" a guest might be
+     cross-checking against a star chart (see .title-id below, the only
+     place this actually matters). lining-nums forces normal full-height
+     digits INSIDE THE SAME FONT (Cormorant Garamond supports the lnum
+     OpenType feature), so "M13" and "Hercules" stay visually unified — no
+     font-family swap needed, unlike an earlier version of this fix. */
+  font-variant-numeric: lining-nums;
 }
 
 /* Split heading for a named Messier object (see headingParts in
-   LiveView.tsx) — "M13, Hercules": the catalog id and the proper name read
-   as ONE unified heading, same color/weight, not one dimmed relative to the
-   other. Sized down slightly (0.62em) purely because "M13" is short and a
-   catalog code, not because it's secondary.
-   Deliberately NOT the display serif (Cormorant Garamond) — that face's
-   old-style figures render "1" as a thin stroke that's easy to misread as a
-   lowercase "l"/"I" at this size, exactly wrong for a catalog id a guest
-   might be cross-checking against a star chart. The body sans-serif stack
-   (same one used for UI labels elsewhere — see .content/.type-pill-label)
-   uses lining/tabular figures instead, so "M13" reads unambiguously as
-   M-one-three. */
+   LiveView.tsx) — "M13, Hercules": id and proper name are ONE heading, same
+   font/color/weight throughout (lining-nums on .title above is what fixes
+   the id's digit legibility, not a separate font here). Sized down
+   slightly (0.62em) purely because "M13" is short and a catalog code, not
+   because it's secondary. */
 .title-id {
-  font-family: Inter, Lato, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   font-size: 0.62em;
-  font-weight: 650;
-  font-variant-numeric: tabular-nums lining-nums;
+  font-weight: 600;
 }
 
 .title-id::after {
   content: ", ";
-  font-family: var(--font-display), "Cormorant Garamond", Georgia, "Times New Roman", serif;
 }
 
 .type-line {
