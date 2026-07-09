@@ -2237,7 +2237,7 @@ function LiveFrameView({
           </div>
         </section>
 
-        <SharePanel displayObject={effectiveDisplayObject} />
+        {SHOW_SHARE_PANEL && <SharePanel displayObject={effectiveDisplayObject} />}
       </div>
     </div>
   )
@@ -3633,12 +3633,39 @@ function TransitionCopy({
   )
 }
 
+// Temporarily off — see the SHOW_SHARE_PANEL gate at SharePanel's own call
+// site in LiveFrameView. Implementation (component, icons, CSS) is kept
+// intact, not deleted, so the compact share-dock redesign is ready to
+// re-enable once its follow-up round lands rather than being rebuilt from
+// scratch.
+const SHOW_SHARE_PANEL = false
+
 // Guest share panel. PURELY CLIENT-SIDE, per the confirmed privacy
 // constraint: nothing here leaves the browser as data — the composed
 // auto-line text only ever gets handed to the guest's OWN share sheet / deep
 // link / clipboard. No fetch, no storage, nothing sent to any backend or
 // database. Icon-only: no guest text input at all (an earlier caption/name
 // field was dropped from the design).
+//
+// Compact "share dock" rather than a card — a quiet utility footer row, not
+// a section competing with the object card above it (see .share-dock in
+// styles.css for the lower-contrast/lower-padding treatment vs. the old
+// .share-card 4-tile grid this replaces). Final button set: Share (wide
+// primary pill) + WhatsApp/Instagram/Copy (compact icon buttons).
+//
+// X/Twitter removed entirely — not part of the confirmed final set.
+// Messenger deliberately NOT shipped: there is no reliable web share intent
+// that accepts freeform text the way wa.me does (the fb-messenger:// deep
+// link only fires from specific mobile contexts, and Meta's own web dialog
+// only accepts a bare link, silently dropping the composed line) — shipping
+// it anyway would be exactly the "dead/misleading button" the fallback
+// rules exist to prevent. Instagram has the same no-web-intent limitation,
+// but ships anyway per an explicit confirmed exception: it calls the SAME
+// navigator.share() as the Share button, functioning as a visual shortcut
+// for a guest who specifically wants Instagram rather than a distinct
+// action — so it's gated on navigator.share existing (mobile only; hidden
+// entirely on desktop, where it would be a dead button since there's no
+// share sheet to open).
 function SharePanel({ displayObject }: { displayObject: DisplayObject }) {
   // One random line per POOL, cached for the page's lifetime (not re-rolled
   // on every render or every object change) — "auto-line chosen at random
@@ -3662,6 +3689,17 @@ function SharePanel({ displayObject }: { displayObject: DisplayObject }) {
   }
 
   const [status, setStatus] = useState('')
+  // Feature-detected ONCE per mount, not read directly in JSX — avoids a
+  // hydration mismatch (SSR has no `navigator`) and matches this file's
+  // existing feature-detection-not-UA-sniffing discipline (see
+  // supportsNativeFullscreen's own doc comment). Instagram's button only
+  // ever renders when this is true — see this function's own doc comment
+  // above for why (no web share intent exists for it, so without
+  // navigator.share it would be a dead button).
+  const [canNativeShare, setCanNativeShare] = useState(false)
+  useEffect(() => {
+    setCanNativeShare(typeof navigator !== 'undefined' && typeof navigator.share === 'function')
+  }, [])
 
   async function handleNativeShare() {
     const text = shareText()
@@ -3684,44 +3722,40 @@ function SharePanel({ displayObject }: { displayObject: DisplayObject }) {
     setStatus('')
   }
 
-  function handleX() {
-    const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText())}`
-    window.open(url, '_blank', 'noopener,noreferrer')
-    setStatus('')
-  }
-
   async function handleCopy() {
     try {
       await navigator.clipboard.writeText(shareText())
-      setStatus('Copied.')
+      setStatus('Copied')
     } catch {
       // Clipboard permission denied or unavailable — silently no-op; this is
       // a nice-to-have action, not a critical path.
-      setStatus('Copy unavailable.')
+      setStatus('Copy unavailable')
     }
   }
 
   return (
-    <section className="share-card" aria-label="Share this view">
-      <div className="share-head">
-        <span>Share this view</span>
-      </div>
-      <div className="share-grid">
-        <button type="button" className="share-btn" onClick={handleNativeShare} aria-label="Share">
+    <section className="share-dock" aria-label="Share this view">
+      <div className="share-dock-label">Share this view</div>
+      <div className="share-dock-row">
+        <button type="button" className="share-dock-primary" onClick={handleNativeShare}>
           <ShareIcon />
           <span>Share</span>
         </button>
-        <button type="button" className="share-btn" onClick={handleWhatsApp} aria-label="Share on WhatsApp">
+        <button type="button" className="share-dock-icon" onClick={handleWhatsApp} aria-label="Share on WhatsApp">
           <WhatsAppIcon />
-          <span>WhatsApp</span>
         </button>
-        <button type="button" className="share-btn" onClick={handleX} aria-label="Share on X">
-          <XIcon />
-          <span>X</span>
-        </button>
-        <button type="button" className="share-btn" onClick={handleCopy} aria-label="Copy share text">
+        {canNativeShare && (
+          <button type="button" className="share-dock-icon" onClick={handleNativeShare} aria-label="Share to Instagram">
+            <InstagramIcon />
+          </button>
+        )}
+        <button
+          type="button"
+          className="share-dock-icon share-dock-icon--quiet"
+          onClick={handleCopy}
+          aria-label="Copy share text"
+        >
           <CopyIcon />
-          <span>Copy</span>
         </button>
       </div>
       <div className="share-status" aria-live="polite">
@@ -3731,9 +3765,12 @@ function SharePanel({ displayObject }: { displayObject: DisplayObject }) {
   )
 }
 
-// Small monochrome/dim-gold line icons — no external icon library, kept as
-// inline SVG so there's no extra dependency for four glyphs. currentColor so
-// they inherit .share-btn svg's color (dim gold, brighter on hover).
+// Small monochrome line icons — no external icon library, no icon font, no
+// external requests — kept as inline SVG so there's no extra dependency for
+// these few glyphs. currentColor throughout so each inherits whichever
+// .share-dock-* button color it sits inside (see styles.css) rather than
+// carrying its own fixed color — same pattern TypeIcon's non-gradient
+// glyphs use elsewhere in this file.
 function ShareIcon() {
   return (
     <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
@@ -3754,10 +3791,17 @@ function WhatsAppIcon() {
   )
 }
 
-function XIcon() {
+// Camera-outline glyph (Instagram reference, kept monochrome/currentColor —
+// no brand color fill per the confirmed "no full-color brand logos"
+// constraint). Rounded-square body + circular lens + small viewfinder
+// notch, the same recognizable silhouette Simple Icons' own Instagram mark
+// uses, simplified to plain strokes so it reads cleanly at compact size.
+function InstagramIcon() {
   return (
-    <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor" aria-hidden="true">
-      <path d="M13.9 10.4 21 3h-2.2l-6.2 6.5L7.6 3H3l7.4 10.3L3.3 21h2.2l6.6-6.9 5.4 6.9H22l-8.1-10.6Zm-2.3 2.4-.8-1.1L5 4.6h2l4.9 6.6.8 1.1 6.4 8.7h-2l-5.5-7.2Z" />
+    <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
+      <rect x="3" y="3" width="18" height="18" rx="5" />
+      <circle cx="12" cy="12" r="4.2" />
+      <circle cx="17.2" cy="6.8" r="1" fill="currentColor" stroke="none" />
     </svg>
   )
 }

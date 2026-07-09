@@ -1209,73 +1209,119 @@
   }
 }
 
-/* Share card — lifted from the mockup's .share-card/.share-grid/.share-btn.
-   Only 4 buttons (Share/WhatsApp/X/Copy), NOT the mockup's 5-across
-   Facebook/Messenger/Instagram grid — those can't pre-fill share text. */
-.share-card {
-  margin: 18px auto 0;
+/* Share DOCK — a quiet utility footer row, deliberately NOT another content
+   card. Lower contrast than .live-object-desc/.enriched-card above it (see
+   that rule's own border-alpha ~0.12/background-alpha ~0.05 for comparison
+   — this dock sits noticeably below both), smaller padding, no inset
+   highlight — the goal is "useful chrome," not a fourth section competing
+   for the guest's attention after the object card. */
+.share-dock {
+  margin: 14px auto 0;
   width: min(100%, 540px);
-  padding: 14px;
-  border: 1px solid rgba(237, 234, 227, 0.08);
-  border-radius: 24px;
-  background: rgba(237, 234, 227, 0.038);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035);
+  padding: 10px 12px;
+  border: 1px solid rgba(237, 234, 227, 0.06);
+  border-radius: 18px;
+  background: rgba(237, 234, 227, 0.018);
 }
 
-.share-head {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  margin-bottom: 12px;
-  color: rgba(168, 166, 160, 0.78);
-  font-size: clamp(10px, 2.8vw, 12px);
-  letter-spacing: 0.18em;
+.share-dock-label {
+  margin-bottom: 8px;
+  text-align: center;
+  color: rgba(168, 166, 160, 0.62);
+  font-size: clamp(9px, 2.6vw, 11px);
+  letter-spacing: 0.16em;
   text-transform: uppercase;
 }
 
-.share-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
+.share-dock-row {
+  display: flex;
+  align-items: stretch;
   gap: 8px;
 }
 
-.share-btn {
+/* Share itself — the one PRIMARY action, a wider soft pill (not a filled
+   gold button — see the "avoid gold fill for every button" direction) so
+   it reads as the dock's main affordance without shouting. */
+.share-dock-primary {
   appearance: none;
+  flex: 1 1 auto;
   min-width: 0;
-  min-height: 68px;
-  border: 1px solid rgba(237, 234, 227, 0.08);
-  border-radius: 18px;
-  background: rgba(10, 10, 15, 0.56);
-  color: rgba(237, 234, 227, 0.9);
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 7px;
-  font-size: clamp(10px, 2.8vw, 12px);
-  font-weight: 700;
+  padding: 9px 12px;
+  border: 1px solid rgba(199, 168, 105, 0.22);
+  border-radius: 999px;
+  background: rgba(199, 168, 105, 0.07);
+  color: rgba(237, 234, 227, 0.92);
+  font-size: clamp(11px, 3vw, 13px);
+  font-weight: 650;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
 }
 
-.share-btn svg {
-  width: 24px;
-  height: 24px;
-  display: block;
-  color: rgba(217, 181, 88, 0.75); /* dim gold, monochrome (currentColor) */
+.share-dock-primary svg {
+  width: 17px;
+  height: 17px;
+  flex-shrink: 0;
+  color: var(--gold);
 }
 
-.share-btn:hover svg,
-.share-btn:focus-visible svg {
-  color: #d9b558;
+.share-dock-primary:hover,
+.share-dock-primary:focus-visible {
+  background: rgba(199, 168, 105, 0.13);
+  border-color: rgba(199, 168, 105, 0.35);
+}
+
+/* Platform/utility actions — compact circular icon buttons, deliberately
+   smaller and quieter than the primary pill. Fixed square size (not
+   flex:1) so they stay tight/circular regardless of how many are present
+   (3 vs. 4 depending on whether Instagram's navigator.share gate passes —
+   see SharePanel in LiveView.tsx). */
+.share-dock-icon {
+  appearance: none;
+  flex: 0 0 auto;
+  width: 38px;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(237, 234, 227, 0.09);
+  border-radius: 999px;
+  background: rgba(237, 234, 227, 0.03);
+  color: rgba(237, 234, 227, 0.72);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.share-dock-icon svg {
+  width: 17px;
+  height: 17px;
+  display: block;
+}
+
+.share-dock-icon:hover,
+.share-dock-icon:focus-visible {
+  border-color: rgba(199, 168, 105, 0.3);
+  color: var(--gold);
+}
+
+/* Copy is visually quieter still than the social actions — a supporting
+   utility, not something to give equal visual weight to WhatsApp/Instagram
+   (per the "Copy should be visually quieter than social actions"
+   direction). Dimmer icon color at rest; the shared :hover rule above
+   still lifts it to gold on interaction like every other icon button. */
+.share-dock-icon--quiet {
+  color: rgba(237, 234, 227, 0.48);
 }
 
 .share-status {
-  min-height: 16px;
-  margin-top: 9px;
+  min-height: 14px;
+  margin-top: 7px;
   color: rgba(199, 168, 105, 0.76);
   text-align: center;
-  font-size: 12px;
+  font-size: 11px;
 }
 
 @media (max-width: 360px) {
@@ -1294,19 +1340,20 @@
     padding: 8px 4px;
     min-height: 56px;
   }
-  .share-card {
-    padding: 11px;
+  .share-dock {
+    padding: 9px 10px;
   }
-  .share-grid {
+  .share-dock-row {
     gap: 6px;
   }
-  .share-btn {
-    min-height: 62px;
-    border-radius: 15px;
+  .share-dock-icon {
+    width: 34px;
+    height: 34px;
   }
-  .share-btn svg {
-    width: 21px;
-    height: 21px;
+  .share-dock-icon svg,
+  .share-dock-primary svg {
+    width: 15px;
+    height: 15px;
   }
 }
 
