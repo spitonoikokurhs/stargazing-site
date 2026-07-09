@@ -643,6 +643,16 @@ const MOCK_HISTORY: HistoryEntry[] = [
 
 const CATALOG_BY_ID = new Map((catalogData as { objects: CatalogObject[] }).objects.map((o) => [o.id, o]))
 
+// Reverse lookup for the live heading (see headingParts) — /api/status's
+// objectMatch payload carries the catalog object's primaryName/type but
+// never its id (see resolveObjectMatch in app/api/status/route.ts), so the
+// heading recovers the id client-side from the SAME catalog.json already
+// imported above, rather than widening the wire contract just to send a
+// string the client can already look up locally.
+const CATALOG_ID_BY_NAME = new Map(
+  (catalogData as { objects: CatalogObject[] }).objects.map((o) => [o.primaryName, o.id]),
+)
+
 const KNOWN_DEMOS: Record<
   string,
   {
@@ -1665,8 +1675,31 @@ function LiveFrameView({
           {/* Object name is the topmost element in the content block.
               "Gathered light" now lives only in the topbar (next to
               LIVE/updated) — showing it twice on one screen was redundant,
-              see git history for the removed .integration line. */}
-          <h1 className="title">{objectLabel(lastLiveFrame.displayObject)}</h1>
+              see git history for the removed .integration line.
+              Split via headingParts (not objectLabel's plain name) when
+              kind==='known': a Messier object with a real name heads here as
+              "M13" + "Hercules" (the id small/muted, the name large — see
+              .title-id/.title-sub below), a bare Messier id as "Messier 4"
+              alone — see headingParts' own doc comment for why this differs
+              from objectLabel's (untrimmed) alt-text use. */}
+          <h1 className="title">
+            {lastLiveFrame.displayObject.kind === 'known'
+              ? (() => {
+                  const { lead, sub } = headingParts(
+                    lastLiveFrame.displayObject.name,
+                    lastLiveFrame.displayObject.type,
+                  )
+                  return sub ? (
+                    <>
+                      <span className="title-id">{lead}</span>
+                      <span className="title-sub">{sub}</span>
+                    </>
+                  ) : (
+                    lead
+                  )
+                })()
+              : objectLabel(lastLiveFrame.displayObject)}
+          </h1>
 
           <ObjectTypeLine displayObject={lastLiveFrame.displayObject} />
 
@@ -1978,20 +2011,19 @@ function ObjectTypeLine({ displayObject }: { displayObject: DisplayObject }) {
   if (displayObject.kind !== 'known') return null
   const definition = typeDefinition(displayObject.type)
   const color = typeColor(displayObject.type)
-  // Redundancy guard: if the object's own name already contains the type
-  // string (e.g. "Andromeda Galaxy" + type "Galaxy"), the text label repeats
-  // what the name just said — show the icon alone instead of icon+label.
-  const isRedundant = displayObject.name.toLowerCase().includes(displayObject.type.toLowerCase())
+  // Always shows icon + full type label — the redundancy this used to guard
+  // against (e.g. "Hercules Globular Cluster" heading + "Globular Cluster"
+  // pill both saying the type) is now resolved on the HEADING side instead
+  // (see objectLabel's own trim), so the type pill can stay a single,
+  // uniform shape for every object rather than silently dropping its label
+  // for some.
   return (
     <div className="type-line">
-      <div
-        className={`type-pill${isRedundant ? ' type-pill--icon-only' : ''}`}
-        style={{ '--type-color': color } as React.CSSProperties}
-      >
+      <div className="type-pill" style={{ '--type-color': color } as React.CSSProperties}>
         <span className="type-icon" aria-hidden="true">
           <TypeIcon type={displayObject.type} />
         </span>
-        {isRedundant ? null : <span className="type-pill-label">{displayObject.type}</span>}
+        <span className="type-pill-label">{displayObject.type}</span>
       </div>
       {definition ? <p className="type-pill-definition">{definition}</p> : null}
     </div>
@@ -2658,9 +2690,52 @@ function EnrichedCard({
   )
 }
 
+// A Messier id with no distinctive name of its own — primaryName is either
+// bare ("M65") or just the id plus its own type ("M4 Globular Cluster",
+// which STARTS with "M4" — see the regex). Scoped to Messier ids only:
+// every NGC/named/planet object in the catalog already has a real name
+// (see the catalog survey behind this change), so this pattern is
+// deliberately narrow rather than a general "name starts with the id" rule
+// that could misfire on some future non-Messier id shaped like a prefix.
+const BARE_MESSIER_NAME = /^M\d+(\s|$)/
+
+// Builds the live heading for a known catalog object as { lead, sub } —
+// lead is the large text, sub (if present) renders smaller beside/below it
+// (see the <h1> call site). Only Messier objects get the "M13, Hercules" /
+// "Messier 4" treatment; every other object (NGC ids, named objects,
+// planets, the Moon) keeps its plain catalog name untouched — those don't
+// have the id-echoes-in-the-name pattern this exists to clean up. The type
+// itself is never shown here (redundant with the ObjectTypeLine pill right
+// below), whether the name is split or not.
+function headingParts(name: string, type: string): { lead: string; sub: string | null } {
+  const id = CATALOG_ID_BY_NAME.get(name)
+  if (!id || !/^M\d+$/.test(id)) return { lead: name, sub: null }
+
+  if (BARE_MESSIER_NAME.test(name)) {
+    // No distinctive name beyond the id itself — spell out "Messier N"
+    // rather than leaving a guest looking at a bare catalog code as the
+    // whole heading.
+    return { lead: `Messier ${id.slice(1)}`, sub: null }
+  }
+
+  // Has a real name (e.g. "Hercules Globular Cluster", "Andromeda Galaxy")
+  // — strip the type suffix if the name spells it out verbatim (the type
+  // pill below already says it in full), then pair the id with what's left.
+  const lowerName = name.toLowerCase()
+  const lowerType = type.toLowerCase()
+  const properName = lowerName.endsWith(lowerType) ? name.slice(0, name.length - type.length).trim() : name
+  return { lead: id, sub: properName.length > 0 ? properName : null }
+}
+
 // Guest-facing label for the three display states — see DisplayObject in
 // lib/live-status.ts. "Moving" and "fallback" are deliberately vague/generic:
 // a wrong specific name is worse than an honest "we're not sure yet."
+//
+// Deliberately NOT split via headingParts here: this also backs the
+// telescope image's alt text (see its two call sites), which has no
+// adjacent type pill or heading layout to supply what a bare "M13" or
+// "Messier 4" alone would drop — a screen reader user needs the full
+// descriptive name from the alt text itself.
 function objectLabel(displayObject: DisplayObject): string {
   if (displayObject.kind === 'known') return displayObject.name
   if (displayObject.kind === 'moving') return 'Next object incoming'

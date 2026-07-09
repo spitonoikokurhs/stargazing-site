@@ -556,6 +556,23 @@
   text-wrap: balance;
 }
 
+/* Split heading for a named Messier object (see headingParts in
+   LiveView.tsx) — "M13, Hercules": the catalog id stays present (guests
+   photographing/star-chart-following still see the number they'd look up)
+   but visually secondary to the proper name, which carries the same weight
+   as a plain (non-split) .title. The comma is real text, not decorative —
+   it's what reads naturally as "M13, [also known as] Hercules" alongside a
+   type pill underneath that already supplies "Globular Cluster". */
+.title-id {
+  font-size: 0.55em;
+  font-weight: 500;
+  opacity: 0.68;
+}
+
+.title-id::after {
+  content: ", ";
+}
+
 .type-line {
   display: flex;
   flex-direction: column;
@@ -577,13 +594,6 @@
   border-radius: 999px;
   border: 1px solid color-mix(in srgb, var(--type-color) 55%, transparent);
   background: color-mix(in srgb, var(--type-color) 13%, transparent);
-}
-
-/* Redundancy guard (e.g. name "Andromeda Galaxy" + type "Galaxy"): icon-only,
-   no repeated text label — tighter, symmetric padding since there's no label
-   to balance against. */
-.type-pill--icon-only {
-  padding: 8px;
 }
 
 .type-pill-label {
