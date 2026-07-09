@@ -386,6 +386,7 @@ type DemoMode =
   | 'fallback'
   | 'new-target'
   | 'finished'
+  | 'history-test'
 
 const DEMO_MODES: DemoMode[] = [
   'known',
@@ -400,6 +401,7 @@ const DEMO_MODES: DemoMode[] = [
   'fallback',
   'new-target',
   'finished',
+  'history-test',
 ]
 
 // Stacking-progression milestone marks — see MILESTONE_SECONDS in
@@ -534,7 +536,110 @@ const KNOWN_DEMO_SOURCE: Record<string, { catalogId: string; blobUrl: string; to
   // in demo mode (see isDemo in LiveFrameView) — this entry is purely for
   // reviewing the "just started" object-card content, not the toggle.
   'new-target': { catalogId: 'M20', blobUrl: '/images/nebula-trifid-m20.jpg', totalAccumulatedTime: 22 },
+  // Live object behind the history-test demo (see MOCK_HISTORY below) — just
+  // needs to be a normal known-object card; the point of this demo mode is
+  // the history strip beneath it, not this card itself.
+  'history-test': { catalogId: 'M13', blobUrl: '/images/astro-01.jpg', totalAccumulatedTime: 1860 },
 }
+
+// Pure client-side mock data for ?demo=history-test — reviewing
+// SessionHistoryStrip's two-row wrap (HISTORY_ROW_MAX, see the component)
+// without writing anything to Postgres. Deliberately mixes short catalog ids
+// that print as-is (M13, M27, M31) with the long hyphenated ones
+// (NGC6960-6992, LEO-TRIPLET) that force shortHistoryLabel's name-based
+// fallback — 8 entries total, one more than HISTORY_ROW_MAX, so the strip
+// wraps to a second row of 3. The last entry is the active/current one
+// (matches the demo's own KNOWN_DEMOS['history-test'] = M13 card above).
+const MOCK_HISTORY: HistoryEntry[] = [
+  {
+    id: 'mock-1',
+    objectId: 'M27',
+    objectName: 'Dumbbell Nebula',
+    objectType: 'Planetary Nebula',
+    confidence: 'high',
+    startedAt: '2026-07-09T20:00:00.000Z',
+    endedAt: '2026-07-09T20:12:00.000Z',
+    blobUrl: null,
+    active: false,
+  },
+  {
+    id: 'mock-2',
+    objectId: 'NGC7000',
+    objectName: 'North America Nebula',
+    objectType: 'Diffuse Nebula',
+    confidence: 'high',
+    startedAt: '2026-07-09T20:12:00.000Z',
+    endedAt: '2026-07-09T20:24:00.000Z',
+    blobUrl: null,
+    active: false,
+  },
+  {
+    id: 'mock-3',
+    objectId: 'NGC6960-6992',
+    objectName: 'Veil Nebula',
+    objectType: 'Supernova Remnant',
+    confidence: 'medium',
+    startedAt: '2026-07-09T20:24:00.000Z',
+    endedAt: '2026-07-09T20:36:00.000Z',
+    blobUrl: null,
+    active: false,
+  },
+  {
+    id: 'mock-4',
+    objectId: 'M31',
+    objectName: 'Andromeda Galaxy',
+    objectType: 'Spiral Galaxy',
+    confidence: 'high',
+    startedAt: '2026-07-09T20:36:00.000Z',
+    endedAt: '2026-07-09T20:48:00.000Z',
+    blobUrl: null,
+    active: false,
+  },
+  {
+    id: 'mock-5',
+    objectId: 'LEO-TRIPLET',
+    objectName: 'Leo Triplet',
+    objectType: 'Galaxy Group',
+    confidence: 'medium',
+    startedAt: '2026-07-09T20:48:00.000Z',
+    endedAt: '2026-07-09T21:00:00.000Z',
+    blobUrl: null,
+    active: false,
+  },
+  {
+    id: 'mock-6',
+    objectId: 'M51',
+    objectName: 'Whirlpool Galaxy',
+    objectType: 'Spiral Galaxy',
+    confidence: 'high',
+    startedAt: '2026-07-09T21:00:00.000Z',
+    endedAt: '2026-07-09T21:12:00.000Z',
+    blobUrl: null,
+    active: false,
+  },
+  {
+    id: 'mock-7',
+    objectId: 'M101',
+    objectName: 'Pinwheel Galaxy',
+    objectType: 'Spiral Galaxy',
+    confidence: 'medium',
+    startedAt: '2026-07-09T21:12:00.000Z',
+    endedAt: '2026-07-09T21:24:00.000Z',
+    blobUrl: null,
+    active: false,
+  },
+  {
+    id: 'mock-8',
+    objectId: 'M13',
+    objectName: 'Hercules Globular Cluster',
+    objectType: 'Globular Cluster',
+    confidence: 'high',
+    startedAt: '2026-07-09T21:24:00.000Z',
+    endedAt: null,
+    blobUrl: null,
+    active: true,
+  },
+]
 
 const CATALOG_BY_ID = new Map((catalogData as { objects: CatalogObject[] }).objects.map((o) => [o.id, o]))
 
@@ -645,6 +750,10 @@ function getDemoStatusBody(): StatusResponse | null {
         visualHint: known.visualHint,
         drawer: known.drawer,
       },
+      // Only history-test injects mock history — every other known-* demo
+      // stays history-free so those pages keep reviewing their own card
+      // content in isolation, undistracted by a strip underneath.
+      ...(mode === 'history-test' ? { history: MOCK_HISTORY } : {}),
     }
   }
   if (mode === 'moving') {
