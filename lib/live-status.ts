@@ -107,27 +107,59 @@ export type LiveStatusState = {
   consecutiveFailures: number
   lastOfflinePayload: OfflinePayload | null
   finishedInfo: FinishedInfo | null
-  // Set when a live poll reports a run key (source+observationId+
-  // stackRunStartedAt) that differs from lastLiveFrame's own run key —
-  // "the telescope has moved on to a new stack run, but we haven't shown a
-  // frame from it yet." While set, LiveView suppresses the OLD frame's
-  // image/card and shows the moving/transition copy instead — see
-  // POLL_RUN_TRANSITIONING and POLL_LIVE_IMAGE_LOADED below. Deliberately
-  // NOT implemented by clearing lastLiveFrame itself: reconnecting's own
-  // "keep showing the last known frame through a transient network blip"
-  // contract needs lastLiveFrame to stay intact underneath, since a
-  // transition can still degrade into a real connectivity problem (see
-  // transitionStartedAt below) and reconnecting/degraded must have
-  // something to fall back to.
+  // Which KIND of transition is active, if any — the single source of truth
+  // for "is a transition showing right now," checked by render/poll-loop
+  // code instead of transitioningRunKey/transitioningFrameId directly (see
+  // those fields' own doc comments for why they're each only meaningful
+  // under ONE of these two reasons, never both at once):
+  //   'run-change' — the telescope moved to a new stack run, but no frame
+  //     from it has been shown yet. Waits for a SPECIFIC run key.
+  //   'frame-stale' — the CURRENTLY displayed frame is simply too old
+  //     (production logs showed 1.5-2.5 min real slew gaps with zero
+  //     transition screens shown, because run-change alone only fires once
+  //     the new run's stackRunStartedAt appears — which happens at the same
+  //     moment as its first frame, not before). Waits for ANY fresher
+  //     frame, including one from the SAME stack run (e.g. a slow upload
+  //     cycle) — see transitioningFrameId's own doc comment for why this is
+  //     a deliberately different waiting-semantics than run-change.
+  // Never both at once — POLL_FRAME_STALE no-ops if a run-change transition
+  // is already in progress (see that case below), and POLL_RUN_TRANSITIONING
+  // always wins by simply overwriting whichever reason was active.
+  transitionReason: 'run-change' | 'frame-stale' | null
+  // Meaningful ONLY when transitionReason === 'run-change'. Set when a live
+  // poll reports a run key (source+observationId+stackRunStartedAt) that
+  // differs from lastLiveFrame's own run key — "the telescope has moved on
+  // to a new stack run, but we haven't shown a frame from it yet." While
+  // set, LiveView suppresses the OLD frame's image/card and shows the
+  // moving/transition copy instead — see POLL_RUN_TRANSITIONING and
+  // POLL_LIVE_IMAGE_LOADED below. Deliberately NOT implemented by clearing
+  // lastLiveFrame itself: reconnecting's own "keep showing the last known
+  // frame through a transient network blip" contract needs lastLiveFrame to
+  // stay intact underneath, since a transition can still degrade into a
+  // real connectivity problem (see transitionStartedAt below) and
+  // reconnecting/degraded must have something to fall back to.
   transitioningRunKey: string | null
-  // Date.now() when transitioningRunKey was FIRST set to its current value
-  // — restarted (not accumulated) if a newer run key supersedes an
-  // in-progress transition before it resolves, since waiting is only ever
-  // for "the latest known run," never a stale one. Used by LiveView's
+  // Meaningful ONLY when transitionReason === 'frame-stale'. The frameId of
+  // the frame that was on screen when staleness was detected — recorded so
+  // LiveView's defensive guard (see POLL_FRAME_STALE below) can ignore a
+  // stray stale-timer firing for a frame that isn't displayed anymore (e.g.
+  // a frame already promoted via a different path between the timer
+  // scheduling its dispatch and it actually firing). Unlike
+  // transitioningRunKey, this is NOT "the thing we're waiting for" — a
+  // frame-stale transition accepts ANY successfully preloaded fresher
+  // frame to exit (see LiveView's preload guard), including one belonging
+  // to the SAME stack run as this id. It exists purely to validate the
+  // dispatch is still relevant, not to gate what can resolve it.
+  transitioningFrameId: string | null
+  // Date.now() when the CURRENT transition (whichever reason) first began —
+  // restarted (not accumulated) if a newer run key supersedes an
+  // in-progress run-change transition before it resolves, since waiting is
+  // only ever for "the latest known run," never a stale one. Shared across
+  // both reasons (only one is ever active at a time) — used by LiveView's
   // timeout check to fall through to reconnecting/offline after 5 minutes
-  // with no displayable frame for the transitioning run (see
-  // TRANSITION_GIVE_UP_MS) — a stuck transition must not leave the guest
-  // staring at "next object incoming" forever.
+  // with no displayable frame (see TRANSITION_GIVE_UP_MS) — a stuck
+  // transition must not leave the guest staring at "next object incoming"
+  // forever, regardless of which reason produced it.
   transitionStartedAt: number | null
   // Set by TRANSITION_TIMEOUT to the run key that just gave up waiting —
   // NOT cleared afterward like transitioningRunKey normally would be,
@@ -143,6 +175,12 @@ export type LiveStatusState = {
   // triggers a normal transition. Cleared whenever a frame legitimately
   // promotes to live (POLL_LIVE_IMAGE_LOADED) or the feed goes offline/
   // finishes, so a future stall can be suppressed again independently.
+  //
+  // Deliberately run-change ONLY — a frame-stale timeout has no equivalent
+  // "stuck on the identical value forever" failure mode to guard against
+  // (the next poll's frame.frameId is naturally different data each time
+  // regardless of staleness), so TRANSITION_TIMEOUT's frame-stale branch
+  // never touches this field.
   suppressedRunKey: string | null
 }
 
@@ -154,7 +192,9 @@ export const initialLiveStatusState: LiveStatusState = {
   consecutiveFailures: 0,
   lastOfflinePayload: null,
   finishedInfo: null,
+  transitionReason: null,
   transitioningRunKey: null,
+  transitioningFrameId: null,
   transitionStartedAt: null,
   suppressedRunKey: null,
 }
@@ -191,13 +231,27 @@ export type LiveStatusEvent =
   // transitionStartedAt (see the reducer case) — only the latest run is
   // ever waited on.
   | { type: 'POLL_RUN_TRANSITIONING'; runKey: string }
+  // Dispatched by LiveView's OWN wall-clock timer (not the poll cycle —
+  // see FRAME_STALE_CHECK_MS in LiveView.tsx) when the currently displayed
+  // frame's ingestedAt crosses FRAME_STALE_AFTER_MS while uiState==='live'.
+  // frameId is the CURRENTLY displayed frame at the moment the timer fired
+  // — the reducer uses it as a defensive guard (see the case below) against
+  // a stray firing for a frame that isn't displayed anymore. A no-op if a
+  // transition (either reason) is already active — staleness only ever
+  // STARTS a transition, it never interrupts/overrides an in-progress one
+  // (a run-change already means the guest is correctly seeing "next object
+  // incoming"; re-flagging the same situation as "stale" underneath it
+  // would be redundant, not additive).
+  | { type: 'POLL_FRAME_STALE'; frameId: string }
   // A transition has been waiting TRANSITION_GIVE_UP_MS with no displayable
-  // frame for transitioningRunKey — falls through to reconnecting so the
-  // guest sees a real "trying to reconnect" state instead of an indefinite
-  // "next object incoming." Only meaningful while actually transitioning; a
-  // no-op guard in the reducer (same pattern as RECONNECT_TIMEOUT) so a
-  // stray timer firing after the transition already resolved can't corrupt
-  // anything.
+  // frame — falls through to reconnecting so the guest sees a real "trying
+  // to reconnect" state instead of an indefinite "next object incoming."
+  // Only meaningful while actually transitioning; a no-op guard in the
+  // reducer (same pattern as RECONNECT_TIMEOUT) so a stray timer firing
+  // after the transition already resolved can't corrupt anything. Branches
+  // internally on transitionReason — see the case below — since run-change
+  // and frame-stale exit through different fields (suppressedRunKey is
+  // run-change only, see that field's own doc comment).
   | { type: 'TRANSITION_TIMEOUT' }
 // FOCUS_VISIBLE / HIDDEN are not reducer events: per the transition table both
 // are "any state -> same state" (HIDDEN also stops the poll scheduler, and
@@ -208,7 +262,7 @@ export type LiveStatusEvent =
 const RECONNECT_AFTER_FAILURES = 2 // live -> reconnecting on the 2nd consecutive failure
 const GIVE_UP_AFTER_FAILURES = 4 // reconnecting -> degraded on the 4th consecutive failure
 const GIVE_UP_AFTER_MS = 45 * 1000 // ...or 45s since the last confirmed-live payload, whichever first
-const TRANSITION_GIVE_UP_MS = 5 * 60 * 1000 // a transition waiting this long with no displayable frame for its run falls through to reconnecting
+const TRANSITION_GIVE_UP_MS = 5 * 60 * 1000 // a transition waiting this long with no displayable frame falls through to reconnecting
 
 function deriveOfflineState(payload: OfflinePayload): UiState {
   if (payload.tonight?.cancelled) return 'offline-cancelled'
@@ -236,16 +290,19 @@ export function liveStatusReducer(state: LiveStatusState, event: LiveStatusEvent
       // Applies uniformly from checking/live/reconnecting/any-offline/degraded:
       // a confirmed image load always wins and clears the failure count.
       //
-      // transitioningRunKey clears ONLY if this frame belongs to the run
-      // being waited on (or there was no transition in progress at all) —
-      // LiveView computes the frame's own run key via computeRunKey and
-      // compares it itself before dispatching (see LiveView.tsx), so by the
-      // time this event arrives it has already been confirmed to match. A
-      // stale, late-resolving preload for an EARLIER run that a newer
-      // transition has since superseded is caught upstream in LiveView (the
-      // preload's own promise result is simply never dispatched in that
-      // case) — this reducer case doesn't need its own re-check because the
-      // event contract guarantees it.
+      // transitionReason/transitioningRunKey/transitioningFrameId ALL clear
+      // unconditionally here, regardless of which reason (if any) was
+      // active — this is correct BECAUSE the accept/reject decision already
+      // happened upstream in LiveView before this event was ever dispatched
+      // (see the poll loop's preload guard): for a run-change transition,
+      // only a frame matching the awaited runKey gets dispatched at all; for
+      // a frame-stale transition, ANY successfully preloaded frame with a
+      // different frameId does (including one from the SAME stack run — the
+      // whole point of frame-stale is "prove the feed is alive with
+      // anything fresher," not "wait for a specific run"). By the time this
+      // reducer case runs, the frame it received has already been confirmed
+      // acceptable for whichever reason was active — nothing left to
+      // re-check here, same as before this feature existed.
       return {
         ...state,
         uiState: 'live',
@@ -253,7 +310,9 @@ export function liveStatusReducer(state: LiveStatusState, event: LiveStatusEvent
         lastStatusAt: now,
         lastLiveStatusAt: now,
         consecutiveFailures: 0,
+        transitionReason: null,
         transitioningRunKey: null,
+        transitioningFrameId: null,
         transitionStartedAt: null,
         suppressedRunKey: null,
       }
@@ -267,11 +326,18 @@ export function liveStatusReducer(state: LiveStatusState, event: LiveStatusEvent
       // waiting for the CURRENT best-known run," never a stale one. If
       // LiveView redispatches with the SAME runKey it's already waiting on
       // (e.g. a redundant poll), this is a no-op — the clock must not
-      // reset on every single poll of an already-known transition.
-      if (state.transitioningRunKey === event.runKey) return state
+      // reset on every single poll of an already-known transition. Also
+      // ALWAYS wins over an in-progress frame-stale transition — a genuine
+      // run change is strictly more informative than "the old frame was
+      // just old," so it supersedes rather than being blocked by it (unlike
+      // POLL_FRAME_STALE below, which defers to an existing transition of
+      // EITHER reason instead of overriding it).
+      if (state.transitionReason === 'run-change' && state.transitioningRunKey === event.runKey) return state
       return {
         ...state,
+        transitionReason: 'run-change',
         transitioningRunKey: event.runKey,
+        transitioningFrameId: null,
         transitionStartedAt: now,
         // A genuinely new transition means whatever run suppressedRunKey
         // was holding onto (from an earlier TRANSITION_TIMEOUT) has been
@@ -285,6 +351,25 @@ export function liveStatusReducer(state: LiveStatusState, event: LiveStatusEvent
       }
     }
 
+    case 'POLL_FRAME_STALE': {
+      // No-op if a transition of EITHER reason is already active — staleness
+      // only ever STARTS a transition, never interrupts/overrides one (see
+      // this event's own doc comment above). Also a no-op if the frame that
+      // went stale isn't the one currently displayed — a defensive guard
+      // against a stray dispatch racing a frame change (e.g. the timer's
+      // setTimeout callback was already queued when a fresh frame promoted
+      // via the normal poll path a moment earlier).
+      if (state.transitionReason !== null) return state
+      if (state.lastLiveFrame?.frameId !== event.frameId) return state
+      return {
+        ...state,
+        transitionReason: 'frame-stale',
+        transitioningFrameId: event.frameId,
+        transitioningRunKey: null,
+        transitionStartedAt: now,
+      }
+    }
+
     case 'TRANSITION_TIMEOUT': {
       // No-op guard, same pattern as RECONNECT_TIMEOUT below: only
       // meaningful while a transition is actually in progress, so a stray
@@ -294,30 +379,42 @@ export function liveStatusReducer(state: LiveStatusState, event: LiveStatusEvent
       // transitionStartedAt — LiveView's own timer fires this every second
       // (same polling-independent pattern as RECONNECT_TIMEOUT), so most
       // firings during a normal, resolving transition are expected no-ops.
-      if (state.transitioningRunKey === null || state.transitionStartedAt === null) return state
+      if (state.transitionReason === null || state.transitionStartedAt === null) return state
       if (now - state.transitionStartedAt < TRANSITION_GIVE_UP_MS) return state
       // Route through the SAME failure-escalation path a real connectivity
       // problem would, rather than inventing a separate outcome — from the
       // guest's perspective "we've been waiting 5 minutes with nothing to
-      // show" should look identical whether the cause was network trouble
-      // or a stuck transition.
+      // show" should look identical whether the cause was network trouble,
+      // a stuck run-change transition, or a stuck frame-stale transition.
       //
-      // transitioningRunKey IS cleared here (unlike an earlier version of
-      // this case) so LiveViewPresentation's uiState==='live' &&
-      // transitioningRunKey!==null render gate stops matching and
-      // TransitionScreen actually gives way to the normal reconnecting UI —
-      // otherwise the guest would be stuck looking at "next object
-      // incoming" forever despite uiState having moved on. The run key
-      // that just gave up is remembered in suppressedRunKey instead, so
-      // that if the server keeps reporting this SAME stuck run on the next
-      // poll, LiveView won't immediately recompute the identical
+      // transitionReason/transitioningRunKey/transitioningFrameId are ALL
+      // cleared here (unlike an earlier version of this case) so
+      // LiveViewPresentation's uiState==='live' && transitionReason!==null
+      // render gate stops matching and TransitionScreen actually gives way
+      // to the normal reconnecting UI — otherwise the guest would be stuck
+      // looking at "next object incoming" forever despite uiState having
+      // moved on.
+      //
+      // suppressedRunKey is set ONLY for the run-change reason — see that
+      // field's own doc comment for why a frame-stale timeout has no
+      // equivalent "stuck on the same value" failure mode to guard against.
+      // For run-change, the run key that just gave up is remembered there
+      // so that if the server keeps reporting this SAME stuck run on the
+      // next poll, LiveView won't immediately recompute the identical
       // "incoming != displayed" mismatch and re-dispatch
       // POLL_RUN_TRANSITIONING right back into transition. A frame for the
       // suppressed run arriving late can still promote directly via
       // POLL_LIVE_IMAGE_LOADED (which clears suppressedRunKey too) — this
       // only suppresses re-ENTERING the transition screen, not accepting
       // the frame if it shows up.
-      return { ...state, uiState: 'reconnecting', transitioningRunKey: null, suppressedRunKey: state.transitioningRunKey }
+      return {
+        ...state,
+        uiState: 'reconnecting',
+        transitionReason: null,
+        transitioningRunKey: null,
+        transitioningFrameId: null,
+        suppressedRunKey: state.transitionReason === 'run-change' ? state.transitioningRunKey : state.suppressedRunKey,
+      }
     }
 
     case 'POLL_LIVE_IMAGE_FAILED': {
@@ -338,16 +435,19 @@ export function liveStatusReducer(state: LiveStatusState, event: LiveStatusEvent
     case 'POLL_OFFLINE': {
       // A valid live:false response always wins over client-side grace —
       // reachable from every state, including straight out of live/reconnecting.
-      // transitioningRunKey/transitionStartedAt clear here too: whatever run
-      // the guest was waiting on is moot once the feed itself is confirmed
-      // offline — resuming later starts a fresh transition, if any.
+      // transitionReason/transitioningRunKey/transitioningFrameId/
+      // transitionStartedAt all clear here too: whatever the guest was
+      // waiting on (either reason) is moot once the feed itself is
+      // confirmed offline — resuming later starts a fresh transition, if any.
       return {
         ...state,
         uiState: deriveOfflineState(event.payload),
         lastStatusAt: now,
         consecutiveFailures: 0,
         lastOfflinePayload: event.payload,
+        transitionReason: null,
         transitioningRunKey: null,
+        transitioningFrameId: null,
         transitionStartedAt: null,
         suppressedRunKey: null,
       }
@@ -366,7 +466,9 @@ export function liveStatusReducer(state: LiveStatusState, event: LiveStatusEvent
         lastStatusAt: now,
         consecutiveFailures: 0,
         finishedInfo: event.payload,
+        transitionReason: null,
         transitioningRunKey: null,
+        transitioningFrameId: null,
         transitionStartedAt: null,
         suppressedRunKey: null,
       }
@@ -384,7 +486,9 @@ export function liveStatusReducer(state: LiveStatusState, event: LiveStatusEvent
         uiState: 'special-event-finished',
         lastStatusAt: now,
         consecutiveFailures: 0,
+        transitionReason: null,
         transitioningRunKey: null,
+        transitioningFrameId: null,
         transitionStartedAt: null,
         suppressedRunKey: null,
       }

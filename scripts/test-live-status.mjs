@@ -328,6 +328,276 @@ function frameForRun(overrides) {
   assert('a preload for the CURRENTLY-awaited run is NOT dropped by the same guard', shouldDropCurrentPreload === false)
 }
 
+// =============================================================================
+// Frame-staleness transition trigger (transitionReason: 'frame-stale') —
+// a SECOND, distinct reason a TransitionScreen can show, alongside the
+// existing 'run-change' reason above. Added because in production the
+// run-change trigger only fires the moment a new stack run's FIRST frame
+// already exists — real slews (1.5-2.5 min observed) show the guest a
+// stale image the entire time with no transition screen. See
+// transitionReason/transitioningFrameId in lib/live-status.ts.
+// =============================================================================
+
+// --- Test 10: run-change behavior is completely unchanged by the new
+//     transitionReason field — re-run of test 1/2's exact assertions,
+//     but also checking transitionReason directly (regression check). ---
+{
+  let state = liveStatusReducer(initialLiveStatusState, {
+    type: 'POLL_LIVE_IMAGE_LOADED',
+    frame: frameForRun({}),
+    loadedAt: 1000,
+  })
+  assert('regression: transitionReason starts null after a normal live promotion', state.transitionReason === null)
+
+  const newRunKey = 'pegasus:obs-1:2026-07-09T20:10:00.000Z'
+  state = liveStatusReducer(state, { type: 'POLL_RUN_TRANSITIONING', runKey: newRunKey })
+  assert('regression: POLL_RUN_TRANSITIONING sets transitionReason to run-change', state.transitionReason === 'run-change')
+  assert('regression: transitioningRunKey still set exactly as before', state.transitioningRunKey === newRunKey)
+  assert('regression: transitioningFrameId stays null for a run-change transition', state.transitioningFrameId === null)
+
+  state = liveStatusReducer(state, {
+    type: 'POLL_LIVE_IMAGE_LOADED',
+    frame: frameForRun({
+      frameId: 'frame-2',
+      objectName: 'M57',
+      displayObject: knownDisplayObject('M57'),
+      stackRunStartedAt: '2026-07-09T20:10:00.000Z',
+    }),
+    loadedAt: 2000,
+  })
+  assert('regression: new run promotes to live, transitionReason clears', state.uiState === 'live' && state.transitionReason === null)
+  assert('regression: transitioningRunKey clears on successful promotion', state.transitioningRunKey === null)
+}
+
+// --- Test 11: frame-stale starts from a stale ingestedAt after the
+//     threshold — models LiveView's own timer dispatch directly: it
+//     dispatches POLL_FRAME_STALE with the currently-displayed frameId once
+//     Date.now() - new Date(lastLiveFrame.ingestedAt).getTime() crosses
+//     FRAME_STALE_AFTER_MS. The reducer itself doesn't compute age (that's
+//     LiveView's job, per the pure-reducer rule) — it just needs to accept
+//     the event and transition into frame-stale correctly. ---
+{
+  let state = liveStatusReducer(initialLiveStatusState, {
+    type: 'POLL_LIVE_IMAGE_LOADED',
+    frame: frameForRun({ frameId: 'frame-1' }),
+    loadedAt: 1000,
+  })
+  assert('setup: live with frame-1, no transition active', state.uiState === 'live' && state.transitionReason === null)
+
+  state = liveStatusReducer(state, { type: 'POLL_FRAME_STALE', frameId: 'frame-1' })
+  assert('POLL_FRAME_STALE sets transitionReason to frame-stale', state.transitionReason === 'frame-stale')
+  assert('transitioningFrameId is set to the stale frame\'s id', state.transitioningFrameId === 'frame-1')
+  assert('transitioningRunKey stays null for a frame-stale transition (not overloaded)', state.transitioningRunKey === null)
+  assert('transitionStartedAt is set (shares the same give-up clock as run-change)', typeof state.transitionStartedAt === 'number')
+  assert('uiState stays live — same as run-change, the render layer gates on transitionReason, not uiState', state.uiState === 'live')
+  assert('lastLiveFrame is untouched — still frame-1, available for reconnecting to fall back on', state.lastLiveFrame?.frameId === 'frame-1')
+}
+
+// --- Test 12 (CORE ACCEPTANCE TEST): a stale transition starts on frame A;
+//     when frame B arrives for the SAME stackRun, it must preload and
+//     return to live immediately. This is the entire point of frame-stale
+//     being distinct from run-change: run-change's guard only accepts a
+//     frame matching a SPECIFIC awaited runKey, but frame-stale must accept
+//     ANY fresher frame, including one from the identical stack run. Models
+//     LiveView's post-preload guard directly (see its branch on
+//     transitionReason in the poll loop). ---
+{
+  let state = liveStatusReducer(initialLiveStatusState, {
+    type: 'POLL_LIVE_IMAGE_LOADED',
+    frame: frameForRun({ frameId: 'frame-A', stackRunStartedAt: 'run-1' }),
+    loadedAt: 1000,
+  })
+  state = liveStatusReducer(state, { type: 'POLL_FRAME_STALE', frameId: 'frame-A' })
+  assert('setup: frame-stale active on frame-A', state.transitionReason === 'frame-stale' && state.transitioningFrameId === 'frame-A')
+
+  // LiveView's post-preload guard for frame-stale: accept unless
+  // lastLiveFrame already shows this exact frameId (see lib/live-status.ts
+  // POLL_FRAME_STALE / LiveView.tsx's branch — frame-stale has no specific
+  // run key to check, only "is this actually a different, newer frame").
+  const incomingFrameId = 'frame-B'
+  const shouldDropFrameStalePreload = state.lastLiveFrame?.frameId === incomingFrameId
+  assert('a same-stackRun frame-B is NOT dropped by the frame-stale guard (core acceptance test)', shouldDropFrameStalePreload === false)
+
+  state = liveStatusReducer(state, {
+    type: 'POLL_LIVE_IMAGE_LOADED',
+    frame: frameForRun({ frameId: 'frame-B', stackRunStartedAt: 'run-1' }),
+    loadedAt: 2000,
+  })
+  assert('frame-B (same stackRun) promotes to live', state.uiState === 'live' && state.lastLiveFrame?.frameId === 'frame-B')
+  assert('transitionReason clears once frame-B promotes', state.transitionReason === null)
+  assert('transitioningFrameId clears once frame-B promotes', state.transitioningFrameId === null)
+}
+
+// --- Test 13: contrast with test 12 — the run-change guard is UNCHANGED
+//     and still only accepts a frame matching the specific awaited runKey,
+//     even though frame-stale (test 12) now accepts any same-run frame.
+//     Confirms the two reasons genuinely diverge in the guard, not just in
+//     name. ---
+{
+  let state = liveStatusReducer(initialLiveStatusState, {
+    type: 'POLL_LIVE_IMAGE_LOADED',
+    frame: frameForRun({ frameId: 'frame-A', stackRunStartedAt: 'run-1' }),
+    loadedAt: 1000,
+  })
+  const awaitedRunKey = 'pegasus:obs-1:run-2'
+  state = liveStatusReducer(state, { type: 'POLL_RUN_TRANSITIONING', runKey: awaitedRunKey })
+
+  // A frame from the OLD run (run-1) resolves its preload while run-change
+  // is waiting specifically on run-2 — must be dropped, unlike frame-stale.
+  const incomingRunKeyForOldRunFrame = 'pegasus:obs-1:run-1'
+  const shouldDropRunChangePreload = state.transitioningRunKey !== incomingRunKeyForOldRunFrame
+  assert('run-change guard still drops a same-run-as-before frame that doesn\'t match the awaited key (unchanged)', shouldDropRunChangePreload === true)
+}
+
+// --- Test 14: a genuinely new stackRun arriving during a frame-stale
+//     transition exits via the EXISTING run-change path, not the
+//     frame-stale path — POLL_RUN_TRANSITIONING unconditionally overwrites
+//     transitionReason regardless of what it was before (see its own
+//     comment: "ALWAYS wins over an in-progress frame-stale transition"). ---
+{
+  let state = liveStatusReducer(initialLiveStatusState, {
+    type: 'POLL_LIVE_IMAGE_LOADED',
+    frame: frameForRun({ frameId: 'frame-A', stackRunStartedAt: 'run-1' }),
+    loadedAt: 1000,
+  })
+  state = liveStatusReducer(state, { type: 'POLL_FRAME_STALE', frameId: 'frame-A' })
+  assert('setup: frame-stale active', state.transitionReason === 'frame-stale')
+
+  const newRunKey = 'pegasus:obs-1:run-2'
+  state = liveStatusReducer(state, { type: 'POLL_RUN_TRANSITIONING', runKey: newRunKey })
+  assert('a genuine run change supersedes an in-progress frame-stale transition', state.transitionReason === 'run-change')
+  assert('transitioningRunKey is now set to the new run', state.transitioningRunKey === newRunKey)
+  assert('transitioningFrameId is cleared — no longer meaningful once reason is run-change', state.transitioningFrameId === null)
+
+  // The new run's frame then promotes via the ordinary run-change path.
+  state = liveStatusReducer(state, {
+    type: 'POLL_LIVE_IMAGE_LOADED',
+    frame: frameForRun({ frameId: 'frame-C', stackRunStartedAt: 'run-2' }),
+    loadedAt: 3000,
+  })
+  assert('the new run\'s frame promotes to live via the unchanged run-change path', state.uiState === 'live' && state.lastLiveFrame?.frameId === 'frame-C')
+}
+
+// --- Test 15: frame-stale timeout falls through to reconnecting after the
+//     same 5-minute give-up clock as run-change, but WITHOUT setting
+//     suppressedRunKey — that concept is run-change-only (a frame id has no
+//     "stuck on the identical value forever" failure mode the way a run key
+//     does). ---
+{
+  let state = liveStatusReducer(initialLiveStatusState, {
+    type: 'POLL_LIVE_IMAGE_LOADED',
+    frame: frameForRun({ frameId: 'frame-A' }),
+    loadedAt: 1000,
+  })
+  state = liveStatusReducer(state, { type: 'POLL_FRAME_STALE', frameId: 'frame-A' })
+
+  const afterStaleStart = liveStatusReducer(state, { type: 'TRANSITION_TIMEOUT' })
+  assert('TRANSITION_TIMEOUT immediately after starting is a no-op for frame-stale too (well under 5 min)', afterStaleStart.uiState === 'live')
+  assert('transitionReason untouched by the no-op case', afterStaleStart.transitionReason === 'frame-stale')
+
+  const backdated = { ...state, transitionStartedAt: Date.now() - 6 * 60 * 1000 }
+  const timedOut = liveStatusReducer(backdated, { type: 'TRANSITION_TIMEOUT' })
+  assert('TRANSITION_TIMEOUT after 5+ min falls through to reconnecting for frame-stale too', timedOut.uiState === 'reconnecting')
+  assert('transitionReason clears on timeout', timedOut.transitionReason === null)
+  assert('transitioningFrameId clears on timeout', timedOut.transitioningFrameId === null)
+  assert(
+    'suppressedRunKey is NOT set by a frame-stale timeout — that concept is run-change only',
+    timedOut.suppressedRunKey === null,
+  )
+}
+
+// --- Test 15b: frame-stale timeout must not clobber a suppressedRunKey
+//     that was ALREADY set by an earlier, unrelated run-change timeout —
+//     the reducer's ternary passes through the existing value rather than
+//     force-nulling it, so an unrelated suppression survives. ---
+{
+  let state = liveStatusReducer(initialLiveStatusState, {
+    type: 'POLL_LIVE_IMAGE_LOADED',
+    frame: frameForRun({ frameId: 'frame-A' }),
+    loadedAt: 1000,
+  })
+  // Directly construct a state as if an earlier run-change timeout already
+  // left a suppressedRunKey behind, and a fresh frame-stale transition has
+  // now started on top of that (both are legitimately independent facts
+  // about the state at the same moment).
+  state = { ...state, suppressedRunKey: 'pegasus:obs-1:earlier-stuck-run' }
+  state = liveStatusReducer(state, { type: 'POLL_FRAME_STALE', frameId: 'frame-A' })
+  const backdated = { ...state, transitionStartedAt: Date.now() - 6 * 60 * 1000 }
+  const timedOut = liveStatusReducer(backdated, { type: 'TRANSITION_TIMEOUT' })
+  assert(
+    'a frame-stale timeout passes through a pre-existing suppressedRunKey unchanged, rather than clearing it',
+    timedOut.suppressedRunKey === 'pegasus:obs-1:earlier-stuck-run',
+  )
+}
+
+// --- Test 16: a POLL_FRAME_STALE event for a frame that's no longer
+//     displayed is ignored (defensive guard) — models the race where the
+//     timer's setTimeout callback was already queued when a fresh frame
+//     promoted via the normal poll path a moment earlier. ---
+{
+  let state = liveStatusReducer(initialLiveStatusState, {
+    type: 'POLL_LIVE_IMAGE_LOADED',
+    frame: frameForRun({ frameId: 'frame-A' }),
+    loadedAt: 1000,
+  })
+  // A fresher frame already promoted (e.g. via a normal poll) before the
+  // stale-timer's queued callback for the OLD frame-A gets to run.
+  state = liveStatusReducer(state, {
+    type: 'POLL_LIVE_IMAGE_LOADED',
+    frame: frameForRun({ frameId: 'frame-B' }),
+    loadedAt: 2000,
+  })
+  const stale = liveStatusReducer(state, { type: 'POLL_FRAME_STALE', frameId: 'frame-A' })
+  assert('a stale event for a frame that is no longer displayed is a no-op', stale === state)
+  assert('transitionReason stays null — no transition started for a frame nobody is looking at anymore', stale.transitionReason === null)
+}
+
+// --- Test 17: POLL_FRAME_STALE no-ops if a transition of EITHER reason is
+//     already active — staleness only ever STARTS a transition, never
+//     interrupts one already in progress (unlike POLL_RUN_TRANSITIONING,
+//     which always wins). ---
+{
+  let state = liveStatusReducer(initialLiveStatusState, {
+    type: 'POLL_LIVE_IMAGE_LOADED',
+    frame: frameForRun({ frameId: 'frame-A' }),
+    loadedAt: 1000,
+  })
+  state = liveStatusReducer(state, { type: 'POLL_RUN_TRANSITIONING', runKey: 'pegasus:obs-1:new' })
+  assert('setup: run-change transition active', state.transitionReason === 'run-change')
+
+  const afterStaleAttempt = liveStatusReducer(state, { type: 'POLL_FRAME_STALE', frameId: 'frame-A' })
+  assert('POLL_FRAME_STALE is a no-op while a run-change transition is already active', afterStaleAttempt === state)
+  assert('transitionReason is still run-change, not overwritten by the stale attempt', afterStaleAttempt.transitionReason === 'run-change')
+}
+
+// --- Test 18: historical browsing still outranks the transition screen for
+//     BOTH reasons — models LiveViewPresentation's render-priority ordering
+//     directly (selectedHistoryRunId !== null is checked FIRST, before the
+//     transitionReason !== null gate, regardless of which reason is set). ---
+{
+  function wouldRenderTransitionScreen(uiState, transitionReason, selectedHistoryRunId) {
+    if (selectedHistoryRunId !== null) return false // historical view wins first
+    return uiState === 'live' && transitionReason !== null
+  }
+
+  assert(
+    'historical browsing suppresses the run-change transition screen',
+    wouldRenderTransitionScreen('live', 'run-change', 'some-run-id') === false,
+  )
+  assert(
+    'historical browsing suppresses the frame-stale transition screen',
+    wouldRenderTransitionScreen('live', 'frame-stale', 'some-run-id') === false,
+  )
+  assert(
+    'with no historical selection, a run-change transition still renders normally',
+    wouldRenderTransitionScreen('live', 'run-change', null) === true,
+  )
+  assert(
+    'with no historical selection, a frame-stale transition still renders normally',
+    wouldRenderTransitionScreen('live', 'frame-stale', null) === true,
+  )
+}
+
 console.log('')
 if (failures > 0) {
   console.log(`${failures} assertion(s) failed.`)
