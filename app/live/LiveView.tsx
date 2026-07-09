@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useReducer, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useReducer, useRef, useState } from 'react'
 import {
   liveStatusReducer,
   initialLiveStatusState,
@@ -1719,6 +1719,83 @@ function TransitionScreen({
   )
 }
 
+// The object-name heading (.title) must always fit on ONE line rather than
+// wrapping ("Hercules Globular Cluster" at .title's normal clamp() size
+// wraps to two lines on a 375px phone, which reads as broken for what's
+// meant to be a single confident display line) or dominating (shrinking
+// every name down to the shortest one's size loses the impact a short name
+// like "M13" should have). CSS alone can't do length-aware sizing — clamp()
+// scales with VIEWPORT width, not with how long THIS particular string is —
+// so this measures the actual rendered width against the container and
+// steps the font-size down only as far as needed for the specific text
+// currently showing.
+//
+// MIN_TITLE_FONT_PX is a hard floor: below this, text becomes harder to
+// read than it is worth avoiding a wrap, so anything that would need to
+// shrink further is simply allowed to wrap onto two lines instead (undoing
+// text-wrap:balance's single-line assumption below the floor, but two
+// readable lines beats one illegibly-tiny one).
+const MAX_TITLE_FONT_PX = 56 // matches .title's own clamp() ceiling in styles.css
+const MIN_TITLE_FONT_PX = 24
+const TITLE_FONT_STEP_PX = 2
+
+function useShrinkTitleToFit(text: string): { ref: React.RefObject<HTMLHeadingElement>; fontSize: number | null } {
+  const ref = useRef<HTMLHeadingElement | null>(null)
+  // null = "use the CSS clamp() default," not yet measured OR measurement
+  // determined the default already fits. Only set to a NUMBER when the
+  // text needed to shrink below the default to fit on one line.
+  const [fontSize, setFontSize] = useState<number | null>(null)
+
+  // useLayoutEffect (not useEffect): this must resolve the final size
+  // BEFORE the browser paints, or the guest would see one frame at full
+  // size wrapped onto two lines, then a visible snap down to the fitted
+  // size — exactly the "jarring jump" this whole feature is trying to
+  // avoid elsewhere on this page.
+  useLayoutEffect(() => {
+    const el = ref.current
+    if (!el) return
+
+    // .title has no fixed height/overflow:hidden, so clientHeight and
+    // scrollHeight are ALWAYS equal regardless of how many lines the text
+    // wraps to — comparing them can never detect wrapping (an earlier
+    // version of this hook tried that and it silently never fit anything,
+    // shrinking every title straight to the floor). The reliable test is
+    // WIDTH: force single-line rendering (white-space:nowrap overrides
+    // text-wrap:balance's line-splitting for the duration of this
+    // measurement only) and compare the text's natural single-line width
+    // (scrollWidth) against the space actually available (clientWidth) —
+    // exactly "would this fit on one line," which is the real question.
+    el.style.whiteSpace = 'nowrap'
+    // Reset to the CSS default first — re-measuring against a PREVIOUS
+    // shrink (from the last object's longer name) would only ever find
+    // "yes it still fits," never let the size grow back up for a shorter
+    // new name.
+    el.style.fontSize = ''
+
+    if (el.scrollWidth <= el.clientWidth + 1) {
+      // Fits already at the default clamp() size — nothing to do.
+      el.style.whiteSpace = ''
+      setFontSize(null)
+      return
+    }
+
+    let size = MAX_TITLE_FONT_PX
+    while (size > MIN_TITLE_FONT_PX) {
+      size -= TITLE_FONT_STEP_PX
+      el.style.fontSize = `${size}px`
+      if (el.scrollWidth <= el.clientWidth + 1) break
+    }
+    // Restore normal wrapping either way: at the floor, text-wrap:balance
+    // takes back over and the text wraps to two readable lines instead of
+    // staying forced onto one illegibly-narrow line; once fitted above the
+    // floor, normal wrapping is simply a no-op since the text now fits.
+    el.style.whiteSpace = ''
+    setFontSize(size)
+  }, [text])
+
+  return { ref, fontSize }
+}
+
 // Split out so it (and its fullscreenMode state) only mounts once we
 // actually have a frame to show — the circular FOV view is the pretty
 // default view; fullscreen swaps to the full square image, maximized, with
@@ -1899,6 +1976,37 @@ function LiveFrameView({
     ? displayObjectForHistoryRun(selectedHistoryRun)
     : lastLiveFrame.displayObject
 
+  // The heading's actual content AND a flat-text version of the same,
+  // computed together so useShrinkTitleToFit (called right below, BEFORE
+  // any early return — hooks can't be conditional) has a plain string to
+  // key its measurement effect on. The split (title-id + title-sub) vs.
+  // plain forms render identically in terms of total visible text, so a
+  // single joined string is enough for the "did the text change, should we
+  // re-measure" check even though the split form renders as two separate
+  // spans.
+  let titleContent: React.ReactNode
+  let titlePlainText: string
+  if (effectiveDisplayObject.kind === 'known') {
+    const { lead, sub } = headingParts(effectiveDisplayObject.name, effectiveDisplayObject.type)
+    if (sub) {
+      titleContent = (
+        <>
+          <span className="title-id">{lead}</span>
+          <span className="title-sub">{sub}</span>
+        </>
+      )
+      titlePlainText = `${lead}, ${sub}`
+    } else {
+      titleContent = lead
+      titlePlainText = lead
+    }
+  } else {
+    const label = objectLabel(effectiveDisplayObject)
+    titleContent = label
+    titlePlainText = label
+  }
+  const { ref: titleRef, fontSize: titleFontSize } = useShrinkTitleToFit(titlePlainText)
+
   if (fullscreenMode !== 'off') {
     return (
       <div className="live-root live-root--fullscreen">
@@ -1935,22 +2043,35 @@ function LiveFrameView({
             .rim-brand below), repeating it here read redundantly. Just the
             live/updated status remains. */}
         <header className="topbar" aria-label="Live page status">
+          {/* Two-line structure, ALWAYS (line 2 just renders empty/absent
+              when not browsing) — line 1 is status/badge, line 2 is
+              reserved for Back to Live. Phone testing found that rendering
+              Back to Live INLINE beside the badge on a single flex-wrap row
+              (an earlier version of this header) made the topbar's height
+              jump between live and browsing mode, reading as a layout
+              shift/scroll rather than a deliberate mode change. Splitting
+              into two literal rows — the second only populated while
+              browsing — keeps the topbar's shape predictable regardless of
+              which state is showing. */}
           <div className="topbar__live">
             {selectedHistoryRun ? (
               // Browsing a history-strip pill: an UNMISSABLE, unambiguous
               // "not live" state — a different object entirely, not just an
               // earlier stack depth of the current one (contrast the
               // milestone case below), so this gets its own explicit label
-              // naming WHICH object, plus a real control back to live rather
-              // than relying on the guest noticing the badge alone.
-              <>
-                <span className="viewing-earlier-badge">
-                  VIEWING {objectLabel(effectiveDisplayObject).toUpperCase()} · NOT LIVE
-                </span>
-                <button type="button" className="back-to-live-button" onClick={() => onSelectHistoryRun(null)}>
-                  Back to Live
-                </button>
-              </>
+              // naming WHICH object. Uses the SAME short label the pill
+              // itself shows (shortHistoryLabel) rather than the full
+              // catalog name — "VIEWING NORTH AMERICA NEBULA · NOT LIVE" on
+              // a 375px screen risks wrapping/pushing layout, and the short
+              // form also means the badge always visually matches whatever
+              // the guest just tapped. objectId is guaranteed non-null here:
+              // SessionHistoryStrip only ever renders a TAPPABLE pill for a
+              // run that already passed isDisplayableRun's objectId!==null
+              // gate (see that function's own doc comment).
+              <span className="viewing-earlier-badge">
+                VIEWING {shortHistoryLabel(selectedHistoryRun.objectId!, selectedHistoryRun.objectName).toUpperCase()} · NOT
+                LIVE
+              </span>
             ) : !viewingHistorical ? (
               <>
                 <span className={`red-dot${uiState === 'reconnecting' ? ' reconnecting' : ''}`} aria-hidden="true" />
@@ -1971,6 +2092,24 @@ function LiveFrameView({
               // frame for the current feed.
               <span className="viewing-earlier-badge">VIEWING AN EARLIER FRAME · NOT LIVE</span>
             )}
+          </div>
+          {/* Always rendered (not conditionally mounted) so the grid-rows
+              CSS transition (see .topbar__actions in styles.css) has stable
+              content to animate open/closed around, rather than the button
+              itself popping in and out of the DOM — --open toggles the row
+              between collapsed (0fr, normal live view — no permanent empty
+              gap) and expanded (1fr, browsing), animated rather than
+              snapping instantly either way. */}
+          <div className={`topbar__actions${selectedHistoryRun ? ' topbar__actions--open' : ''}`}>
+            <button
+              type="button"
+              className="back-to-live-button"
+              tabIndex={selectedHistoryRun ? 0 : -1}
+              aria-hidden={selectedHistoryRun ? undefined : true}
+              onClick={() => onSelectHistoryRun(null)}
+            >
+              Back to Live
+            </button>
           </div>
         </header>
 
@@ -2056,21 +2195,12 @@ function LiveFrameView({
               "M13" + "Hercules" (the id small/muted, the name large — see
               .title-id/.title-sub below), a bare Messier id as "Messier 4"
               alone — see headingParts' own doc comment for why this differs
-              from objectLabel's (untrimmed) alt-text use. */}
-          <h1 className="title">
-            {effectiveDisplayObject.kind === 'known'
-              ? (() => {
-                  const { lead, sub } = headingParts(effectiveDisplayObject.name, effectiveDisplayObject.type)
-                  return sub ? (
-                    <>
-                      <span className="title-id">{lead}</span>
-                      <span className="title-sub">{sub}</span>
-                    </>
-                  ) : (
-                    lead
-                  )
-                })()
-              : objectLabel(effectiveDisplayObject)}
+              from objectLabel's (untrimmed) alt-text use.
+              Auto-shrunk to fit one line via useShrinkTitleToFit (see its
+              own doc comment) — titleFontSize is null (use the CSS default)
+              unless this specific text needed to shrink below it. */}
+          <h1 className="title" ref={titleRef} style={titleFontSize ? { fontSize: `${titleFontSize}px` } : undefined}>
+            {titleContent}
           </h1>
 
           <ObjectTypeLine displayObject={effectiveDisplayObject} />
@@ -2629,6 +2759,20 @@ function HistoryPill({
         disabled={isSettling}
         onClick={handleClick}
       >
+        {/* Live indicator — ALWAYS shown on the active/live run, regardless
+            of whether the guest is currently browsing a different run
+            (selectedHistoryRunId !== null): this is "where live is," not
+            "what's selected," so it must stay visible as an anchor point
+            while browsing, not just when nothing is selected. The selected
+            historical pill (is-selected) never gets this dot even if it
+            happens to also be run.active — see isSelected's own check
+            above, which already prevents a pill from being both active AND
+            selected at once (tapping the active pill always clears the
+            selection instead, see handleClick). Same red-dot class/pulse
+            the topbar LIVE indicator uses (see .red-dot in styles.css) so
+            "red dot = live" reads as one consistent visual language across
+            the whole page, not a new symbol to learn. */}
+        {run.active && <span className="red-dot history-pill-dot" aria-hidden="true" />}
         {!isSettling && (
           <span className="history-pill-icon" aria-hidden="true">
             <TypeIcon type={run.objectType ?? ''} />

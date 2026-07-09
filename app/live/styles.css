@@ -66,12 +66,26 @@
    belt-and-suspenders alongside the seconds->minutes rollover in
    formatUpdatedAgo() which is what actually prevents the overflow in
    practice. */
+/* Column, not a single row — .topbar__live (status/badge) and
+   .topbar__actions (Back to Live, when browsing) are two literal stacked
+   rows. An earlier version put Back to Live INLINE inside .topbar__live's
+   own flex-wrap row; phone testing found that made the topbar's height
+   jump between live and browsing mode, reading as a layout shift rather
+   than a deliberate mode change. A LATER version reserved a permanent
+   fixed-height second row so the two states matched exactly — but that
+   traded the jump for a permanently visible empty gap under the normal
+   live topbar, which phone testing also flagged as the wrong tradeoff.
+   Final approach: .topbar__actions naturally collapses to zero height when
+   empty (grid-template-rows: 0fr — see below), and ANIMATES open/closed via
+   a transition rather than either snapping instantly (the original jump)
+   or staying permanently reserved (the empty-gap regression). */
 .topbar {
   min-height: 20px;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 10px;
+  gap: 4px;
   padding: 2px 12px;
   color: rgba(237, 234, 227, 0.72);
   font-size: clamp(10px, 2.7vw, 13px);
@@ -88,6 +102,39 @@
   flex-wrap: wrap;
   max-width: 100%;
   color: rgba(237, 234, 227, 0.78);
+}
+
+/* grid-template-rows: 0fr/1fr is the standard trick for animating to/from
+   "auto" height (a plain height transition can't animate to/from auto at
+   all) — the inner wrapper's min-height:0 lets it actually shrink to zero
+   rather than being clamped by its own content's intrinsic height. Opacity
+   fades in step so the button doesn't visually pop in the instant the row
+   starts expanding. prefers-reduced-motion below still gets the shape
+   change (no permanent gap) without the animated motion. */
+.topbar__actions {
+  display: grid;
+  grid-template-rows: 0fr;
+  justify-items: center;
+  transition:
+    grid-template-rows 0.22s ease,
+    opacity 0.22s ease;
+  opacity: 0;
+}
+
+.topbar__actions--open {
+  grid-template-rows: 1fr;
+  opacity: 1;
+}
+
+.topbar__actions > * {
+  min-height: 0;
+  overflow: hidden;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .topbar__actions {
+    transition: none;
+  }
 }
 
 .viewing-earlier-badge {
@@ -573,18 +620,20 @@
 }
 
 /* The pill the guest explicitly tapped to browse (see aria-pressed in
-   HistoryPill) — a real "you selected this" state, same solid-gold
-   language as .snap[aria-pressed="true"] (the milestone toggle) rather
-   than .is-active's quieter glow, since this one IS the direct result of a
-   tap, not just "this happens to be live right now." */
+   HistoryPill) — deliberately NEUTRAL (white/grey), not gold: gold is
+   already a real catalog type color (Globular Cluster — see
+   TYPE_COLORS in lib/type-colors.ts) and .snap[aria-pressed="true"]'s own
+   solid-gold fill, so using it here too read as "this object IS a
+   globular cluster" rather than "you selected this," a real mix-up caught
+   in phone testing. A bright white ring + a touch more background/text
+   brightness than the resting state reads as pure UI selection instead —
+   no hue at all, so it can never be confused with any type's accent
+   color, present or future. */
 .history-pill.is-selected {
-  border-color: var(--gold);
-  background: color-mix(in srgb, var(--gold) 22%, transparent);
-  color: #171005;
-}
-
-.history-pill.is-selected .history-pill-icon svg {
-  color: #171005;
+  border-color: rgba(237, 234, 227, 0.9);
+  box-shadow: 0 0 0 1px rgba(237, 234, 227, 0.55);
+  background: rgba(237, 234, 227, 0.14);
+  color: #f2eee6;
 }
 
 /* A completed, named pill with no saved image (StackRun.blobUrl null) —
@@ -604,6 +653,15 @@
   border-color: rgba(237, 234, 227, 0.22);
   background: rgba(237, 234, 227, 0.03);
   color: rgba(168, 166, 160, 0.75);
+}
+
+/* Reuses .red-dot's exact size/color/pulse (see that class near the
+   topbar's own LIVE indicator) so "red dot = live" is the SAME symbol in
+   both places, not a lookalike a guest has to separately learn. flex-
+   shrink:0 keeps it from getting squeezed by the pill's own min-width:0
+   (needed elsewhere so the label can ellipsis — see .history-pill). */
+.history-pill-dot {
+  flex-shrink: 0;
 }
 
 .history-pill-icon {
