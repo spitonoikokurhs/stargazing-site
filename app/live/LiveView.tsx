@@ -544,12 +544,27 @@ const KNOWN_DEMO_SOURCE: Record<string, { catalogId: string; blobUrl: string; to
 
 // Pure client-side mock data for ?demo=history-test — reviewing
 // SessionHistoryStrip's two-row wrap (HISTORY_ROW_MAX, see the component)
-// without writing anything to Postgres. Deliberately mixes short catalog ids
-// that print as-is (M13, M27, M31) with the long hyphenated ones
-// (NGC6960-6992, LEO-TRIPLET) that force shortHistoryLabel's name-based
-// fallback — 8 entries total, double HISTORY_ROW_MAX, so the strip wraps to
-// two even rows of 4. The last entry is the active/current one (matches
-// the demo's own KNOWN_DEMOS['history-test'] = M13 card above).
+// AND tappable history-pill browsing (preload-before-switch, catalog
+// lookup, the null-blobUrl/unresolved edge cases) without writing anything
+// to Postgres. Deliberately mixes short catalog ids that print as-is (M13,
+// M27, M31) with the long hyphenated ones (NGC6960-6992, LEO-TRIPLET) that
+// force shortHistoryLabel's name-based fallback — 9 entries total (one more
+// than double HISTORY_ROW_MAX), so the strip wraps to two rows of 4/5 —
+// still exercising the two-row layout, not a special case of it.
+//
+// Most entries carry a REAL blobUrl (an existing /public/images asset —
+// see KNOWN_DEMO_SOURCE above for the same pattern) so tapping them
+// actually demonstrates a successful preload+switch, not just the error
+// path. mock-3 (Veil Nebula) is the deliberate exception — blobUrl: null —
+// so the "No saved image for this target" feedback (see
+// handleSelectHistoryRun in LiveViewPresentation) has something real to
+// test against. mock-9 is a SECOND unresolved/settling pill (confidence:
+// 'none', not the active one) to confirm a non-active unresolved run is
+// correctly omitted from the strip entirely (see isDisplayableRun's own
+// doc comment: only the ACTIVE run gets the neutral settling treatment;
+// a past run that never resolved is dropped, not shown as "…").
+// mock-10 is the active/current one (matches the demo's own
+// KNOWN_DEMOS['history-test'] = M13 card).
 const MOCK_HISTORY: HistoryEntry[] = [
   {
     id: 'mock-1',
@@ -559,7 +574,7 @@ const MOCK_HISTORY: HistoryEntry[] = [
     confidence: 'high',
     startedAt: '2026-07-09T20:00:00.000Z',
     endedAt: '2026-07-09T20:12:00.000Z',
-    blobUrl: null,
+    blobUrl: '/images/astro-05.jpg',
     active: false,
   },
   {
@@ -570,7 +585,7 @@ const MOCK_HISTORY: HistoryEntry[] = [
     confidence: 'high',
     startedAt: '2026-07-09T20:12:00.000Z',
     endedAt: '2026-07-09T20:24:00.000Z',
-    blobUrl: null,
+    blobUrl: '/images/astro-04.jpg',
     active: false,
   },
   {
@@ -581,6 +596,8 @@ const MOCK_HISTORY: HistoryEntry[] = [
     confidence: 'medium',
     startedAt: '2026-07-09T20:24:00.000Z',
     endedAt: '2026-07-09T20:36:00.000Z',
+    // Deliberately null — the "no saved image for this target" test case
+    // (see this const's own doc comment above).
     blobUrl: null,
     active: false,
   },
@@ -592,7 +609,7 @@ const MOCK_HISTORY: HistoryEntry[] = [
     confidence: 'high',
     startedAt: '2026-07-09T20:36:00.000Z',
     endedAt: '2026-07-09T20:48:00.000Z',
-    blobUrl: null,
+    blobUrl: '/images/galaxy-triangulum-m33.jpg',
     active: false,
   },
   {
@@ -603,7 +620,7 @@ const MOCK_HISTORY: HistoryEntry[] = [
     confidence: 'medium',
     startedAt: '2026-07-09T20:48:00.000Z',
     endedAt: '2026-07-09T21:00:00.000Z',
-    blobUrl: null,
+    blobUrl: '/images/galaxy-ngc2403.jpg',
     active: false,
   },
   {
@@ -614,7 +631,7 @@ const MOCK_HISTORY: HistoryEntry[] = [
     confidence: 'high',
     startedAt: '2026-07-09T21:00:00.000Z',
     endedAt: '2026-07-09T21:12:00.000Z',
-    blobUrl: null,
+    blobUrl: '/images/galaxy-fireworks-ngc6946.jpg',
     active: false,
   },
   {
@@ -625,18 +642,40 @@ const MOCK_HISTORY: HistoryEntry[] = [
     confidence: 'medium',
     startedAt: '2026-07-09T21:12:00.000Z',
     endedAt: '2026-07-09T21:24:00.000Z',
-    blobUrl: null,
+    blobUrl: '/images/galaxy-ic342-hidden.jpg',
     active: false,
   },
   {
     id: 'mock-8',
+    objectId: 'M20',
+    objectName: 'Trifid Nebula',
+    objectType: 'Diffuse Nebula',
+    confidence: 'high',
+    startedAt: '2026-07-09T21:24:00.000Z',
+    endedAt: '2026-07-09T21:36:00.000Z',
+    blobUrl: '/images/nebula-trifid-m20.jpg',
+    active: false,
+  },
+  {
+    id: 'mock-9',
+    objectId: null,
+    objectName: null,
+    objectType: null,
+    confidence: 'none',
+    startedAt: '2026-07-09T21:36:00.000Z',
+    endedAt: '2026-07-09T21:38:00.000Z',
+    blobUrl: null,
+    active: false,
+  },
+  {
+    id: 'mock-10',
     objectId: 'M13',
     objectName: 'Hercules Globular Cluster',
     objectType: 'Globular Cluster',
     confidence: 'high',
-    startedAt: '2026-07-09T21:24:00.000Z',
+    startedAt: '2026-07-09T21:38:00.000Z',
     endedAt: null,
-    blobUrl: null,
+    blobUrl: '/images/astro-01.jpg',
     active: true,
   },
 ]
@@ -652,6 +691,47 @@ const CATALOG_BY_ID = new Map((catalogData as { objects: CatalogObject[] }).obje
 const CATALOG_ID_BY_NAME = new Map(
   (catalogData as { objects: CatalogObject[] }).objects.map((o) => [o.primaryName, o.id]),
 )
+
+// Builds a DisplayObject for a tapped history pill (see SessionHistoryStrip/
+// HistoryPill and the historical-browsing wiring in LiveFrameView) — reuses
+// the EXACT same DisplayObject shape the live path produces via
+// resolveDisplayObject above, so every component downstream (ObjectTypeLine,
+// Facts, ObjectDescription/EnrichedCard, headingParts) renders a historical
+// object with no new code path, just different data in.
+//
+// Catalog lookup by objectId is the common/expected case (a StackRun that
+// made it into the history strip at all already passed isDisplayableRun's
+// high/medium-confidence gate — see that function's own doc comment — so it
+// should always have a real objectId the catalog recognizes). objectId
+// missing or not found in the catalog is a defensive fallback, not a normal
+// path: render a safe MINIMAL card from the StackRun's own denormalized
+// fields (objectName/objectType) rather than failing or inventing content
+// — no constellation/distance/wowFacts/etc, since we have no source for
+// them. ObjectDescription's own all-or-nothing enriched-content gate means
+// this naturally renders as the plain (non-enriched) card.
+function displayObjectForHistoryRun(run: HistoryEntry): DisplayObject {
+  const catalogObject = run.objectId ? CATALOG_BY_ID.get(run.objectId) : undefined
+  if (catalogObject) {
+    return {
+      kind: 'known',
+      name: catalogObject.primaryName,
+      description: catalogObject.description,
+      type: catalogObject.type,
+      constellation: catalogObject.constellation,
+      distanceLy: catalogObject.distanceLy,
+      sizeDescription: catalogObject.sizeDescription,
+      wowFacts: catalogObject.wowFacts,
+      visualHint: catalogObject.visualHint,
+      drawer: catalogObject.drawer,
+    }
+  }
+  return {
+    kind: 'known',
+    name: run.objectName ?? run.objectId ?? 'Unknown',
+    description: '',
+    type: run.objectType ?? 'Unknown',
+  }
+}
 
 const KNOWN_DEMOS: Record<
   string,
@@ -1257,6 +1337,151 @@ function offlineCopy(state: LiveStatusState): { heading: string; sub?: string; l
 function LiveViewPresentation({ state, history }: { state: LiveStatusState; history: HistoryEntry[] }) {
   const { uiState, lastLiveFrame } = state
 
+  // Which StackRun (if any) the guest has tapped in the history strip to
+  // browse — lifted all the way up HERE, above the transition-screen/
+  // LiveFrameView branch below, rather than living inside LiveFrameView's
+  // own local state. This is deliberate, not incidental: LiveFrameView does
+  // NOT render at all during a transition (see the transitioningRunKey
+  // branch further down) or during any of the terminal screens above it —
+  // if this selection lived inside LiveFrameView, tapping a history pill and
+  // then having a NEW live stack run start underneath would unmount
+  // LiveFrameView and silently lose the selection, yanking the guest back to
+  // live. Keeping it here means a live target change underneath never
+  // disturbs an active historical browse — only an explicit "Back to Live"
+  // tap, tapping the live/active pill again, or the terminal-state effect
+  // below ever clears it (see the guardrails this satisfies in the history-
+  // pill-browsing feature brief: #10 and #12).
+  //
+  // A SNAPSHOT of the whole entry (taken at the moment preload succeeds —
+  // see handleSelectHistoryRun), not just the id: an earlier version
+  // re-derived the selected run by looking it up in the live `history`
+  // array on every render, which meant a single malformed/empty
+  // /api/status response (server-side history query hiccup — see
+  // fetchHistory's own "never fails the caller" doc comment in
+  // app/api/status/route.ts, which degrades to an empty array rather than
+  // erroring) could make the lookup miss and silently kick the guest back
+  // to live mid-browse, even though nothing about their OWN action
+  // changed. Storing the snapshot means the displayed image/card is stable
+  // regardless of what any single poll's history payload looks like —
+  // only an explicit action ever clears it.
+  const [selectedHistoryRun, setSelectedHistoryRun] = useState<HistoryEntry | null>(null)
+
+  // Historical browsing only makes sense while the page itself is showing a
+  // live/reconnecting view underneath — once we're on a hard terminal or
+  // non-live screen (finished, special-event-finished, any offline variant,
+  // degraded, or back to checking), there's no live page for "Back to Live"
+  // to return the guest TO, so the selection is cleared automatically. A new
+  // live StackRun starting is deliberately NOT one of these cases (see the
+  // comment above) — only leaving the live/reconnecting family clears it.
+  useEffect(() => {
+    if (uiState !== 'live' && uiState !== 'reconnecting') {
+      setSelectedHistoryRun(null)
+    }
+  }, [uiState])
+
+  // Feedback for a tap that did NOT result in switching (null blobUrl, or a
+  // preload that failed/timed out) — deliberately separate from
+  // selectedHistoryRun itself: this is pure UI feedback for a failed
+  // interaction, cleared on the next successful/attempted interaction, never
+  // something a live target change or terminal-state transition needs to
+  // preserve or react to.
+  const [historyPreloadError, setHistoryPreloadError] = useState<string | null>(null)
+  // Auto-dismiss after a few seconds rather than leaving a stale "no saved
+  // image"/"image unavailable" message on screen indefinitely until the
+  // guest happens to tap something else — this is transient feedback about
+  // ONE tap, not a persistent status the guest needs to keep seeing.
+  useEffect(() => {
+    if (!historyPreloadError) return
+    const timer = setTimeout(() => setHistoryPreloadError(null), 5000)
+    return () => clearTimeout(timer)
+  }, [historyPreloadError])
+  // Guards against a rapid double-tap across two different pills letting a
+  // SLOWER, now-stale preload win the race and overwrite a faster, more
+  // recent one — same abort-on-supersede discipline the main poll loop uses
+  // for its own image preloads (see pollOnce's imageController handling
+  // further up this file).
+  const historyPreloadControllerRef = useRef<AbortController | null>(null)
+
+  function handleBackToLive() {
+    historyPreloadControllerRef.current?.abort()
+    setHistoryPreloadError(null)
+    setSelectedHistoryRun(null)
+  }
+
+  // The single entry point for every "tap a history pill" interaction,
+  // regardless of which screen it happens on (TransitionScreen or
+  // LiveFrameView both call this the same way) — lives here, not inside
+  // LiveFrameView, specifically so preload-before-switch (guardrail: never
+  // show a historical image/card until it has actually loaded) behaves
+  // identically whether the guest taps a pill while a transition is
+  // showing or while the normal live view is showing. SessionHistoryStrip/
+  // HistoryPill's own click handler already decided "select this run"
+  // (non-null) vs. "clear the selection" (null — tapping the live/active
+  // pill again, or re-tapping the already-selected pill) before calling
+  // this, so by the time we're here `run` is either a genuine new
+  // selection to preload, or an explicit clear.
+  async function handleSelectHistoryRun(run: HistoryEntry | null) {
+    if (run === null) {
+      handleBackToLive()
+      return
+    }
+
+    historyPreloadControllerRef.current?.abort()
+    const controller = new AbortController()
+    historyPreloadControllerRef.current = controller
+
+    if (run.blobUrl === null) {
+      setHistoryPreloadError('No saved image for this target.')
+      return
+    }
+
+    try {
+      await preloadImage(run.blobUrl, controller.signal)
+      if (controller.signal.aborted) return
+      setHistoryPreloadError(null)
+      // Snapshot the WHOLE entry at the moment preload succeeds — see
+      // selectedHistoryRun's own doc comment above for why this is a
+      // snapshot rather than a re-derived lookup against the live history
+      // array on every render.
+      setSelectedHistoryRun(run)
+    } catch {
+      if (controller.signal.aborted) return
+      setHistoryPreloadError('Image unavailable.')
+    }
+  }
+
+  // Keeps the snapshot's LIVE-relevant fields (active, endedAt, confidence
+  // — anything the strip itself needs to stay current, like whether this
+  // pill should still show as the active/live one) in sync with the real
+  // history array WHEN a matching entry is actually present in it — but
+  // deliberately does NOT clear the selection if the entry is temporarily
+  // missing from one poll's history array (a transient/malformed
+  // /api/status response — see fetchHistory's own "never fails the
+  // caller" doc comment in app/api/status/route.ts, which degrades to []
+  // rather than erroring — must not silently kick the guest back to live).
+  // A run genuinely scrolling out of the server's bounded history window
+  // (HISTORY_MAX_RUNS) behaves the same way: the snapshot just stops
+  // refreshing and keeps showing what it last knew, which is the correct,
+  // stable behavior for something the guest deliberately chose to look at.
+  useEffect(() => {
+    if (!selectedHistoryRun) return
+    const liveMatch = history.find((run) => run.id === selectedHistoryRun.id)
+    if (!liveMatch) return
+    const changed =
+      liveMatch.active !== selectedHistoryRun.active ||
+      liveMatch.endedAt !== selectedHistoryRun.endedAt ||
+      liveMatch.confidence !== selectedHistoryRun.confidence
+    if (changed) {
+      setSelectedHistoryRun(liveMatch)
+    }
+    // selectedHistoryRun is intentionally excluded from the dependency
+    // array — including it would re-run this effect every time IT sets
+    // selectedHistoryRun, which is harmless (the `changed` check makes it
+    // a no-op on the second pass) but pointless churn. `history` alone is
+    // what should actually trigger a re-check.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [history])
+
   if (uiState === 'checking') {
     return <StatusScreen heading="Checking…" loader />
   }
@@ -1342,6 +1567,33 @@ function LiveViewPresentation({ state, history }: { state: LiveStatusState; hist
     return <StatusScreen heading="Checking…" />
   }
 
+  // Historical browsing (selectedHistoryRun !== null) OUTRANKS the
+  // transition screen below — a guest who tapped a history pill must not be
+  // yanked back to "next object incoming" just because the telescope moved
+  // on to a new live target while they were looking at an earlier one. Routed
+  // through LiveFrameView itself (not a separate branch/component) so the
+  // fullscreen/pan-zoom/share-panel machinery there is reused verbatim rather
+  // than duplicated — LiveFrameView switches its image+card to the selected
+  // historical run internally (see its own selectedHistoryRun handling)
+  // while everything else (polling, transition detection, history strip
+  // updates) keeps running exactly as it does when not browsing. "Back to
+  // Live" (or tapping the live/active pill again) returns the guest to
+  // whatever the ACTUAL current live state is at that moment — live,
+  // transitioning, or reconnecting — never a frozen snapshot of what live
+  // looked like when they started browsing.
+  if (selectedHistoryRun !== null) {
+    return (
+      <LiveFrameView
+        uiState={uiState}
+        lastLiveFrame={lastLiveFrame}
+        history={history}
+        selectedHistoryRun={selectedHistoryRun}
+        historyPreloadError={historyPreloadError}
+        onSelectHistoryRun={handleSelectHistoryRun}
+      />
+    )
+  }
+
   // State-aware transition (see POLL_RUN_TRANSITIONING/transitioningRunKey
   // in lib/live-status.ts): a new stack run has been detected but no
   // displayable frame for it exists yet. Intercepted HERE, before
@@ -1365,10 +1617,26 @@ function LiveViewPresentation({ state, history }: { state: LiveStatusState; hist
   // through to the normal per-uiState rendering above instead of getting
   // stuck on the transition screen.
   if (uiState === 'live' && state.transitioningRunKey !== null) {
-    return <TransitionScreen history={history} />
+    return (
+      <TransitionScreen
+        history={history}
+        selectedHistoryRunId={null}
+        historyPreloadError={historyPreloadError}
+        onSelectHistoryRun={handleSelectHistoryRun}
+      />
+    )
   }
 
-  return <LiveFrameView uiState={uiState} lastLiveFrame={lastLiveFrame} history={history} />
+  return (
+    <LiveFrameView
+      uiState={uiState}
+      lastLiveFrame={lastLiveFrame}
+      history={history}
+      selectedHistoryRun={null}
+      historyPreloadError={historyPreloadError}
+      onSelectHistoryRun={handleSelectHistoryRun}
+    />
+  )
 }
 
 // Shown in place of the normal circular image + object card while
@@ -1382,7 +1650,17 @@ function LiveViewPresentation({ state, history }: { state: LiveStatusState; hist
 // 'moving' DisplayObject.kind case (astrometryState-driven), so a guest
 // sees the same visual language whether the transition is "new stack run
 // detected" or "telescope reports it's slewing."
-function TransitionScreen({ history }: { history: HistoryEntry[] }) {
+function TransitionScreen({
+  history,
+  selectedHistoryRunId,
+  historyPreloadError,
+  onSelectHistoryRun,
+}: {
+  history: HistoryEntry[]
+  selectedHistoryRunId: string | null
+  historyPreloadError: string | null
+  onSelectHistoryRun: (run: HistoryEntry | null) => void
+}) {
   return (
     <div className="page">
       <header className="topbar" aria-label="Live page status">
@@ -1402,13 +1680,37 @@ function TransitionScreen({ history }: { history: HistoryEntry[] }) {
         </svg>
       </section>
 
+      {/* A tap here can fail (null blobUrl, or preload failure/timeout) the
+          exact same way it can from LiveFrameView — handleSelectHistoryRun
+          in LiveViewPresentation is the SAME entry point regardless of
+          which screen the tap happened on (see its own doc comment). Without
+          rendering this here too, a failed tap on THIS screen would fail
+          completely silently — the error state would be set, but nothing
+          on screen would ever show it, since selectedHistoryRun stays null
+          and the render stays on TransitionScreen. Mirrors LiveFrameView's
+          own historyPreloadError rendering exactly. */}
+      {historyPreloadError && (
+        <p className="history-preload-error" role="status">
+          {historyPreloadError}
+        </p>
+      )}
+
       {/* History keeps updating during transition (see /api/status's history
           field, refreshed on every poll regardless of transitioningRunKey) —
           the new active run shows up as SessionHistoryStrip's own neutral
           "…" settling pill (isDisplayableRun is false until a StackRun gets
           a confident object match), which is exactly the guest-facing signal
-          that a new run is underway even before its frame is ready to show. */}
-      <SessionHistoryStrip history={history} />
+          that a new run is underway even before its frame is ready to show.
+          Pills stay tappable here too — selectedHistoryRunId is always null
+          on THIS screen (LiveViewPresentation routes to LiveFrameView's
+          historical view instead once a selection exists), but a tap here
+          still needs to fire onSelectHistoryRun so the NEXT render picks up
+          the selection and switches away from this screen. */}
+      <SessionHistoryStrip
+        history={history}
+        selectedHistoryRunId={selectedHistoryRunId}
+        onSelectHistoryRun={onSelectHistoryRun}
+      />
 
       <div className="content" aria-live="polite">
         <TransitionCopy mainPhrases={MOVING_PHRASES} />
@@ -1425,10 +1727,16 @@ function LiveFrameView({
   uiState,
   lastLiveFrame,
   history,
+  selectedHistoryRun,
+  historyPreloadError,
+  onSelectHistoryRun,
 }: {
   uiState: LiveStatusState['uiState']
   lastLiveFrame: NonNullable<LiveStatusState['lastLiveFrame']>
   history: HistoryEntry[]
+  selectedHistoryRun: HistoryEntry | null
+  historyPreloadError: string | null
+  onSelectHistoryRun: (run: HistoryEntry | null) => void
 }) {
   // 'off': normal circular view. 'native': the real Fullscreen API is active
   // (Android/desktop — unaffected by this change). 'css-fallback': a fixed
@@ -1469,6 +1777,20 @@ function LiveFrameView({
   useEffect(() => {
     setMilestoneSelection('current')
   }, [milestoneRunKey])
+
+  // History browsing and milestone browsing must never disagree — a guest
+  // returning to live after browsing history should land on the ACTUAL
+  // live frame, never a milestone selection left over from before they
+  // started browsing. selectedHistoryRun/historyPreloadError/
+  // onSelectHistoryRun are all owned by LiveViewPresentation (see its own
+  // doc comments) — lifted up there rather than living here so preload-
+  // before-switch behaves identically whether a pill tap happens on THIS
+  // screen or on TransitionScreen, which LiveFrameView has no reach into.
+  useEffect(() => {
+    if (selectedHistoryRun) {
+      setMilestoneSelection('current')
+    }
+  }, [selectedHistoryRun])
 
   useEffect(() => {
     function onFullscreenChange() {
@@ -1555,8 +1877,27 @@ function LiveFrameView({
         : milestoneSelection === 'fiveMin'
           ? milestoneMarks?.fiveMin
           : undefined
-  const viewingHistorical = milestoneSelection !== 'current' && selectedMilestoneFrame != null
-  const displaySrc = viewingHistorical ? selectedMilestoneFrame.blobUrl : lastLiveFrame.blobUrl
+  const viewingMilestone = milestoneSelection !== 'current' && selectedMilestoneFrame != null
+  // A selected HISTORY run (a different object entirely) always outranks a
+  // milestone selection (a different stack depth of the SAME live object) —
+  // the two are mutually exclusive by construction anyway (selecting a
+  // history run resets milestoneSelection to 'current', see
+  // handleSelectHistoryRun above, and the milestone toggle itself is hidden
+  // entirely while browsing history, see its render guard below), but the
+  // ?. chain here is belt-and-suspenders against relying on that ordering.
+  const viewingHistorical = selectedHistoryRun != null || viewingMilestone
+  const displaySrc =
+    selectedHistoryRun?.blobUrl ?? (viewingMilestone ? selectedMilestoneFrame.blobUrl : lastLiveFrame.blobUrl)
+  // The object CARD content, not just the image: a history run is a
+  // different object, so unlike the milestone case (same object, earlier
+  // stack depth — see selectedMilestoneFrame above, which only ever swaps
+  // the image), browsing history must also swap what ObjectTypeLine/Facts/
+  // ObjectDescription/the heading render. displayObjectForHistoryRun (see
+  // its own doc comment) is what supplies real catalog content when
+  // possible, falling back to a safe minimal card otherwise.
+  const effectiveDisplayObject = selectedHistoryRun
+    ? displayObjectForHistoryRun(selectedHistoryRun)
+    : lastLiveFrame.displayObject
 
   if (fullscreenMode !== 'off') {
     return (
@@ -1579,9 +1920,10 @@ function LiveFrameView({
             only difference between them is how fullscreenMode gets set/
             cleared (a real browser API vs. plain React state), not how this
             is rendered, so the zoomable-image experience is exactly the
-            same either way. displaySrc (not always lastLiveFrame.blobUrl) so
-            fullscreen respects whichever milestone frame is selected. */}
-        <PannableZoomImage src={displaySrc} alt={objectLabel(lastLiveFrame.displayObject)} />
+            same either way. displaySrc/effectiveDisplayObject (not always
+            lastLiveFrame's own) so fullscreen respects whichever milestone
+            frame OR history run is selected. */}
+        <PannableZoomImage src={displaySrc} alt={objectLabel(effectiveDisplayObject)} />
       </div>
     )
   }
@@ -1594,7 +1936,22 @@ function LiveFrameView({
             live/updated status remains. */}
         <header className="topbar" aria-label="Live page status">
           <div className="topbar__live">
-            {!viewingHistorical ? (
+            {selectedHistoryRun ? (
+              // Browsing a history-strip pill: an UNMISSABLE, unambiguous
+              // "not live" state — a different object entirely, not just an
+              // earlier stack depth of the current one (contrast the
+              // milestone case below), so this gets its own explicit label
+              // naming WHICH object, plus a real control back to live rather
+              // than relying on the guest noticing the badge alone.
+              <>
+                <span className="viewing-earlier-badge">
+                  VIEWING {objectLabel(effectiveDisplayObject).toUpperCase()} · NOT LIVE
+                </span>
+                <button type="button" className="back-to-live-button" onClick={() => onSelectHistoryRun(null)}>
+                  Back to Live
+                </button>
+              </>
+            ) : !viewingHistorical ? (
               <>
                 <span className={`red-dot${uiState === 'reconnecting' ? ' reconnecting' : ''}`} aria-hidden="true" />
                 {/* Each "· "-joined segment is its own span (not one long
@@ -1622,7 +1979,7 @@ function LiveFrameView({
             {/* eslint-disable-next-line @next/next/no-img-element -- external Vercel Blob URL, no next/image domain config for v1 */}
             <img
               src={displaySrc}
-              alt={objectLabel(lastLiveFrame.displayObject)}
+              alt={objectLabel(effectiveDisplayObject)}
               className="fov-image"
             />
             <div className="fov-vignette" aria-hidden="true" />
@@ -1659,18 +2016,36 @@ function LiveFrameView({
           </button>
         </section>
 
-        <MilestoneToggle
-          marks={milestoneMarks}
-          selection={milestoneSelection}
-          onSelect={setMilestoneSelection}
-        />
+        {/* Milestone selection and history-run selection must never stack —
+            see handleSelectHistoryRun's own reasoning above. Hiding the
+            toggle entirely (not just disabling it) while browsing history
+            is the other half of that guarantee: there is nothing for a
+            guest to tap here that would leave the two selections
+            disagreeing once they return to live. */}
+        {!selectedHistoryRun && (
+          <MilestoneToggle
+            marks={milestoneMarks}
+            selection={milestoneSelection}
+            onSelect={setMilestoneSelection}
+          />
+        )}
 
-        <SessionHistoryStrip history={history} />
+        {historyPreloadError && (
+          <p className="history-preload-error" role="status">
+            {historyPreloadError}
+          </p>
+        )}
+
+        <SessionHistoryStrip
+          history={history}
+          selectedHistoryRunId={selectedHistoryRun?.id ?? null}
+          onSelectHistoryRun={onSelectHistoryRun}
+        />
 
         <section
           className="content"
           aria-live="polite"
-          style={contentTypeColorVars(lastLiveFrame.displayObject) as React.CSSProperties}
+          style={contentTypeColorVars(effectiveDisplayObject) as React.CSSProperties}
         >
           {/* Object name is the topmost element in the content block.
               "Gathered light" now lives only in the topbar (next to
@@ -1683,12 +2058,9 @@ function LiveFrameView({
               alone — see headingParts' own doc comment for why this differs
               from objectLabel's (untrimmed) alt-text use. */}
           <h1 className="title">
-            {lastLiveFrame.displayObject.kind === 'known'
+            {effectiveDisplayObject.kind === 'known'
               ? (() => {
-                  const { lead, sub } = headingParts(
-                    lastLiveFrame.displayObject.name,
-                    lastLiveFrame.displayObject.type,
-                  )
+                  const { lead, sub } = headingParts(effectiveDisplayObject.name, effectiveDisplayObject.type)
                   return sub ? (
                     <>
                       <span className="title-id">{lead}</span>
@@ -1698,19 +2070,19 @@ function LiveFrameView({
                     lead
                   )
                 })()
-              : objectLabel(lastLiveFrame.displayObject)}
+              : objectLabel(effectiveDisplayObject)}
           </h1>
 
-          <ObjectTypeLine displayObject={lastLiveFrame.displayObject} />
+          <ObjectTypeLine displayObject={effectiveDisplayObject} />
 
-          <Facts displayObject={lastLiveFrame.displayObject} />
+          <Facts displayObject={effectiveDisplayObject} />
 
           <div className="description">
-            <ObjectDescription displayObject={lastLiveFrame.displayObject} />
+            <ObjectDescription displayObject={effectiveDisplayObject} />
           </div>
         </section>
 
-        <SharePanel displayObject={lastLiveFrame.displayObject} />
+        <SharePanel displayObject={effectiveDisplayObject} />
       </div>
     </div>
   )
@@ -2177,12 +2549,42 @@ function shortHistoryLabel(objectId: string, objectName: string | null): string 
   return `${firstWord.slice(0, HISTORY_LABEL_MAX_CHARS)}…`
 }
 
-function HistoryPill({ run }: { run: HistoryEntry }) {
+function HistoryPill({
+  run,
+  selectedHistoryRunId,
+  onSelectHistoryRun,
+}: {
+  run: HistoryEntry
+  selectedHistoryRunId: string | null
+  onSelectHistoryRun: (run: HistoryEntry | null) => void
+}) {
   const isSettling = !isDisplayableRun(run)
+  const isSelected = run.id === selectedHistoryRunId
+  // A pill with no saved image is still tappable (so the guest gets real
+  // feedback — "no saved image for this target" — rather than a pill that
+  // silently does nothing and reads as broken), just visually muted to hint
+  // it's a lesser case than a normal completed pill. Only the unresolved
+  // "…" settling pill is truly non-interactive: there is no run identity
+  // yet for it to select.
+  const hasNoImage = !isSettling && run.blobUrl === null
   const label = isSettling ? '…' : shortHistoryLabel(run.objectId!, run.objectName)
   const title = isSettling
     ? 'Telescope is settling on a new target'
     : [run.objectId, run.objectName, run.objectType].filter(Boolean).join(', ')
+  // aria-current marks the LIVE/active run — but only when nothing is
+  // currently selected for historical browsing, since aria-current and
+  // aria-pressed both being true on two different pills at once would be a
+  // confusing, self-contradictory state for assistive tech. aria-pressed
+  // marks the run the guest explicitly selected to browse, independent of
+  // which run is live.
+  const ariaCurrent = run.active && selectedHistoryRunId === null ? 'true' : undefined
+  const ariaLabel = isSettling
+    ? title
+    : run.active
+      ? selectedHistoryRunId === null
+        ? title
+        : `Back to live: ${title}`
+      : `View earlier target ${title}, not live`
   const colorVars = isSettling
     ? undefined
     : ({
@@ -2190,21 +2592,50 @@ function HistoryPill({ run }: { run: HistoryEntry }) {
         '--object-type-bg-subtle': `color-mix(in srgb, ${typeColor(run.objectType ?? '')} 6%, rgba(237, 234, 227, 0.043))`,
         '--type-color': typeColor(run.objectType ?? ''),
       } as React.CSSProperties)
+
+  function handleClick() {
+    // Tapping the live/active pill — REGARDLESS of whether anything is
+    // currently selected — always means "go to/stay at live," never
+    // "select this as a historical run." Without the unconditional
+    // run.active check here, tapping the active pill while NOTHING was
+    // selected (the ordinary case: a guest just taps their own current
+    // live target) fell through to the `else` branch below and incorrectly
+    // entered historical-browsing mode on the guest's own live frame —
+    // "VIEWING M13 · NOT LIVE" for the very object that IS live. Re-tapping
+    // the already-selected pill is the other "go back to live" case. Any
+    // OTHER completed pill means "select this run" (the actual
+    // preload+switch happens in the caller).
+    if (isSelected || run.active) {
+      onSelectHistoryRun(null)
+    } else {
+      onSelectHistoryRun(run)
+    }
+  }
+
   return (
-    <div
-      role="listitem"
-      className={`history-pill${run.active ? ' is-active' : ''}${isSettling ? ' is-unresolved' : ''}`}
-      style={colorVars}
-      title={title}
-      aria-label={title}
-      aria-current={run.active ? 'true' : undefined}
-    >
-      {!isSettling && (
-        <span className="history-pill-icon" aria-hidden="true">
-          <TypeIcon type={run.objectType ?? ''} />
-        </span>
-      )}
-      <span className="history-pill-label">{label}</span>
+    // role="listitem" lives on this wrapper, NOT the button — aria-pressed/
+    // aria-current aren't valid on an element with role="listitem" (the
+    // button needs its own native interactive semantics, uncontested by the
+    // list-item role it used to carry back when this was a plain <div>).
+    <div role="listitem">
+      <button
+        type="button"
+        className={`history-pill${run.active ? ' is-active' : ''}${isSettling ? ' is-unresolved' : ''}${hasNoImage ? ' history-pill--no-image' : ''}${isSelected ? ' is-selected' : ''}`}
+        style={colorVars}
+        title={title}
+        aria-label={ariaLabel}
+        aria-current={ariaCurrent}
+        aria-pressed={isSelected}
+        disabled={isSettling}
+        onClick={handleClick}
+      >
+        {!isSettling && (
+          <span className="history-pill-icon" aria-hidden="true">
+            <TypeIcon type={run.objectType ?? ''} />
+          </span>
+        )}
+        <span className="history-pill-label">{label}</span>
+      </button>
     </div>
   )
 }
@@ -2224,7 +2655,15 @@ function HistoryPill({ run }: { run: HistoryEntry }) {
 // see the ?demo=history-test screenshot this was checked against).
 const HISTORY_ROW_MAX = 4
 
-function SessionHistoryStrip({ history }: { history: HistoryEntry[] }) {
+function SessionHistoryStrip({
+  history,
+  selectedHistoryRunId,
+  onSelectHistoryRun,
+}: {
+  history: HistoryEntry[]
+  selectedHistoryRunId: string | null
+  onSelectHistoryRun: (run: HistoryEntry | null) => void
+}) {
   if (history.length === 0) return null
 
   const visible = history.filter((run) => isDisplayableRun(run) || (run.active && !isDisplayableRun(run)))
@@ -2234,7 +2673,12 @@ function SessionHistoryStrip({ history }: { history: HistoryEntry[] }) {
     return (
       <div className="history-strip" role="list" aria-label="Tonight's observed objects">
         {visible.map((run) => (
-          <HistoryPill key={run.id} run={run} />
+          <HistoryPill
+            key={run.id}
+            run={run}
+            selectedHistoryRunId={selectedHistoryRunId}
+            onSelectHistoryRun={onSelectHistoryRun}
+          />
         ))}
       </div>
     )
@@ -2246,12 +2690,22 @@ function SessionHistoryStrip({ history }: { history: HistoryEntry[] }) {
     <div className="history-strip-rows" role="list" aria-label="Tonight's observed objects">
       <div className="history-strip">
         {topRow.map((run) => (
-          <HistoryPill key={run.id} run={run} />
+          <HistoryPill
+            key={run.id}
+            run={run}
+            selectedHistoryRunId={selectedHistoryRunId}
+            onSelectHistoryRun={onSelectHistoryRun}
+          />
         ))}
       </div>
       <div className="history-strip history-strip--bottom-row">
         {bottomRow.map((run) => (
-          <HistoryPill key={run.id} run={run} />
+          <HistoryPill
+            key={run.id}
+            run={run}
+            selectedHistoryRunId={selectedHistoryRunId}
+            onSelectHistoryRun={onSelectHistoryRun}
+          />
         ))}
       </div>
     </div>

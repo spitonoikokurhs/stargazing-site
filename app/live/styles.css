@@ -95,6 +95,42 @@
   letter-spacing: 0.14em;
 }
 
+/* History-run browsing's "Back to Live" control (see LiveFrameView's
+   selectedHistoryRun topbar branch) — small, unmissable but not
+   button-heavy, sitting right beside the VIEWING…NOT LIVE badge. Gold
+   outline (not the toggle's solid gold fill — see .snap[aria-pressed] —
+   since this isn't a multi-option toggle, just a single clear exit). */
+.back-to-live-button {
+  border: 1px solid color-mix(in srgb, var(--gold) 55%, transparent);
+  border-radius: 999px;
+  padding: 4px 10px;
+  background: color-mix(in srgb, var(--gold) 10%, transparent);
+  color: var(--gold);
+  font: 650 clamp(10px, 2.9vw, 12px) / 1 Inter, Lato, system-ui, sans-serif;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.back-to-live-button:hover,
+.back-to-live-button:focus-visible {
+  background: color-mix(in srgb, var(--gold) 18%, transparent);
+}
+
+/* Inline feedback for a history-pill tap that did NOT switch anything (see
+   handleSelectHistoryRun in LiveViewPresentation) — a null blobUrl or a
+   failed/timed-out preload. Small, quiet, role="status" so assistive tech
+   announces it without needing focus; sits between the (possibly hidden)
+   milestone toggle and the history strip, close to what the guest just
+   tapped. */
+.history-preload-error {
+  margin: 6px auto 0;
+  text-align: center;
+  color: rgba(237, 234, 227, 0.6);
+  font: 600 clamp(10px, 2.8vw, 12px) / 1.3 Inter, Lato, system-ui, sans-serif;
+  letter-spacing: 0.02em;
+}
+
 /* Red pulse LIVE dot — lifted exactly (keyframes + timing) from the mockup. */
 .red-dot {
   width: 7px;
@@ -428,12 +464,15 @@
 
 /* Tonight's session-history strip — a timeline/breadcrumb, deliberately NOT
    styled like .snapshot-toggle/.snap above it: no shared pill-group
-   background, no grid of equal-width segments, nothing that reads as a
-   navigation control (these pills aren't tappable — see SessionHistoryStrip
-   in LiveView.tsx). Overflow-x stays as a defensive fallback (e.g. an
-   unusually wide phone-in-landscape edge case), but the primary answer to
-   "too many pills" is now wrapping to a second row (see .history-strip-rows
-   above) rather than scrolling — every pill stays visible at once. */
+   background, no grid of equal-width segments. Pills ARE tappable (see
+   HistoryPill's real <button> in LiveView.tsx — historical-browsing
+   feature), but the strip still reads as a passive timeline rather than a
+   navigation control at a glance, which is deliberate: browsing history is
+   a secondary, opt-in action, not the strip's primary purpose. Overflow-x
+   stays as a defensive fallback (e.g. an unusually wide phone-in-landscape
+   edge case), but the primary answer to "too many pills" is now wrapping
+   to a second row (see .history-strip-rows above) rather than scrolling —
+   every pill stays visible at once. */
 .history-strip {
   display: flex;
   align-items: center;
@@ -476,7 +515,26 @@
    truncating. min-height keeps every pill (icon-only settling pill included)
    the same height as a labeled one. justify-content centers each pill's own
    icon+label since the pill is now wider than its intrinsic content. */
+/* The pill's role="listitem" wrapper (see HistoryPill in LiveView.tsx —
+   needed once the pill became a real <button>, since aria-pressed/
+   aria-current aren't valid on an element with role="listitem") is made
+   invisible to the flex layout via display:contents, so .history-strip's
+   flex children are still the .history-pill buttons themselves, exactly as
+   before the wrapper existed — flex:1 1 0 below still divides the ROW's
+   width evenly per pill, not per wrapper. */
+.history-strip > [role="listitem"],
+.history-strip-rows [role="listitem"] {
+  display: contents;
+}
+
 .history-pill {
+  /* Full reset for real-<button> defaults (Safari/iOS in particular needs
+     -webkit-appearance:none, not just appearance:none, to actually drop
+     its own button chrome) — the pill used to be a plain <div>, so nothing
+     here fought browser button styling before it became interactive. */
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: pointer;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -497,16 +555,44 @@
   letter-spacing: 0.02em;
 }
 
-/* The currently-active run: visually brighter than the rest of the
-   timeline, but still not button-like — a soft glow/lift rather than a
-   filled/inverted state (contrast .snap[aria-pressed="true"]'s solid gold
-   fill above, which IS a real tappable control). */
+.history-pill:disabled {
+  cursor: default;
+}
+
+/* The currently-active/live run: visually brighter than the rest of the
+   timeline — a soft glow/lift, deliberately distinct from .is-selected's
+   solid gold "you tapped this" treatment below, so "this is what's live"
+   and "this is what you're browsing" never look like the same kind of
+   emphasis even when (rarely) they'd otherwise coincide. */
 .history-pill.is-active {
   border-color: var(--object-type-border, rgba(237, 234, 227, 0.14));
   border-width: 1.5px;
   background: var(--object-type-bg-subtle, rgba(237, 234, 227, 0.06));
   color: rgba(237, 234, 227, 0.95);
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--type-color, rgba(237, 234, 227, 0.5)) 35%, transparent);
+}
+
+/* The pill the guest explicitly tapped to browse (see aria-pressed in
+   HistoryPill) — a real "you selected this" state, same solid-gold
+   language as .snap[aria-pressed="true"] (the milestone toggle) rather
+   than .is-active's quieter glow, since this one IS the direct result of a
+   tap, not just "this happens to be live right now." */
+.history-pill.is-selected {
+  border-color: var(--gold);
+  background: color-mix(in srgb, var(--gold) 22%, transparent);
+  color: #171005;
+}
+
+.history-pill.is-selected .history-pill-icon svg {
+  color: #171005;
+}
+
+/* A completed, named pill with no saved image (StackRun.blobUrl null) —
+   still tappable (see HistoryPill's own doc comment: tapping it gives real
+   feedback instead of silently doing nothing), just visually muted so it
+   reads as a lesser case than a normal pill before the guest even taps it. */
+.history-pill--no-image {
+  opacity: 0.55;
 }
 
 /* The one neutral "still settling" pill — no type color available yet
