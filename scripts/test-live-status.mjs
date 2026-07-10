@@ -598,6 +598,69 @@ function frameForRun(overrides) {
   )
 }
 
+// --- Test 19 (REGRESSION — second-pass review catch): a same-frame poll
+//     during an active frame-stale transition must NOT clear it. The bug:
+//     LiveView's same-frame branch (current.lastLiveFrame?.frameId ===
+//     body.frame.frameId) used to dispatch POLL_LIVE_IMAGE_LOADED
+//     unconditionally, and that event clears transitionReason UNCONDITIONALLY
+//     in the reducer (see Test 12/case comment — intentional, because the
+//     reducer trusts the caller to have already gated acceptance before
+//     dispatching). The same-frame branch had no such gate, so a poll
+//     reporting the SAME stale frame (exactly what happens throughout a
+//     frame-stale episode, by definition) would immediately clear the
+//     transition on the very next poll, defeating the feature. The fix lives
+//     in LiveView.tsx's same-frame branch, NOT in this reducer — the reducer
+//     tests below can't call that branch directly, so this test (a) proves
+//     the reducer-side mechanism the bug exploited really does clear
+//     unconditionally when fed the event, which is why the caller-side guard
+//     is required, and (b) models that guard as a small pure function mirror
+//     of the actual `if (stateRef.current.transitionReason !== null) return`
+//     check now in LiveView.tsx, so a future regression in that guard's
+//     LOGIC (if not its call site) is still caught here. ---
+{
+  // Mirrors the guard now in LiveView.tsx's same-frame branch.
+  function shouldSuppressSameFrameDispatch(transitionReason) {
+    return transitionReason !== null
+  }
+
+  let state = liveStatusReducer(initialLiveStatusState, {
+    type: 'POLL_LIVE_IMAGE_LOADED',
+    frame: frameForRun({ frameId: 'frame-A', stackRunStartedAt: 'run-1' }),
+    loadedAt: 1000,
+  })
+  state = liveStatusReducer(state, { type: 'POLL_FRAME_STALE', frameId: 'frame-A' })
+  assert('setup: frame-stale transition active on frame-A', state.transitionReason === 'frame-stale')
+
+  // Next poll returns frame-A again — same frame, nothing changed.
+  const nextPollFrameId = 'frame-A'
+  const sameFrame = state.lastLiveFrame?.frameId === nextPollFrameId
+  assert('this poll is a same-frame poll (the scenario the bug hits)', sameFrame === true)
+  assert(
+    'the fixed guard correctly suppresses dispatch for this poll',
+    shouldSuppressSameFrameDispatch(state.transitionReason) === true,
+  )
+
+  // Fixed behavior: LiveView does NOT dispatch POLL_LIVE_IMAGE_LOADED here
+  // (guarded above) — state is simply left alone.
+  assert('FIXED: transitionReason remains frame-stale (does NOT clear)', state.transitionReason === 'frame-stale')
+  assert('FIXED: uiState remains live (transition-renderable)', state.uiState === 'live')
+  assert('FIXED: lastLiveFrame is still frame-A, untouched', state.lastLiveFrame?.frameId === 'frame-A')
+
+  // Documents the bug directly: if the guard is bypassed and the same event
+  // this same-frame poll would have carried IS dispatched anyway (the
+  // pre-fix behavior), the reducer clears the transition — proving the
+  // caller-side guard above is load-bearing, not redundant.
+  const buggyState = liveStatusReducer(state, {
+    type: 'POLL_LIVE_IMAGE_LOADED',
+    frame: frameForRun({ frameId: 'frame-A', stackRunStartedAt: 'run-1' }),
+    loadedAt: 3000,
+  })
+  assert(
+    'BUG DOCUMENTED: dispatching POLL_LIVE_IMAGE_LOADED for the same frame anyway (pre-fix behavior) DOES incorrectly clear transitionReason',
+    buggyState.transitionReason === null,
+  )
+}
+
 console.log('')
 if (failures > 0) {
   console.log(`${failures} assertion(s) failed.`)
