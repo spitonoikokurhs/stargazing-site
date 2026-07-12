@@ -1128,17 +1128,26 @@ export default function LiveView({ statusUrl = '/api/status' }: { statusUrl?: st
 
           if (current.lastLiveFrame?.frameId === body.frame.frameId) {
             // Same frame we already showed — no new image to wait on, so
-            // history is safe to apply immediately alongside this dispatch.
+            // history is safe to apply immediately regardless of what
+            // happens below.
             //
-            // NOTE: this branch deliberately does NOT exit a frame-stale
-            // transition — this is the SAME frameId as what's already
-            // displayed (and, if staleness were in progress, the same
-            // frameId transitioningFrameId is keyed to), so nothing has
-            // actually gotten fresher yet. The frame-stale timer effect
-            // will simply keep re-detecting staleness on its own schedule
-            // until a poll finally reports a genuinely different frame,
-            // which takes the else branch below instead.
+            // NOTE: this branch must NOT exit an in-progress transition
+            // (run-change or frame-stale) — this is the SAME frameId as
+            // what's already displayed, so nothing has actually gotten
+            // fresher yet. POLL_LIVE_IMAGE_LOADED clears transitionReason
+            // UNCONDITIONALLY in the reducer (that case's own comment
+            // documents why: it trusts the caller to have already gated
+            // acceptance before dispatching — see the preload guard in the
+            // else branch below). This branch has no such gate of its own,
+            // so dispatching here while a transition is active would clear
+            // it on a poll that confirmed nothing new — exactly the bug a
+            // second-pass review caught after this shipped. The frame-stale
+            // timer effect keeps re-detecting staleness on its own schedule
+            // until a poll finally reports a genuinely different frame
+            // (the else branch), or TRANSITION_TIMEOUT's 5-minute clock
+            // gives up — those are the only two ways a transition may end.
             setHistory(nextHistory)
+            if (stateRef.current.transitionReason !== null) return
             // Same frame we already showed — no need to re-preload, just
             // refresh the "updated Xs ago" anchor via a synthetic reload event
             // using the existing loadedAt (recompute below is unnecessary;
