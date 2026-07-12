@@ -661,6 +661,61 @@ function frameForRun(overrides) {
   )
 }
 
+// =============================================================================
+// Session startup screen (uiState: 'starting') — event is scheduled and
+// active but no frame has arrived yet (session.startedAt is null).
+// =============================================================================
+
+// --- Test 20: POLL_STARTING transitions to starting state, clears old frame
+//     and transition state. ---
+{
+  let state = liveStatusReducer(initialLiveStatusState, {
+    type: 'POLL_LIVE_IMAGE_LOADED',
+    frame: frameForRun({}),
+    loadedAt: 1000,
+  })
+  assert('setup: frame-1 is live', state.uiState === 'live' && state.lastLiveFrame?.frameId === 'frame-1')
+
+  state = liveStatusReducer(state, {
+    type: 'POLL_STARTING',
+    payload: { tonight: { hotelId: 'oku-kos', start: '21:30', end: '22:30', cancelled: false }, next: null },
+  })
+  assert('POLL_STARTING sets uiState to starting', state.uiState === 'starting')
+  assert('POLL_STARTING clears lastLiveFrame (no frame yet)', state.lastLiveFrame === null)
+  assert('POLL_STARTING stores offline payload for status display', state.lastOfflinePayload?.tonight?.hotelId === 'oku-kos')
+  assert('POLL_STARTING clears any prior transitionReason', state.transitionReason === null)
+  assert('POLL_STARTING clears any prior transitioningRunKey', state.transitioningRunKey === null)
+}
+
+// --- Test 21: first frame loaded during starting exits to live. ---
+{
+  let state = liveStatusReducer(initialLiveStatusState, {
+    type: 'POLL_STARTING',
+    payload: { tonight: { hotelId: 'oku-kos', start: '21:30', end: '22:30', cancelled: false }, next: null },
+  })
+  assert('setup: starting state', state.uiState === 'starting')
+
+  state = liveStatusReducer(state, {
+    type: 'POLL_LIVE_IMAGE_LOADED',
+    frame: frameForRun({ frameId: 'first-frame' }),
+    loadedAt: 5000,
+  })
+  assert('first frame from starting exits to live', state.uiState === 'live' && state.lastLiveFrame?.frameId === 'first-frame')
+}
+
+// --- Test 22: starting is a pre-first-frame state; finished still wins over it. ---
+{
+  const startingState = liveStatusReducer(initialLiveStatusState, {
+    type: 'POLL_STARTING',
+    payload: { tonight: { hotelId: 'oku-kos', start: '21:30', end: '22:30', cancelled: false }, next: null },
+  })
+  const finishedOverStarting = liveStatusReducer(startingState, {
+    type: 'POLL_FINISHED',
+    payload: { date: '2026-07-10', next: null },
+  })
+  assert('POLL_FINISHED wins over starting state', finishedOverStarting.uiState === 'finished')
+}
+
 console.log('')
 if (failures > 0) {
   console.log(`${failures} assertion(s) failed.`)

@@ -560,21 +560,25 @@ export async function GET(req: NextRequest) {
       let tonight:
         | { hotelId: string; start: string; end: string; cancelled: boolean; cancellationReason?: string }
         | null = null
+      let session: { status?: string | null; cancellationReason?: string | null; startedAt?: Date | null } | null = null
       if (tonightEvent) {
-        // b. Was it cancelled? A missing weather-cancellation banner is
-        //    cosmetic; the page staying up matters more — so this read
-        //    degrades to cancelled:false on failure instead of bubbling to
-        //    the outer catch and losing `next` along with it.
+        // b. Session state (cancellation + startup detection). A missing
+        //    weather-cancellation banner is cosmetic; the page staying up
+        //    matters more — so this read degrades to cancelled:false on failure
+        //    instead of bubbling to the outer catch and losing `next` along
+        //    with it. Session may be null (no frame has arrived yet, no admin
+        //    pre-creation) or exist with startedAt:null (admin pre-created
+        //    without frames), or exist with startedAt set (first frame arrived).
         let cancelled = false
         let cancellationReason: string | undefined
         try {
-          const session = await prisma.session.findUnique({
+          session = await prisma.session.findUnique({
             where: { date_hotelId: { date: today, hotelId: tonightEvent.hotelId } },
           })
           cancelled = session?.status === 'cancelled'
           cancellationReason = cancelled ? (session?.cancellationReason ?? undefined) : undefined
         } catch (e) {
-          console.error('/api/status: cancellation read failed, defaulting to not-cancelled', e)
+          console.error('/api/status: session read failed, defaulting to not-cancelled', e)
         }
         tonight = {
           hotelId: tonightEvent.hotelId,
@@ -605,6 +609,21 @@ export async function GET(req: NextRequest) {
       const TRACKING_WINDOW_MARGIN_MINUTES = 60
       if (tonight && !tonight.cancelled && withinEventWindow(athensNowHHMM(), tonight.start, tonight.end, TRACKING_WINDOW_MARGIN_MINUTES)) {
         await trackViewer('hotel', null, hotelViewerEventKey(), viewerId)
+      }
+
+      // Session startup state: event is scheduled and active (within window,
+      // not cancelled), but no frame has been ingested yet. This is distinct
+      // from offline/reconnecting (frames existed, then stopped). Session may
+      // be null (never created yet) or exist with startedAt:null (admin
+      // pre-created, no frames yet). If session.startedAt is non-null, frames
+      // have arrived — fall through to normal offline state.
+      // Note: startup uses exact active window (margin 0), not the 60-minute
+      // tracking margin — startup is only shown during the actual event
+      // window, not the pre-show grace period.
+      const eventActive = tonightEvent && withinEventWindow(athensNowHHMM(), tonightEvent.start, tonightEvent.end, 0)
+      const notCancelled = !tonight?.cancelled
+      if (tonightEvent && eventActive && notCancelled && (session === null || session.startedAt === null)) {
+        return json({ live: false, starting: true, tonight, next })
       }
 
       return json({ live: false, tonight, next })
