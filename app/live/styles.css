@@ -370,6 +370,24 @@
   justify-content: center;
 }
 
+/* StartingScreen's pre-show circular frame (see LiveView.tsx) — same .viewer/
+   .sky-square/.rim shell as TransitionScreen, but shows a subtle centered
+   watermark (✦) above a smaller loader to visually distinguish pre-show from
+   transition/checking (which show only a spinner). */
+.viewer--starting .sky-square {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.5rem;
+}
+
+.starting-watermark {
+  font-size: 3rem;
+  opacity: 0.4;
+  line-height: 1;
+}
+
 /* Circular FOV inset holding the REAL image (object-fit:cover). Border-radius
    50% + overflow:hidden gives the circular mask; the inset box-shadow
    (lifted from the mockup's .fov) adds the dark vignette around the edge of

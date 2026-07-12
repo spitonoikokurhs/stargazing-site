@@ -5,6 +5,7 @@
 
 export const UI_STATES = [
   'checking',
+  'starting',
   'live',
   'offline-event-tonight',
   'offline-cancelled',
@@ -216,6 +217,7 @@ export type LiveStatusEvent =
   | { type: 'POLL_LIVE_IMAGE_LOADED'; frame: LiveFramePayload; loadedAt: number }
   | { type: 'POLL_LIVE_IMAGE_FAILED' }
   | { type: 'POLL_OFFLINE'; payload: OfflinePayload }
+  | { type: 'POLL_STARTING'; payload: OfflinePayload }
   | { type: 'POLL_DEGRADED' }
   | { type: 'POLL_FAILED' }
   | { type: 'RECONNECT_TIMEOUT' }
@@ -445,6 +447,30 @@ export function liveStatusReducer(state: LiveStatusState, event: LiveStatusEvent
         lastStatusAt: now,
         consecutiveFailures: 0,
         lastOfflinePayload: event.payload,
+        transitionReason: null,
+        transitioningRunKey: null,
+        transitioningFrameId: null,
+        transitionStartedAt: null,
+        suppressedRunKey: null,
+      }
+    }
+
+    case 'POLL_STARTING': {
+      // Event is scheduled and active (within window, not cancelled), but no
+      // frame has been ingested yet — session.startedAt is null. Distinct from
+      // offline/reconnecting (frames existed, then stopped). Clears any prior
+      // transition state since we're in pre-first-frame territory; there's
+      // nothing to wait for. Not meaningful to have lastLiveFrame while
+      // starting, so clear it too (no frame yet). As soon as the first frame
+      // preloads and promotes, POLL_LIVE_IMAGE_LOADED exits to 'live' via the
+      // normal path.
+      return {
+        ...state,
+        uiState: 'starting',
+        lastStatusAt: now,
+        consecutiveFailures: 0,
+        lastOfflinePayload: event.payload,
+        lastLiveFrame: null,
         transitionReason: null,
         transitioningRunKey: null,
         transitioningFrameId: null,

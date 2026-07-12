@@ -9,6 +9,7 @@ import {
   type DisplayObject,
 } from '@/lib/live-status'
 import { pickFarewellVariant, formatNextSessionLines, NO_NEXT_SESSION_LINE } from '@/lib/live-farewell'
+import { eventFor, nextEvent } from '@/lib/schedule'
 import { FarewellAegeanUfo } from './FarewellAegeanUfo'
 import { SpecialEventFarewell } from './SpecialEventFarewell'
 import {
@@ -32,7 +33,6 @@ import { typeColor } from '@/lib/type-colors'
 import catalogData from '@/config/catalog.json'
 import type { CatalogObject } from '@/lib/catalog'
 import { computeRunKey } from '@/lib/detect-transition'
-import { nextEvent } from '@/lib/schedule'
 
 // Crossfade duration for a flavor-line swap; must match the opacity transition
 // in styles.css (.status-flavor).
@@ -179,12 +179,26 @@ type StatusSpecialEventFinished = {
   degraded?: false
   finished?: false
 }
+// Session startup: event is scheduled and active (within window, not
+// cancelled), but no frame has been ingested yet. Session may not exist
+// (frame never arrived) or exist with startedAt:null (admin pre-created).
+// Distinct from offline/reconnecting (frames existed, then stopped).
+type StatusStarting = {
+  live: false
+  starting: true
+  degraded?: false
+  finished?: false
+  specialEventFinished?: false
+  tonight: OfflinePayload['tonight']
+  next: OfflinePayload['next']
+}
 type StatusResponse =
   | StatusLive
   | StatusOffline
   | StatusDegraded
   | StatusFinished
   | StatusSpecialEventFinished
+  | StatusStarting
 
 function isObject(v: unknown): v is Record<string, unknown> {
   return typeof v === 'object' && v !== null
@@ -311,6 +325,10 @@ function isSpecialEventFinishedStatus(v: Record<string, unknown>): v is StatusSp
   return v.live === false && v.specialEventFinished === true
 }
 
+function isStartingStatus(v: Record<string, unknown>): v is StatusStarting {
+  return v.live === false && v.starting === true && isTonightInfo(v.tonight) && isNextInfo(v.next)
+}
+
 function isStatusResponse(v: unknown): v is StatusResponse {
   if (!isObject(v)) return false
   // Checked BEFORE degraded/offline/live — mirrors the server's own
@@ -320,6 +338,7 @@ function isStatusResponse(v: unknown): v is StatusResponse {
   if (v.live === false && v.finished === true) return true
   if (v.live === false && v.specialEventFinished === true) return true
   if (v.live === false && v.degraded === true) return true
+  if (v.live === false && v.starting === true) return isStartingStatus(v)
   return isLiveStatus(v) || isOfflineStatus(v) || isFinishedStatus(v) || isSpecialEventFinishedStatus(v)
 }
 
@@ -408,6 +427,7 @@ type DemoMode =
   | 'moving'
   | 'fallback'
   | 'new-target'
+  | 'starting'
   | 'finished'
   | 'history-test'
 
@@ -423,6 +443,7 @@ const DEMO_MODES: DemoMode[] = [
   'moving',
   'fallback',
   'new-target',
+  'starting',
   'finished',
   'history-test',
 ]
@@ -840,6 +861,32 @@ function getDemoStatusBody(): StatusResponse | null {
     }
   }
 
+  if (mode === 'starting') {
+    // Demo: event is scheduled and active but no frame yet (session.startedAt
+    // is null). Uses a real scheduled hotel event from tonight's schedule so
+    // the tonight/next payloads are honest.
+    const today = athensTodayDate()
+    const tomorrow = addAthensDays(today, 1)
+    const tonight = eventFor(today)
+    const next =
+      tonight && athensNowHHMM() < tonight.end
+        ? { date: today, ...tonight }
+        : nextEvent(tomorrow)
+    return {
+      live: false,
+      starting: true,
+      tonight: tonight
+        ? {
+            hotelId: tonight.hotelId,
+            start: tonight.start,
+            end: tonight.end,
+            cancelled: false,
+          }
+        : null,
+      next,
+    }
+  }
+
   const knownKey = mode === 'known' ? 'known-nebula' : mode
   const known = KNOWN_DEMOS[knownKey]
 
@@ -1055,6 +1102,11 @@ export default function LiveView({ statusUrl = '/api/status' }: { statusUrl?: st
           // history strip must not linger as if it were still authoritative.
           setHistory([])
           dispatch({ type: 'POLL_DEGRADED' })
+        } else if (body.live === false && 'starting' in body && body.starting === true) {
+          // Event is scheduled and active but no frame has arrived yet.
+          // Distinct from offline/reconnecting (frames existed, then stopped).
+          setHistory([])
+          dispatch({ type: 'POLL_STARTING', payload: { tonight: body.tonight, next: body.next } })
         } else if (body.live === false) {
           setHistory([])
           dispatch({ type: 'POLL_OFFLINE', payload: { tonight: body.tonight, next: body.next } })
@@ -1658,6 +1710,10 @@ function LiveViewPresentation({ state, history }: { state: LiveStatusState; hist
     return <StatusScreen heading="Temporarily unavailable" sub="Retrying…" />
   }
 
+  if (uiState === 'starting') {
+    return <StartingScreen />
+  }
+
   if (uiState === 'offline-cancelled') {
     // Cancellation must dominate: the heading + reason are the unmissable
     // message; the flavor line rotates small and secondary beneath, never
@@ -1853,6 +1909,41 @@ function TransitionScreen({
 
       <div className="content" aria-live="polite">
         <TransitionCopy mainPhrases={MOVING_PHRASES} />
+      </div>
+    </div>
+  )
+}
+
+// Pre-show screen for a scheduled event that's active but hasn't received
+// its first frame yet (session.startedAt is null). Uses the same
+// .viewer/.sky-square/.rim structure as TransitionScreen so the page doesn't
+// jump/reflow, but shows a calm pre-show watermark inside the circle (logo
+// or stargazing icon, not a black empty frame and not only a spinner) and
+// rotating pre-show copy rather than transition copy. No history strip, no
+// object card — just waiting for the telescope to come online.
+function StartingScreen() {
+  return (
+    <div className="page">
+      <header className="topbar" aria-label="Session starting up">
+        <div className="topbar__live">
+          <span className="red-dot checking" aria-hidden="true" />
+          <span>SETTING UP</span>
+        </div>
+      </header>
+
+      <section className="viewer viewer--starting" aria-label="Telescope setup">
+        <div className="sky-square">
+          <div className="starting-watermark">✦</div>
+          <TelescopeLoader />
+        </div>
+        <svg className="rim" viewBox="0 0 100 100" aria-hidden="true">
+          <circle className="rim-ring outer" cx="50" cy="50" r="48" />
+          <circle className="rim-ring" cx="50" cy="50" r="45.9" />
+        </svg>
+      </section>
+
+      <div className="content" aria-live="polite">
+        <TransitionCopy mainPhrases={STARTING_PHRASES} />
       </div>
     </div>
   )
@@ -3589,6 +3680,18 @@ function objectLabel(displayObject: DisplayObject): string {
 // this pool is currently unused by ObjectDescription directly, kept for any
 // future generic-fallback need). Same spirit as the offline flavor text:
 // poetic/educational, object-agnostic, always true.
+// Pre-show copy while the event is active but no frame has arrived yet —
+// calm and anticipatory, distinct from the "something is broken" tone of
+// offline/reconnecting. Rotates via useRandomNoRepeatPhrase (no-repeat same as
+// MOVING_PHRASES) rather than sequential like UNIVERSAL_PHRASES.
+const STARTING_PHRASES = [
+  "Setting up tonight's telescope…",
+  "Finding tonight's first target…",
+  'The stars are waiting…',
+  'Powering up under the night sky…',
+  'Almost ready to look up…',
+]
+
 const UNIVERSAL_PHRASES = [
   'The light reaching this lens left its source long before you were born.',
   'Every photon here crossed the dark for thousands of years to arrive tonight.',
