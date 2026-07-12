@@ -2779,12 +2779,12 @@ function MilestoneToggle({
 }
 
 // Tonight's session-history strip — "here's what's been observed tonight,"
-// informational only (no tap interaction, no frame preview yet — see the
-// StackRun/history feature brief). Sits directly below the milestone
-// toggle and above the object name: both are compact horizontal context
-// rows describing "what am I looking at / when in its stack" and "what
-// came before this," grouped together as one context zone between the
-// image and the full object-info section.
+// with tappable pills for browsing earlier targets' images and catalog
+// cards without disturbing the live feed underneath. Sits directly below
+// the milestone toggle and above the object name: both are compact
+// horizontal context rows describing "what am I looking at / when in its
+// stack" and "what came before this," grouped together as one context
+// zone between the image and the full object-info section.
 //
 // Display rules (deliberately stricter than "objectId !== null"): only
 // high/medium confidence runs get a named pill — low/none confidence is
