@@ -1074,9 +1074,10 @@
   max-width: 100%;
 }
 
-/* StartingScreen's content area — ensure no background override from .content's
-   --object-type-bg-subtle variable. The .live-root wrapper provides the dark
-   starfield, so .content--starting just ensures transparency. */
+/* TransitionScreen and StartingScreen both need transparent content areas —
+   .content normally inherits --object-type-bg-subtle (a subtle card tint), but
+   these screens should show the dark .live-root background, not a card. */
+.content--transition,
 .content--starting {
   background: transparent;
 }

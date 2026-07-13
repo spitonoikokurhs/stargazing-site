@@ -1907,7 +1907,7 @@ function TransitionScreen({
         onSelectHistoryRun={onSelectHistoryRun}
       />
 
-      <div className="content" aria-live="polite">
+      <div className="content content--transition" aria-live="polite">
         <TransitionCopy mainPhrases={MOVING_PHRASES} />
       </div>
     </div>
