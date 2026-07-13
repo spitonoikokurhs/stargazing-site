@@ -370,22 +370,171 @@
   justify-content: center;
 }
 
-/* StartingScreen's pre-show circular frame (see LiveView.tsx) — same .viewer/
-   .sky-square/.rim shell as TransitionScreen, but shows a subtle centered
-   watermark (✦) above a smaller loader to visually distinguish pre-show from
-   transition/checking (which show only a spinner). */
-.viewer--starting .sky-square {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 1.5rem;
+.topbar__live--starting {
+  gap: 8px;
 }
 
-.starting-watermark {
-  font-size: 3rem;
-  opacity: 0.4;
-  line-height: 1;
+/* StartingScreen's pre-show circular frame (see LiveView.tsx): this is not a
+   fake telescope image. It is a quiet waiting eyepiece that shares the exact
+   viewer/rim geometry the first real observation will later occupy. */
+.viewer--starting .sky-square {
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 50% 52%, rgba(199, 168, 105, 0.045), transparent 28%),
+    radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.018), transparent 36%),
+    #000;
+}
+
+.starting-eyepiece {
+  position: absolute;
+  inset: 2.05%;
+  border-radius: 50%;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 50% 52%, rgba(199, 168, 105, 0.11), transparent 18%),
+    #000;
+  box-shadow: inset 0 0 54px rgba(0, 0, 0, 0.9);
+}
+
+.starting-eyepiece::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background:
+    radial-gradient(circle at 50% 54%, rgba(199, 168, 105, 0.16), transparent 17%),
+    radial-gradient(circle at 50% 50%, transparent 0 56%, rgba(0, 0, 0, 0.34) 72%, rgba(0, 0, 0, 0.9) 100%);
+  opacity: 0.55;
+  animation: starting-eyepiece-breathe 6s ease-in-out infinite;
+}
+
+.starting-eyepiece::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background:
+    linear-gradient(122deg, transparent 0 38%, rgba(255, 255, 255, 0.032) 43%, transparent 52%),
+    radial-gradient(circle at 50% 50%, transparent 0 58%, rgba(0, 0, 0, 0.24) 72%, rgba(0, 0, 0, 0.78) 100%);
+}
+
+.starting-star {
+  position: absolute;
+  left: var(--star-x);
+  top: var(--star-y);
+  width: var(--star-size);
+  height: var(--star-size);
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(237, 234, 227, var(--star-alpha)) 0 1.5px, rgba(237, 234, 227, 0.22) 1.7px, transparent 3px);
+  color: rgba(237, 234, 227, var(--star-alpha));
+  filter:
+    drop-shadow(0 0 4px rgba(237, 234, 227, 0.3))
+    drop-shadow(0 0 10px rgba(199, 168, 105, 0.08));
+  opacity: 0.72;
+  transform: translate(-50%, -50%);
+  animation: starting-stars-twinkle var(--star-speed) ease-in-out infinite;
+  animation-delay: var(--star-delay);
+}
+
+.starting-star::before,
+.starting-star::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  border-radius: 999px;
+  transform: translate(-50%, -50%);
+}
+
+.starting-star::before {
+  width: 100%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent 0%, currentColor 47%, currentColor 53%, transparent 100%);
+}
+
+.starting-star::after {
+  width: 1px;
+  height: 100%;
+  background: linear-gradient(180deg, transparent 0%, currentColor 47%, currentColor 53%, transparent 100%);
+}
+
+.starting-star--one {
+  --star-x: 31%;
+  --star-y: 28%;
+  --star-size: 13px;
+  --star-alpha: 0.82;
+  --star-speed: 4.8s;
+  --star-delay: -0.6s;
+}
+
+.starting-star--two {
+  --star-x: 67%;
+  --star-y: 23%;
+  --star-size: 11px;
+  --star-alpha: 0.68;
+  --star-speed: 5.6s;
+  --star-delay: -2.1s;
+}
+
+.starting-star--three {
+  --star-x: 77%;
+  --star-y: 61%;
+  --star-size: 10px;
+  --star-alpha: 0.54;
+  --star-speed: 4.2s;
+  --star-delay: -1.3s;
+}
+
+.starting-star--four {
+  --star-x: 22%;
+  --star-y: 69%;
+  --star-size: 9px;
+  --star-alpha: 0.44;
+  --star-speed: 6.2s;
+  --star-delay: -3s;
+}
+
+.starting-star--five {
+  --star-x: 46%;
+  --star-y: 78%;
+  --star-size: 8px;
+  --star-alpha: 0.36;
+  --star-speed: 5.2s;
+  --star-delay: -1.8s;
+}
+
+@keyframes starting-eyepiece-breathe {
+  0%, 100% {
+    opacity: 0.38;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 0.68;
+    transform: scale(1.018);
+  }
+}
+
+@keyframes starting-stars-twinkle {
+  0%, 100% {
+    opacity: 0.36;
+  }
+
+  45% {
+    opacity: 0.72;
+  }
+
+  68% {
+    opacity: 0.46;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .starting-eyepiece::before,
+  .starting-star {
+    animation: none;
+  }
 }
 
 /* Circular FOV inset holding the REAL image (object-fit:cover). Border-radius
@@ -898,6 +1047,86 @@
   text-wrap: balance;
 }
 
+/* TransitionScreen and StartingScreen both use .live-object-desc--transition
+   for their rotating copy. Override the default subtle-background card look
+   (which is meant for the normal object-info card) — these are standalone
+   screens showing just the rotating phrase, not a card, so the background
+   should be transparent (letting the dark .live-root show through). */
+.live-object-desc--transition {
+  --transition-main-color: rgba(237, 234, 227, 0.82);
+  --transition-instruction-color: rgba(168, 166, 160, 0.68);
+  background: transparent;
+  border: none;
+  margin: 10px auto 0;
+  padding: 14px 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  text-align: center;
+}
+
+.transition-main-row {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  max-width: 100%;
+}
+
+/* StartingScreen's content area — ensure no background override from .content's
+   --object-type-bg-subtle variable. The .live-root wrapper provides the dark
+   starfield, so .content--starting just ensures transparency. */
+.content--starting {
+  background: transparent;
+}
+
+.live-object-desc--starting-copy {
+  --transition-main-color: rgba(168, 166, 160, 0.78);
+  --transition-instruction-color: rgba(168, 166, 160, 0.62);
+}
+
+.live-object-desc--starting-copy .transition-main {
+  color: rgba(168, 166, 160, 0.78);
+}
+
+.live-object-desc--starting-copy .transition-instruction {
+  color: rgba(168, 166, 160, 0.62);
+}
+
+.live-object-desc--starting-copy .scope-loader {
+  flex: 0 0 auto;
+  opacity: 0.76;
+}
+
+.starting-hotel-logo {
+  display: block;
+  width: auto;
+  max-width: min(55vw, 195px);
+  max-height: 49px;
+  margin: 12px auto 0;
+  object-fit: contain;
+  opacity: 0.92;
+}
+
+.starting-waiting-indicator {
+  display: flex;
+  justify-content: center;
+  margin: 10px auto 0;
+  opacity: 0.72;
+}
+
+.starting-session-context {
+  margin: 5px auto 0;
+  max-width: min(88vw, 420px);
+  color: rgba(168, 166, 160, 0.58);
+  font-size: clamp(10.5px, 3vw, 12px);
+  line-height: 1.45;
+  letter-spacing: 0.08em;
+  text-align: center;
+  text-transform: uppercase;
+}
+
 /* The rotating universal-phrase variant crossfades; the catalog-description
    variant is static (no transition). */
 .live-object-desc--rotating {
@@ -916,24 +1145,12 @@
   }
 }
 
-/* Option A structure for the two transitional states (moving/fallback, see
-   TransitionCopy): the card holds two independently-crossfading lines
-   instead of one — .live-object-desc's shared box/padding/background stays
-   as-is, this just stacks the two lines with a small gap. */
-.live-object-desc--transition {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  text-align: center;
-}
-
 .transition-main {
   margin: 0;
   font-style: italic;
   font-size: clamp(13px, 3.8vw, 15px);
   line-height: 1.42;
-  color: rgba(237, 234, 227, 0.82);
+  color: var(--transition-main-color);
   text-wrap: balance;
   opacity: 0;
   transition: opacity 600ms ease;
@@ -948,7 +1165,7 @@
   margin: 0;
   font-size: clamp(11px, 3vw, 12.5px);
   letter-spacing: 0.04em;
-  color: rgba(168, 166, 160, 0.68);
+  color: var(--transition-instruction-color);
   opacity: 0;
   transition: opacity 600ms ease;
 }

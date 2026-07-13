@@ -1711,7 +1711,7 @@ function LiveViewPresentation({ state, history }: { state: LiveStatusState; hist
   }
 
   if (uiState === 'starting') {
-    return <StartingScreen />
+    return <StartingScreen payload={state.lastOfflinePayload} />
   }
 
   if (uiState === 'offline-cancelled') {
@@ -1914,36 +1914,82 @@ function TransitionScreen({
   )
 }
 
+function formatStartingSessionContext(payload: OfflinePayload | null): string | null {
+  const tonight = payload?.tonight
+  if (!tonight) return null
+  return `Tonight at ${hotelDisplayName(tonight.hotelId)} · ${tonight.start}–${tonight.end}`
+}
+
+function startingHotelLogo(payload: OfflinePayload | null): { src: string; alt: string } | null {
+  const hotelId = payload?.tonight?.hotelId
+  if (!hotelId) return null
+  const src = hotelLogoSrc(hotelId)
+  return src ? { src, alt: hotelDisplayName(hotelId) } : null
+}
+
 // Pre-show screen for a scheduled event that's active but hasn't received
-// its first frame yet (session.startedAt is null). Uses the same
-// .viewer/.sky-square/.rim structure as TransitionScreen so the page doesn't
-// jump/reflow, but shows a calm pre-show watermark inside the circle (logo
-// or stargazing icon, not a black empty frame and not only a spinner) and
-// rotating pre-show copy rather than transition copy. No history strip, no
-// object card — just waiting for the telescope to come online.
-function StartingScreen() {
+// its first observation yet (session.startedAt is null). It uses the same
+// viewer/rim geometry as the real live view, but the circle is explicitly a
+// non-observational waiting eyepiece — not a fake telescope image.
+function StartingScreen({ payload }: { payload: OfflinePayload | null }) {
+  const sessionContext = formatStartingSessionContext(payload)
+  const logo = startingHotelLogo(payload)
+
   return (
-    <div className="page">
-      <header className="topbar" aria-label="Session starting up">
-        <div className="topbar__live">
-          <span className="red-dot checking" aria-hidden="true" />
-          <span>SETTING UP</span>
-        </div>
-      </header>
+    <div className="live-root">
+      <div className="page">
+        <header className="topbar" aria-label="Session starting up">
+          <div className="topbar__live topbar__live--starting">
+            <span className="red-dot checking" aria-hidden="true" />
+            <span>STARTING SOON</span>
+          </div>
+        </header>
 
-      <section className="viewer viewer--starting" aria-label="Telescope setup">
-        <div className="sky-square">
-          <div className="starting-watermark">✦</div>
-          <TelescopeLoader />
-        </div>
-        <svg className="rim" viewBox="0 0 100 100" aria-hidden="true">
-          <circle className="rim-ring outer" cx="50" cy="50" r="48" />
-          <circle className="rim-ring" cx="50" cy="50" r="45.9" />
-        </svg>
-      </section>
+        <section className="viewer viewer--starting" aria-label="Telescope setup">
+          <div className="sky-square">
+            <div className="starting-eyepiece" aria-hidden="true">
+              <span className="starting-star starting-star--one" />
+              <span className="starting-star starting-star--two" />
+              <span className="starting-star starting-star--three" />
+              <span className="starting-star starting-star--four" />
+              <span className="starting-star starting-star--five" />
+            </div>
+          </div>
+          <svg className="rim" viewBox="0 0 100 100" aria-hidden="true">
+            <defs>
+              <path id="startingRimBrandArc" d="M 12.8 28.5 A 43 43 0 0 1 87.2 28.5" />
+            </defs>
+            <circle className="rim-ring outer" cx="50" cy="50" r="48" />
+            <circle className="rim-ring" cx="50" cy="50" r="45.9" />
+            <line className="rim-tick" x1="50" y1="2.2" x2="50" y2="4.2" />
+            <line className="rim-tick" x1="50" y1="95.8" x2="50" y2="97.8" />
+            <line className="rim-tick" x1="2.2" y1="50" x2="4.2" y2="50" />
+            <line className="rim-tick" x1="95.8" y1="50" x2="97.8" y2="50" />
+            <line className="rim-tick" x1="15.8" y1="15.8" x2="17.2" y2="17.2" />
+            <line className="rim-tick" x1="84.2" y1="15.8" x2="82.8" y2="17.2" />
+            <line className="rim-tick" x1="15.8" y1="84.2" x2="17.2" y2="82.8" />
+            <line className="rim-tick" x1="84.2" y1="84.2" x2="82.8" y2="82.8" />
+            <text className="rim-brand">
+              <textPath href="#startingRimBrandArc" startOffset="50%" textAnchor="middle" textLength={52} lengthAdjust="spacing">
+                STARGAZING.WORLD
+              </textPath>
+            </text>
+          </svg>
+        </section>
 
-      <div className="content" aria-live="polite">
-        <TransitionCopy mainPhrases={STARTING_PHRASES} />
+        <div className="content content--starting" aria-live="polite">
+          <TransitionCopy
+            mainPhrases={STARTING_PHRASES}
+            showLoader
+            instruction="The first live observation will appear here automatically."
+            className="live-object-desc--starting-copy"
+          />
+          {logo ? (
+            // eslint-disable-next-line @next/next/no-img-element -- local /public hotel logo, tiny optional badge, no next/image sizing needed here
+            <img src={logo.src} alt={logo.alt} className="starting-hotel-logo" />
+          ) : null}
+          {sessionContext ? <p className="starting-session-context">{sessionContext}</p> : null}
+        </div>
       </div>
     </div>
   )
@@ -3685,11 +3731,11 @@ function objectLabel(displayObject: DisplayObject): string {
 // offline/reconnecting. Rotates via useRandomNoRepeatPhrase (no-repeat same as
 // MOVING_PHRASES) rather than sequential like UNIVERSAL_PHRASES.
 const STARTING_PHRASES = [
-  "Setting up tonight's telescope…",
+  'Waiting for first light…',
   "Finding tonight's first target…",
-  'The stars are waiting…',
-  'Powering up under the night sky…',
-  'Almost ready to look up…',
+  'The telescope is waking up…',
+  'Preparing the first view…',
+  'Settling under the stars…',
 ]
 
 const UNIVERSAL_PHRASES = [
@@ -3852,16 +3898,22 @@ function RotatingPhrase() {
 function TransitionCopy({
   mainPhrases,
   showLoader,
+  instruction = 'one moment',
+  className,
 }: {
   mainPhrases: string[]
   showLoader?: boolean
+  instruction?: string
+  className?: string
 }) {
   const main = useRandomNoRepeatPhrase(mainPhrases, MOVING_PHRASE_ROTATE_MS)
   return (
-    <div className="live-object-desc live-object-desc--transition">
-      {showLoader ? <TelescopeLoader small /> : null}
-      <p className={`transition-main${main.visible ? ' is-visible' : ''}`}>{main.text}</p>
-      <p className="transition-instruction is-visible">one moment</p>
+    <div className={`live-object-desc live-object-desc--transition${className ? ` ${className}` : ''}`}>
+      <div className="transition-main-row">
+        {showLoader ? <TelescopeLoader small /> : null}
+        <p className={`transition-main${main.visible ? ' is-visible' : ''}`}>{main.text}</p>
+      </div>
+      <p className="transition-instruction is-visible">{instruction}</p>
     </div>
   )
 }
