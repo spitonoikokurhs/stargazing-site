@@ -1883,58 +1883,60 @@ function TransitionScreen({
   onSelectHistoryRun: (run: HistoryEntry | null) => void
 }) {
   return (
-    <div className="page">
-      <header className="topbar" aria-label="Live page status">
-        <div className="topbar__live">
-          <span className="red-dot reconnecting" aria-hidden="true" />
-          <span>NEXT OBJECT INCOMING</span>
+    <div className="live-root">
+      <div className="page">
+        <header className="topbar" aria-label="Live page status">
+          <div className="topbar__live">
+            <span className="red-dot reconnecting" aria-hidden="true" />
+            <span>NEXT OBJECT INCOMING</span>
+          </div>
+        </header>
+
+        <section className="viewer viewer--transition" aria-label="Telescope repositioning">
+          <div className="sky-square">
+            <TelescopeLoader />
+          </div>
+          <svg className="rim" viewBox="0 0 100 100" aria-hidden="true">
+            <circle className="rim-ring outer" cx="50" cy="50" r="48" />
+            <circle className="rim-ring" cx="50" cy="50" r="45.9" />
+          </svg>
+        </section>
+
+        {/* A tap here can fail (null blobUrl, or preload failure/timeout) the
+            exact same way it can from LiveFrameView — handleSelectHistoryRun
+            in LiveViewPresentation is the SAME entry point regardless of
+            which screen the tap happened on (see its own doc comment). Without
+            rendering this here too, a failed tap on THIS screen would fail
+            completely silently — the error state would be set, but nothing
+            on screen would ever show it, since selectedHistoryRun stays null
+            and the render stays on TransitionScreen. Mirrors LiveFrameView's
+            own historyPreloadError rendering exactly. */}
+        {historyPreloadError && (
+          <p className="history-preload-error" role="status">
+            {historyPreloadError}
+          </p>
+        )}
+
+        {/* History keeps updating during transition (see /api/status's history
+            field, refreshed on every poll regardless of transitionReason) —
+            the new active run shows up as SessionHistoryStrip's own neutral
+            "…" settling pill (isDisplayableRun is false until a StackRun gets
+            a confident object match), which is exactly the guest-facing signal
+            that a new run is underway even before its frame is ready to show.
+            Pills stay tappable here too — selectedHistoryRunId is always null
+            on THIS screen (LiveViewPresentation routes to LiveFrameView's
+            historical view instead once a selection exists), but a tap here
+            still needs to fire onSelectHistoryRun so the NEXT render picks up
+            the selection and switches away from this screen. */}
+        <SessionHistoryStrip
+          history={history}
+          selectedHistoryRunId={selectedHistoryRunId}
+          onSelectHistoryRun={onSelectHistoryRun}
+        />
+
+        <div className="content content--transition" aria-live="polite">
+          <TransitionCopy mainPhrases={MOVING_PHRASES} />
         </div>
-      </header>
-
-      <section className="viewer viewer--transition" aria-label="Telescope repositioning">
-        <div className="sky-square">
-          <TelescopeLoader />
-        </div>
-        <svg className="rim" viewBox="0 0 100 100" aria-hidden="true">
-          <circle className="rim-ring outer" cx="50" cy="50" r="48" />
-          <circle className="rim-ring" cx="50" cy="50" r="45.9" />
-        </svg>
-      </section>
-
-      {/* A tap here can fail (null blobUrl, or preload failure/timeout) the
-          exact same way it can from LiveFrameView — handleSelectHistoryRun
-          in LiveViewPresentation is the SAME entry point regardless of
-          which screen the tap happened on (see its own doc comment). Without
-          rendering this here too, a failed tap on THIS screen would fail
-          completely silently — the error state would be set, but nothing
-          on screen would ever show it, since selectedHistoryRun stays null
-          and the render stays on TransitionScreen. Mirrors LiveFrameView's
-          own historyPreloadError rendering exactly. */}
-      {historyPreloadError && (
-        <p className="history-preload-error" role="status">
-          {historyPreloadError}
-        </p>
-      )}
-
-      {/* History keeps updating during transition (see /api/status's history
-          field, refreshed on every poll regardless of transitionReason) —
-          the new active run shows up as SessionHistoryStrip's own neutral
-          "…" settling pill (isDisplayableRun is false until a StackRun gets
-          a confident object match), which is exactly the guest-facing signal
-          that a new run is underway even before its frame is ready to show.
-          Pills stay tappable here too — selectedHistoryRunId is always null
-          on THIS screen (LiveViewPresentation routes to LiveFrameView's
-          historical view instead once a selection exists), but a tap here
-          still needs to fire onSelectHistoryRun so the NEXT render picks up
-          the selection and switches away from this screen. */}
-      <SessionHistoryStrip
-        history={history}
-        selectedHistoryRunId={selectedHistoryRunId}
-        onSelectHistoryRun={onSelectHistoryRun}
-      />
-
-      <div className="content content--transition" aria-live="polite">
-        <TransitionCopy mainPhrases={MOVING_PHRASES} />
       </div>
     </div>
   )
