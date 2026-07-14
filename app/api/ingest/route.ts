@@ -644,27 +644,29 @@ export async function POST(req: NextRequest) {
       })
       await redis.set(latestFrameKey(source), payload, { ex: 600 })
 
-      // Auto-clear "finished" on the next successful FRESH ingest — this is
-      // the PRIMARY reset mechanism (the 60min TTL on the flag itself, see
-      // EVENT_FINISHED_TTL_S in lib/redis.ts, is only a safety backstop, not
-      // how this is meant to clear in practice). We only reach this line for
-      // a genuinely new frame: both the pre-write dedup check (step 5) and
-      // the DB-transaction P2002 dedup path above return early before this
-      // point, so a deduped/repeated frame can never accidentally un-finish
-      // a session that was deliberately ended.
-      // Best-effort: if this delete fails, the 60min TTL still bounds how
-      // long a stale flag can linger, and the next ingest retries the delete.
+      // Finished flag is now terminal: once set via /api/finish, it persists
+      // until its 60-min TTL expires naturally (see EVENT_FINISHED_TTL_S in
+      // lib/redis.ts). Ingest no longer auto-clears it on fresh frames.
       //
-      // A special-event source clears its OWN scoped flag (eventFinishedKey)
-      // rather than the shared hotel EVENT_FINISHED_KEY — a fresh Parnonas
-      // frame must never un-finish a hotel's already-ended night, or vice
-      // versa (see lib/redis.ts's eventFinishedKey doc).
-      try {
-        const isSpecialEvent = extraEventFor(source) !== null
-        await redis.del(isSpecialEvent ? eventFinishedKey(source) : EVENT_FINISHED_KEY)
-      } catch (e) {
-        console.error('ingest: failed to clear finished flag after fresh ingest', e)
-      }
+      // REASONING: Auto-clear created two problems:
+      // 1. If an operator finished by accident mid-session (before relay stops),
+      //    the next frame upload would un-finish the event, making the finish
+      //    non-terminal on the client (guests see farewell, then live resumes).
+      // 2. Rejecting frames while finished would cause data loss (captured
+      //    frames discarded) and error noise (relay sees failures and backs off).
+      //
+      // NEW MODEL: Finish controls DISPLAY, not INGESTION.
+      // - Ingest accepts and stores frames normally (preserves audit trail,
+      //   relay sees no errors).
+      // - Finished flag persists → /api/status returns finished:true until TTL
+      //   expires.
+      // - Client-side terminal lock (see LiveView.tsx poll loop) ensures
+      //   guests see the farewell for the rest of their page session, even
+      //   if the flag's TTL expires while they're still watching.
+      //
+      // RECOVERY: If an operator finishes by accident, either wait 60 minutes
+      // for the TTL to expire, or manually delete the flag from Redis. A
+      // future unfinish script may streamline this.
     } catch (e) {
       redisWarning = true
       console.error('ingest: Redis set failed after DB commit', e)

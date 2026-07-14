@@ -1082,6 +1082,32 @@ export default function LiveView({ statusUrl = '/api/status' }: { statusUrl?: st
         clearTimeout(fetchTimeout)
         if (cancelled) return
 
+        // TERMINAL LOCK: Once the client has seen finished or special-event-
+        // finished, the page stays on the farewell screen for the rest of the
+        // session, regardless of what the server reports. This is belt-and-
+        // suspenders: the finished flag persists server-side until its 60-min
+        // TTL expires, but if that TTL expires while a guest still has the
+        // page open and the relay is still uploading, the client won't
+        // accidentally show live frames again.
+        const current = stateRef.current
+        const isTerminallyFinished = current.uiState === 'finished' || current.uiState === 'special-event-finished'
+
+        if (isTerminallyFinished) {
+          // Ignore any poll result that would move away from finished. Only
+          // dispatch a new POLL_FINISHED if the server is re-asserting the
+          // finished state (though this should be redundant after the flag is
+          // set). Either way, do not reset history or change the fare well
+          // screen.
+          if (body.live === false && body.finished === true) {
+            dispatch({ type: 'POLL_FINISHED', payload: { date: body.date, next: body.next } })
+          } else if (body.live === false && body.specialEventFinished === true) {
+            dispatch({ type: 'POLL_SPECIAL_EVENT_FINISHED' })
+          }
+          // All other poll results (live frames, starting, offline, degraded)
+          // are silently ignored. The farewell stays on screen.
+          return
+        }
+
         if (body.live === false && body.finished === true) {
           // Checked FIRST — before degraded/offline/live — mirroring the
           // server's own ordering. This must win even if the client were
