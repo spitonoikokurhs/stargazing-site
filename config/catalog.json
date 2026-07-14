@@ -94,7 +94,7 @@
       "type": "Planetary Nebula",
       "raDeg": 299.9017,
       "decDeg": 22.7211,
-      "displayRadiusDeg": 0.2,
+      "displayRadiusDeg": 0.25,
       "priority": 78,
       "description": "A puffy, apple-core-shaped cloud of gas blown off by a star nearing the end of its life.",
       "constellation": "Vulpecula",
