@@ -1082,6 +1082,114 @@
   background: transparent;
 }
 
+/* Context section on TransitionScreen: shows what was just observed before
+   the transition to the next target. Provides narrative continuity and fills
+   the empty space below the enlarged animation. */
+.transition-context {
+  margin: 16px auto 14px;
+  text-align: center;
+}
+
+.transition-context__label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: clamp(10px, 2.2vw, 11px);
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(168, 166, 160, 0.68);
+}
+
+.transition-context__object-name {
+  display: block;
+  margin-bottom: 8px;
+  font-family: var(--font-display), "Cormorant Garamond", Georgia, "Times New Roman", serif;
+  font-size: clamp(14px, 3.5vw, 18px);
+  font-weight: 520;
+  color: #f2eee6;
+  letter-spacing: 0.03em;
+}
+
+/* Highlight the just-finished pill in the history strip during transition —
+   adds a soft glow and slightly brighter appearance to visually anchor the
+   "You just watched" context. */
+.history-pill.is-just-finished {
+  border-color: rgba(199, 168, 105, 0.35);
+  box-shadow:
+    inset 0 0 0 1px rgba(199, 168, 105, 0.12),
+    0 0 12px rgba(199, 168, 105, 0.15);
+}
+
+/* Transition screen status line: small neutral indicator that the telescope
+   is repositioning. Uses the same red-dot pattern as the live indicator for
+   visual consistency, but in a muted neutral style. */
+.transition-status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin: 8px auto;
+  font-size: clamp(9px, 2vw, 10px);
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(168, 166, 160, 0.68);
+}
+
+.transition-status__dot {
+  opacity: 0.6;
+}
+
+/* Label for the history strip showing tonight's journey so far. */
+.transition-journey-label {
+  display: block;
+  margin: 10px auto 4px;
+  font-size: clamp(9px, 2vw, 10px);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(168, 166, 160, 0.68);
+  text-align: center;
+}
+
+/* Educational fact container during transition — alternates between object
+   wowFacts and technology explanations via round-robin rotation. */
+.transition-fact {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  margin: 10px auto;
+  max-width: min(88vw, 420px);
+  padding: 0 10px;
+}
+
+.transition-fact__label {
+  display: block;
+  font-size: clamp(9px, 2vw, 10px);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* "Did you know?" label uses warm gold tone tied to object content. */
+.transition-fact__label--object {
+  color: rgba(199, 168, 105, 0.8);
+}
+
+/* "How this works" label uses neutral grey tone for UI chrome consistency. */
+.transition-fact__label--tech {
+  color: rgba(168, 166, 160, 0.72);
+}
+
+.transition-fact__text {
+  font-size: clamp(11px, 2.5vw, 13px);
+  line-height: 1.4;
+  font-style: italic;
+  color: rgba(237, 234, 227, 0.72);
+  text-align: center;
+}
+
 .live-object-desc--starting-copy {
   --transition-main-color: rgba(168, 166, 160, 0.78);
   --transition-instruction-color: rgba(168, 166, 160, 0.62);
@@ -1992,6 +2100,13 @@
    fit inline above a compact two-line copy card instead of a full screen. */
 .scope-loader--small {
   --scope-size: clamp(26px, 2.6vmin, 34px);
+}
+
+/* Enlarged variant for TransitionScreen (frame-stale + run-change) — 150% of
+   the default size to make the waiting animation more prominent and fill the
+   circular viewer with intentional motion rather than a tiny centered dot. */
+.scope-loader--transition {
+  --scope-size: clamp(60px, 6vmin, 96px);
 }
 
 .scope-loader__icon {
@@ -3372,9 +3487,77 @@
    running even in the static tier (matching how .red-dot's pulse etc. are
    handled elsewhere on /live), but disabled below for guests who've
    explicitly asked for no motion at all, same as .fullscreen-image--animating.  */
+/* Transition screen: Variant 3 final layout (sequential reveal with staged fade-in) */
+
+/* Status + moving phrase section (immediate) */
+.content--transition-status {
+  background: transparent;
+  margin: 6px auto 8px;
+  max-width: min(88vw, 420px);
+  text-align: center;
+}
+
+.transition-moving-phrase {
+  font-size: clamp(11px, 2.5vw, 13px);
+  color: rgba(237, 234, 227, 0.72);
+  margin: 0;
+  opacity: 0;
+  transition: opacity 400ms ease-out;
+}
+
+.transition-moving-phrase.is-visible {
+  opacity: 1;
+}
+
+/* Recap section: fades in at 1s */
+.transition-recap-section {
+  animation: fadeInAtTime 0.6s ease-out 1s both;
+}
+
+/* Fact section: fades in at 2s */
+.transition-fact-section {
+  animation: fadeInAtTime 0.6s ease-out 2s both;
+}
+
+@keyframes fadeInAtTime {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Image crossfade when switching from history pill or transition resolve */
+.fov-image {
+  transition: opacity 400ms ease-out;
+}
+
+.fov-image--transitioning {
+  opacity: 0.3;
+}
+
+/* Transition screen history pill image: instant swap, no fade */
+.transition-target-image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 18px;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .farewell-shimmer,
   .farewell-sail {
     animation: none;
+  }
+  .transition-recap-section,
+  .transition-fact-section {
+    animation: none;
+    opacity: 1;
+  }
+  .fov-image {
+    transition: none;
   }
 }
