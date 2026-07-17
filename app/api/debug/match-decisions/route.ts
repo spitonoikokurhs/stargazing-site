@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createHash, timingSafeEqual } from 'crypto'
 import { prisma } from '@/lib/db'
 import { athensToday } from '@/lib/schedule'
+import { nearestCatalogObject } from '@/lib/catalog'
 
 // Node runtime required: crypto.timingSafeEqual, createHash.
 export const runtime = 'nodejs'
@@ -63,7 +64,20 @@ export async function GET(req: NextRequest) {
     }
 
     const date = req.nextUrl.searchParams.get('date') ?? athensToday()
+
+    // ?result= filter, validated to the three real outcomes so a typo (e.g.
+    // "fallbck") fails loudly with a 400 rather than silently matching nothing
+    // and reading as "zero fallbacks tonight" — a false negative that would
+    // quietly mislead exactly the catalog-tuning review this endpoint exists
+    // for. Omitted = all three outcomes.
+    const VALID_RESULTS = ['matched', 'fallback', 'upgraded'] as const
     const resultFilter = req.nextUrl.searchParams.get('result')
+    if (resultFilter !== null && !(VALID_RESULTS as readonly string[]).includes(resultFilter)) {
+      return json(
+        { error: `invalid result filter '${resultFilter}' — must be one of: ${VALID_RESULTS.join(', ')}` },
+        400,
+      )
+    }
 
     // Sessions for this Athens date (one per hotel; usually exactly one). A
     // MatchDecision.sessionId points at one of these — filter decisions to
@@ -106,16 +120,36 @@ export async function GET(req: NextRequest) {
       date,
       sessions: sessions.map((s) => ({ id: s.id, hotelId: s.hotelId })),
       summary,
-      decisions: decisions.map((d) => ({
-        stackRunId: d.stackRunId,
-        source: d.source,
-        result: d.result,
-        ra: d.ra,
-        dec: d.dec,
-        objectId: d.objectId,
-        confidence: d.confidence,
-        at: d.createdAt.toISOString(),
-      })),
+      decisions: decisions.map((d) => {
+        const base = {
+          stackRunId: d.stackRunId,
+          source: d.source,
+          result: d.result,
+          ra: d.ra,
+          dec: d.dec,
+          objectId: d.objectId,
+          confidence: d.confidence,
+          at: d.createdAt.toISOString(),
+        }
+        // Nearest-object enrichment for FALLBACK rows — computed at READ time
+        // against the CURRENT catalog (radii/positions evolve as we tune), so
+        // it always answers "would this fallback match under TODAY's radii, and
+        // by how much would the radius need to grow?" Deliberately NOT stored on
+        // the row (the table stays a pure record of what happened at decision
+        // time). fractionOfRadius just over 1.0 is the tuning target: a
+        // near-miss a slightly wider radius would capture. Only added to
+        // fallbacks — matched/upgraded rows already resolved to an object.
+        if (d.result !== 'fallback') return base
+        const nearest = nearestCatalogObject(d.ra, d.dec)
+        if (!nearest) return base
+        return {
+          ...base,
+          nearestObjectId: nearest.objectId,
+          separationDeg: Number(nearest.separationDeg.toFixed(4)),
+          displayRadiusDeg: Number(nearest.displayRadiusDeg.toFixed(4)),
+          fractionOfRadius: Number(nearest.fractionOfRadius.toFixed(3)),
+        }
+      }),
       generatedAt: new Date().toISOString(),
     })
   } catch (e) {

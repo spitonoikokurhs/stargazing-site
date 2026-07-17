@@ -10,7 +10,9 @@
 // as their Redis keys haven't aged out yet. Going forward, /api/finish writes
 // the snapshot live and this script is only a safety net.
 //
-// Run with: node --env-file=.env.local --import tsx scripts/backfill-viewer-stats.mjs
+// Run with (loads BOTH env files — Redis creds live in .env.local, the DB URL
+// in .env — and uses `npx tsx` so the .ts lib imports below resolve):
+//   npx tsx --env-file=.env.local --env-file=.env scripts/backfill-viewer-stats.mjs
 //
 // The unique-set key shape it scans (see viewerKeys in lib/redis.ts):
 //   hotel:  live:viewers:hotel:unique:<YYYY-MM-DD>:<hotelId>

@@ -106,51 +106,61 @@ function solvedCoords(metadata: Prisma.InputJsonValue | null): { ra: number; dec
   return { ra: m.raDegrees, dec: m.decDegrees }
 }
 
-// Records a StackRun identity decision (creation match + opportunistic
-// upgrade) in BOTH places it matters: the greppable Vercel-log line (live
-// tail during an event) AND a durable MatchDecision row (season-wide catalog
-// tuning from Postgres, queryable days/weeks later via /api/debug/match-
-// decisions). Coordinates are only known when the frame actually solved (see
-// solvedCoords); every real call site passes solved coords, so the DB row —
-// whose ra/dec are non-nullable — is only written when coords is present. The
-// DB insert is best-effort/non-fatal: a failure here logs and is swallowed,
-// never failing the ingest, exactly mirroring the surrounding StackRun-
-// tracking try/catch discipline. Runs inside the ingest transaction (tx) so a
-// committed frame and its decision row land together.
-async function recordMatchDecision(
-  tx: Prisma.TransactionClient,
-  fields: {
-    sessionId: string
-    stackRunId: string
-    source: Source
-    coords: { ra: number; dec: number } | null
-    result: 'matched' | 'fallback' | 'upgraded'
-    objectId: string | null
-    confidence: Confidence | null
-  },
-) {
+// A StackRun identity decision (creation match / opportunistic upgrade /
+// fallback) captured for durable persistence AFTER the ingest transaction
+// commits — see logStackRunMatch and the persistence loop at the end of POST
+// for why this is deliberately not written inside the transaction.
+type MatchDecisionRecord = {
+  sessionId: string
+  stackRunId: string
+  source: Source
+  result: 'matched' | 'fallback' | 'upgraded'
+  ra: number
+  dec: number
+  objectId: string | null
+  confidence: Confidence | null
+}
+
+// Emits the greppable Vercel-log line for a StackRun identity decision (live
+// tail during an event) and RETURNS a MatchDecisionRecord to be persisted
+// after the transaction commits — or null when there's nothing durable to
+// store (an unsolved frame has no coordinates, and MatchDecision.ra/dec are
+// non-nullable).
+//
+// CRITICAL: this does NOT write to the database, and in particular never
+// writes via the ingest transaction client. A failed INSERT inside a Postgres
+// transaction aborts the ENTIRE transaction — a caught exception does not undo
+// that; the surrounding COMMIT still fails. Writing MatchDecision via `tx`
+// would therefore let a diagnostic-row failure roll back the actual frame
+// ingest, the exact opposite of the "diagnostics must never break ingest"
+// contract. So the decision is only COLLECTED here (pure, in-memory) and
+// persisted separately, each row in its own independent write, only after the
+// frame/StackRun transaction has already committed (see POST's tail).
+function logStackRunMatch(fields: {
+  sessionId: string
+  stackRunId: string
+  source: Source
+  coords: { ra: number; dec: number } | null
+  result: 'matched' | 'fallback' | 'upgraded'
+  objectId: string | null
+  confidence: Confidence | null
+}): MatchDecisionRecord | null {
   const ra = fields.coords ? fields.coords.ra.toFixed(4) : 'null'
   const dec = fields.coords ? fields.coords.dec.toFixed(4) : 'null'
   console.log(
     `stackrun-match: stackRunId=${fields.stackRunId} ra=${ra} dec=${dec} ` +
       `result=${fields.result} objectId=${fields.objectId ?? 'null'} confidence=${fields.confidence ?? 'null'}`,
   )
-  if (!fields.coords) return // no solved coordinates -> nothing durable to persist (ra/dec are required)
-  try {
-    await tx.matchDecision.create({
-      data: {
-        sessionId: fields.sessionId,
-        stackRunId: fields.stackRunId,
-        source: fields.source,
-        result: fields.result,
-        ra: fields.coords.ra,
-        dec: fields.coords.dec,
-        objectId: fields.objectId,
-        confidence: fields.confidence,
-      },
-    })
-  } catch (e) {
-    console.error('/api/ingest: MatchDecision persist failed (non-fatal)', e)
+  if (!fields.coords) return null // no solved coordinates -> nothing durable to persist
+  return {
+    sessionId: fields.sessionId,
+    stackRunId: fields.stackRunId,
+    source: fields.source,
+    result: fields.result,
+    ra: fields.coords.ra,
+    dec: fields.coords.dec,
+    objectId: fields.objectId,
+    confidence: fields.confidence,
   }
 }
 
@@ -328,15 +338,22 @@ export async function POST(req: NextRequest) {
     }
 
     // 7. DB writes in a single transaction.
+    //
+    // matchDecisions: StackRun identity decisions COLLECTED during the
+    // transaction but persisted AFTER it commits (see the persistence loop
+    // below step 8) — never written via `tx`, so a diagnostic-row failure can
+    // never abort the frame ingest transaction. See logStackRunMatch's doc.
     let result: {
       frameId: string
       observationId: string
       sessionId: string
       objectName: string
       ingestedAt: Date
+      matchDecisions: MatchDecisionRecord[]
     }
     try {
       result = await prisma.$transaction(async (tx) => {
+        const matchDecisions: MatchDecisionRecord[] = []
         // 6a. Find or create today's Session.
         //
         // A source that's also a special-event slug (config/extra-events.json,
@@ -590,7 +607,7 @@ export async function POST(req: NextRequest) {
             // solved coordinates behind it.
             const coords = solvedCoords(metadata)
             if (match) {
-              await recordMatchDecision(tx, {
+              const rec = logStackRunMatch({
                 sessionId: session.id,
                 stackRunId: newRun.id,
                 source,
@@ -599,8 +616,9 @@ export async function POST(req: NextRequest) {
                 objectId: match.objectId,
                 confidence: match.confidence,
               })
+              if (rec) matchDecisions.push(rec)
             } else if (coords) {
-              await recordMatchDecision(tx, {
+              const rec = logStackRunMatch({
                 sessionId: session.id,
                 stackRunId: newRun.id,
                 source,
@@ -609,6 +627,7 @@ export async function POST(req: NextRequest) {
                 objectId: null,
                 confidence: null,
               })
+              if (rec) matchDecisions.push(rec)
             }
           } else {
             const openRun = await tx.stackRun.findFirst({
@@ -674,7 +693,7 @@ export async function POST(req: NextRequest) {
               //     that never solved at creation time.
               const coords = solvedCoords(metadata)
               if (isUpgrade) {
-                await recordMatchDecision(tx, {
+                const rec = logStackRunMatch({
                   sessionId: session.id,
                   stackRunId: openRun.id,
                   source,
@@ -683,8 +702,9 @@ export async function POST(req: NextRequest) {
                   objectId: match!.objectId,
                   confidence: match!.confidence,
                 })
+                if (rec) matchDecisions.push(rec)
               } else if (match === null && coords && openRun.objectId === null) {
-                await recordMatchDecision(tx, {
+                const rec = logStackRunMatch({
                   sessionId: session.id,
                   stackRunId: openRun.id,
                   source,
@@ -693,6 +713,7 @@ export async function POST(req: NextRequest) {
                   objectId: null,
                   confidence: null,
                 })
+                if (rec) matchDecisions.push(rec)
               }
             }
             // No open StackRun found for an existing (non-fresh) Observation
@@ -711,6 +732,7 @@ export async function POST(req: NextRequest) {
           sessionId: session.id,
           objectName: observation.objectName,
           ingestedAt: frame.ingestedAt,
+          matchDecisions,
         }
       })
     } catch (e) {
@@ -733,6 +755,23 @@ export async function POST(req: NextRequest) {
       // also fail and complicates the handler).
       console.error('ingest: DB transaction failed; orphaned blob at', blob.pathname, e)
       return NextResponse.json({ error: 'internal' }, { status: 500 })
+    }
+
+    // 7b. Persist MatchDecision diagnostic rows — AFTER the frame/StackRun
+    // transaction has committed, deliberately OUTSIDE it (see logStackRunMatch's
+    // doc). Each row is its own independent insert via `prisma` (not the
+    // now-finished `tx`), individually try/caught: a failure here logs and is
+    // swallowed, and — crucially — cannot roll anything back, because the frame
+    // ingest is already durably committed by this point. This is what makes the
+    // "diagnostics must never break ingest" contract actually hold, rather than
+    // only appearing to via a caught-but-still-fatal in-transaction insert.
+    // Realistically 0-1 records per ingest (one decision per frame).
+    for (const rec of result.matchDecisions) {
+      try {
+        await prisma.matchDecision.create({ data: rec })
+      } catch (e) {
+        console.error('/api/ingest: MatchDecision persist failed (non-fatal, post-commit)', e)
+      }
     }
 
     // 8. Redis LAST — only after the transaction commits. A Redis failure

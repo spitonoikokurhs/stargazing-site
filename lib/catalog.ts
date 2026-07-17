@@ -210,3 +210,43 @@ export function matchCoordinates(raDeg: number, decDeg: number): MatchResult {
 
   return { match: best.obj, confidence, separationDeg: best.separationDeg }
 }
+
+export type NearestObject = {
+  objectId: string
+  separationDeg: number
+  displayRadiusDeg: number
+  // separationDeg / displayRadiusDeg — the size-normalized closeness score.
+  // <= 1 means the coordinate is INSIDE this object's radius (matchCoordinates
+  // would have matched it); values just OVER 1 are the radius-tuning targets
+  // (a near-miss that a slightly larger radius would capture).
+  fractionOfRadius: number
+}
+
+// The single closest static-catalog object to a coordinate, by size-normalized
+// separation (separation / the object's own displayRadiusDeg) — the SAME score
+// matchCoordinates ranks by, so "nearest" here means "most plausible match,"
+// not merely smallest raw angular distance (a tiny object 0.1 deg away is a
+// worse candidate than a huge one 0.3 deg away). Unlike matchCoordinates this
+// ignores the radius cutoff entirely: it always returns the best candidate
+// even when nothing is within radius, which is exactly the fallback case the
+// debug endpoint enriches — "what would this fallback have almost matched, and
+// how much would the radius need to grow." Returns null only if the static
+// catalog is somehow empty. Computed against the CURRENT catalog every call,
+// so it always reflects today's tuned radii/positions.
+export function nearestCatalogObject(raDeg: number, decDeg: number): NearestObject | null {
+  let best: { obj: (typeof STATIC_CATALOG)[number]; separationDeg: number; fraction: number } | null = null
+  for (const obj of STATIC_CATALOG) {
+    const separationDeg = angularSeparationDeg(raDeg, decDeg, obj.raDeg, obj.decDeg)
+    const fraction = separationDeg / obj.displayRadiusDeg
+    if (best === null || fraction < best.fraction) {
+      best = { obj, separationDeg, fraction }
+    }
+  }
+  if (best === null) return null
+  return {
+    objectId: best.obj.id,
+    separationDeg: best.separationDeg,
+    displayRadiusDeg: best.obj.displayRadiusDeg,
+    fractionOfRadius: best.fraction,
+  }
+}

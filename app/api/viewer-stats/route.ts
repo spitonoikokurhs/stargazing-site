@@ -98,6 +98,11 @@ export async function GET(req: NextRequest) {
       return json({
         scope,
         date: requestedDate,
+        // Surfaced explicitly (not only embedded inside eventKey) so a caller
+        // doesn't have to parse the key to know which hotel this night was.
+        // Fine while there's one hotel event per date; if that ever changes,
+        // this is the field to disambiguate on rather than the date alone.
+        hotelId: archived.hotelId,
         eventKey: archived.eventKey,
         archived: true,
         found: true,
