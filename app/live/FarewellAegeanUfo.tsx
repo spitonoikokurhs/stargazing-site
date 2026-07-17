@@ -30,13 +30,15 @@ const GOODNIGHT_LINES = ['Gute Nacht', 'Goodnight', 'Buonanotte', 'Bonne nuit', 
 const GREET_LINES = ['καληνύχτα ✨', 'beam me up! 🛸', 'see you soon ⭐', 'stardust ✦', 'buonanotte 🌙', 'made of starlight 🌠']
 const EXCITED_LINES = ['whee! 🛸', 'again! ✨', 'so many stars! ⭐', "you're fun 🌙", 'more! 🌠']
 
-// Tap-tier thresholds — TAP_TIER_3 (the escalating-taps payoff: fleet flyby +
-// alien-formation finale + reward line) is 10 in the ported prototype. Flagging
-// for confirmation: the brief mentioned "tap-9 foreshadowing," which doesn't
-// match this file's tap-10 payoff — kept as the prototype's actual value
-// (source of truth) rather than guessing at a change; easy to retune here.
-const TAP_TIER_2 = 5
-const TAP_TIER_3 = 10
+// Tap-tier thresholds. Compressed from the prototype's 5/10 to 3/5 so the
+// finale is more reachable (guests weren't tapping far enough to trigger it),
+// while preserving the three-stage escalation arc: gentle greeting (taps 1-2)
+// -> excited tier (tap 3, fast spin + sparkle bursts) -> full finale (tap 5,
+// fleet flyby + alien-flag formation + reward line). Keeping TIER_2 strictly
+// below TIER_3 is what keeps the excited tier its own distinct beat rather
+// than collapsing straight from greeting into the finale on the same tap.
+const TAP_TIER_2 = 3
+const TAP_TIER_3 = 5
 const STREAK_RESET_IDLE_MS = 4000
 
 // Real stellar colors, weighted like an actual sky — mostly white/blue-white,

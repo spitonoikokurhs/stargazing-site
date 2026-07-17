@@ -2636,18 +2636,18 @@
   transition: transform 0.5s ease;
 }
 
-/* Tap-10 finale: the Greek-flag formation flies in near the top of the
+/* Tap-tier-3 finale: the Greek-flag formation flies in near the top of the
    stage, right where the UFO normally sits — nudge the whole slot (UFO +
    its flash/sparks/bursts/bubble, so they all move together) down out of
    the way for the duration of the finale. See onUfoClick's TAP_TIER_3
-   branch for exactly when this is toggled. Bumped from 38px to 58px — the
-   flag's 9-row grid was still reaching down far enough to touch/overlap the
-   UFO's antenna at 38px. .farewell-reward is positioned independently
-   (absolute, top: 48.3% — see .farewell-reward above), not affected by this
-   transform, so there's still clear room before the "You really looked up
-   tonight" reward text. */
+   branch for exactly when this is toggled. Bumped 58px -> 73px (a further
+   ~10% of the 150px slot height): the alien/UFO was still overlapping the
+   flag's lower stripes at 58px, so this drops it clear. .farewell-reward is
+   positioned independently (absolute, top: 48.3% — see .farewell-reward
+   above), not affected by this transform, so there's still clear room before
+   the "You really looked up tonight" reward text. */
 .farewell-ufo-slot--finale {
-  transform: translateY(58px);
+  transform: translateY(73px);
 }
 
 /* Wraps goodnight/heading/next-session/flavor — hidden for the duration of
@@ -3472,8 +3472,13 @@
   left: 0;
   right: 0;
   text-align: center;
-  color: #44433f;
-  font-size: 12px;
+  /* +15% brighter than the original #44433f (RGB 68,67,63 -> ~78,77,72) so
+     the call-to-action reads more clearly against the dark stage — guests
+     were missing it. Still a muted grey, deliberately below the goodnight/
+     heading text in the visual hierarchy rather than a loud, garish label. */
+  color: #4e4d48;
+  /* +15% from 12px — large enough to notice, small enough to stay a caption. */
+  font-size: 14px;
   z-index: 3;
 }
 
