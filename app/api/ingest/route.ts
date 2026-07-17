@@ -106,26 +106,52 @@ function solvedCoords(metadata: Prisma.InputJsonValue | null): { ra: number; dec
   return { ra: m.raDegrees, dec: m.decDegrees }
 }
 
-// Structured, greppable one-liner emitted at each StackRun identity decision
-// (creation match + opportunistic upgrade). Server-side/Vercel-logs only,
-// never touches the DB or the guest response — purely diagnostic, built for
-// `grep stackrun-match` after an event to answer "how often did we fall back
-// tonight, and at which coordinates" for catalog-radius tuning. Coordinates
-// are only known when the frame actually solved (see solvedCoords); an
-// unsolved-frame decision logs ra/dec as 'null'.
-function logStackRunMatch(fields: {
-  stackRunId: string
-  coords: { ra: number; dec: number } | null
-  result: 'matched' | 'fallback' | 'upgraded'
-  objectId: string | null
-  confidence: Confidence | null
-}) {
+// Records a StackRun identity decision (creation match + opportunistic
+// upgrade) in BOTH places it matters: the greppable Vercel-log line (live
+// tail during an event) AND a durable MatchDecision row (season-wide catalog
+// tuning from Postgres, queryable days/weeks later via /api/debug/match-
+// decisions). Coordinates are only known when the frame actually solved (see
+// solvedCoords); every real call site passes solved coords, so the DB row —
+// whose ra/dec are non-nullable — is only written when coords is present. The
+// DB insert is best-effort/non-fatal: a failure here logs and is swallowed,
+// never failing the ingest, exactly mirroring the surrounding StackRun-
+// tracking try/catch discipline. Runs inside the ingest transaction (tx) so a
+// committed frame and its decision row land together.
+async function recordMatchDecision(
+  tx: Prisma.TransactionClient,
+  fields: {
+    sessionId: string
+    stackRunId: string
+    source: Source
+    coords: { ra: number; dec: number } | null
+    result: 'matched' | 'fallback' | 'upgraded'
+    objectId: string | null
+    confidence: Confidence | null
+  },
+) {
   const ra = fields.coords ? fields.coords.ra.toFixed(4) : 'null'
   const dec = fields.coords ? fields.coords.dec.toFixed(4) : 'null'
   console.log(
     `stackrun-match: stackRunId=${fields.stackRunId} ra=${ra} dec=${dec} ` +
       `result=${fields.result} objectId=${fields.objectId ?? 'null'} confidence=${fields.confidence ?? 'null'}`,
   )
+  if (!fields.coords) return // no solved coordinates -> nothing durable to persist (ra/dec are required)
+  try {
+    await tx.matchDecision.create({
+      data: {
+        sessionId: fields.sessionId,
+        stackRunId: fields.stackRunId,
+        source: fields.source,
+        result: fields.result,
+        ra: fields.coords.ra,
+        dec: fields.coords.dec,
+        objectId: fields.objectId,
+        confidence: fields.confidence,
+      },
+    })
+  } catch (e) {
+    console.error('/api/ingest: MatchDecision persist failed (non-fatal)', e)
+  }
 }
 
 function isP2002(e: unknown): e is Prisma.PrismaClientKnownRequestError {
@@ -564,16 +590,20 @@ export async function POST(req: NextRequest) {
             // solved coordinates behind it.
             const coords = solvedCoords(metadata)
             if (match) {
-              logStackRunMatch({
+              await recordMatchDecision(tx, {
+                sessionId: session.id,
                 stackRunId: newRun.id,
+                source,
                 coords,
                 result: 'matched',
                 objectId: match.objectId,
                 confidence: match.confidence,
               })
             } else if (coords) {
-              logStackRunMatch({
+              await recordMatchDecision(tx, {
+                sessionId: session.id,
                 stackRunId: newRun.id,
+                source,
                 coords,
                 result: 'fallback',
                 objectId: null,
@@ -644,16 +674,20 @@ export async function POST(req: NextRequest) {
               //     that never solved at creation time.
               const coords = solvedCoords(metadata)
               if (isUpgrade) {
-                logStackRunMatch({
+                await recordMatchDecision(tx, {
+                  sessionId: session.id,
                   stackRunId: openRun.id,
+                  source,
                   coords,
                   result: 'upgraded',
                   objectId: match!.objectId,
                   confidence: match!.confidence,
                 })
               } else if (match === null && coords && openRun.objectId === null) {
-                logStackRunMatch({
+                await recordMatchDecision(tx, {
+                  sessionId: session.id,
                   stackRunId: openRun.id,
+                  source,
                   coords,
                   result: 'fallback',
                   objectId: null,

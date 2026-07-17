@@ -3,6 +3,7 @@ import { createHash, timingSafeEqual } from 'crypto'
 import { readViewerStats, viewerEventKey, viewerSpecialEventKey } from '@/lib/redis'
 import { athensToday, eventFor } from '@/lib/schedule'
 import { extraEventFor, isExtraEventSlug } from '@/lib/extra-events'
+import { prisma } from '@/lib/db'
 
 // Node runtime required: crypto.timingSafeEqual, createHash.
 export const runtime = 'nodejs'
@@ -68,16 +69,60 @@ export async function GET(req: NextRequest) {
 
     const scope: 'hotel' | 'event' = eventSlug && isExtraEventSlug(eventSlug) ? 'event' : 'hotel'
     const slug = scope === 'event' ? eventSlug : null
+
+    // ?date=YYYY-MM-DD reads a PAST hotel night from the durable
+    // ViewerStatsNightly archive (see the model + snapshotViewerStatsNightly)
+    // instead of live Redis — the whole point of the archive is that a past
+    // night's Redis counters have expired (48h TTL). Only meaningful for the
+    // hotel scope: a special event's key is date-independent (spans multiple
+    // days), so ?event= already reads its own stable Redis key regardless of
+    // date, and ?date= is ignored there. `date` omitted, or set to today,
+    // keeps the original live-Redis behavior unchanged.
+    const requestedDate = req.nextUrl.searchParams.get('date')
+    const today = athensToday()
+    if (scope === 'hotel' && requestedDate && requestedDate !== today) {
+      const archived = await prisma.viewerStatsNightly.findFirst({
+        where: { date: requestedDate, scope: 'hotel' },
+        orderBy: { capturedAt: 'desc' },
+      })
+      if (!archived) {
+        return json({
+          scope,
+          date: requestedDate,
+          archived: true,
+          found: false,
+          message: `No archived viewer stats for ${requestedDate}. Either no session ran, or its Redis keys expired before a snapshot was taken.`,
+          generatedAt: new Date().toISOString(),
+        })
+      }
+      return json({
+        scope,
+        date: requestedDate,
+        eventKey: archived.eventKey,
+        archived: true,
+        found: true,
+        // No `current` for an archived night — "currently watching" is a live-
+        // only metric; a finished past night is 0 by definition.
+        current: 0,
+        maxConcurrent: archived.maxConcurrent,
+        unique: archived.unique,
+        snapshotSource: archived.source,
+        capturedAt: archived.capturedAt.toISOString(),
+        generatedAt: new Date().toISOString(),
+      })
+    }
+
     const eventKey =
       scope === 'event' && slug
         ? viewerSpecialEventKey(slug, extraEventFor(slug)?.revealAt ?? 'unknown')
-        : viewerEventKey(athensToday(), eventFor(athensToday())?.hotelId ?? null)
+        : viewerEventKey(today, eventFor(today)?.hotelId ?? null)
 
     const stats = await readViewerStats(scope, slug, eventKey)
 
     return json({
       scope,
       eventKey,
+      archived: false,
       current: stats.current,
       maxConcurrent: stats.maxConcurrent,
       unique: stats.unique,
