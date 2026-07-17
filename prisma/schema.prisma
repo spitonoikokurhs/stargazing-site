@@ -117,6 +117,75 @@ model StackRun {
   @@index([observationId])
 }
 
+// One row per StackRun object-identity DECISION at ingest — a durable,
+// queryable record of every match/fallback/upgrade outcome, so season-wide
+// catalog-radius tuning ("how often did we fall back, at which coordinates,
+// across the whole season") can be answered from Postgres days or weeks
+// later rather than from ephemeral Vercel function logs. Written from the
+// same two points in app/api/ingest/route.ts that decide a StackRun's
+// identity (creation-time match + opportunistic upgrade), best-effort and
+// non-fatal (a failed insert here must never fail the ingest, same
+// degrade-silently discipline as StackRun tracking itself).
+//
+// result values (application-validated strings, not an enum — matches the
+// project's convention of keeping status/confidence as plain String):
+//   "matched"  — first successful catalog match at StackRun creation
+//   "fallback" — the frame SOLVED but landed in empty catalog space (the
+//                "Deep-sky field" case) — the primary tuning signal
+//   "upgraded" — an existing run's identity strictly improved on a later
+//                frame (includes a previously-null run finally resolving)
+//
+// ra/dec are the frame's SOLVED astrometry coordinates at the decision
+// moment (StackRun itself does not store coordinates, so they're captured
+// here explicitly — the whole point for radius tuning). confidence is
+// matchCoordinates' real Confidence ("high"|"medium"|"low"|"none") for a
+// match, null on a fallback. Rows are kept indefinitely (tiny data — a few
+// per night — and season-end review is the whole point).
+model MatchDecision {
+  id          String   @id @default(cuid())
+  sessionId   String // the Session this decision belongs to (for ?date= grouping via Session.date)
+  stackRunId  String // the StackRun whose identity was decided
+  source      String // "pegasus" | "seestar" | special-event slug
+  result      String // "matched" | "fallback" | "upgraded"
+  ra          Float // solved right ascension (degrees) at the decision moment
+  dec         Float // solved declination (degrees) at the decision moment
+  objectId    String? // catalog id when matched/upgraded; null on fallback
+  confidence  String? // "high" | "medium" | "low" | "none" when matched/upgraded; null on fallback
+  createdAt   DateTime @default(now())
+
+  @@index([sessionId, createdAt]) // the debug endpoint's own query: this night's decisions, chronological
+  @@index([result, createdAt]) // season-wide "all fallbacks over time" scan
+}
+
+// One row per event night's FINAL viewer-stats snapshot, persisted from the
+// (48h-TTL, otherwise-ephemeral) Redis viewer counters so the season's
+// audience numbers survive past the Redis expiry. Written best-effort at the
+// finish trigger (see app/api/finish/route.ts — the one deliberate exception
+// to that route's Redis-only scope) and reconstructable for still-unexpired
+// past nights by scripts/backfill-viewer-stats.mjs. /api/viewer-stats?date=
+// reads this table for a past night, falling back to live Redis for tonight.
+//
+// eventKey is the SAME stable per-event key the Redis counters use (see
+// viewerEventKey / viewerSpecialEventKey in lib/redis.ts) — "YYYY-MM-DD:
+// <hotelId>" for a hotel night, "<slug>:<revealAt>" for a special event — so
+// a snapshot maps unambiguously back to the exact counters it came from.
+// Unique on eventKey so a re-finish (or a backfill re-run) upserts the same
+// night's row rather than duplicating it.
+model ViewerStatsNightly {
+  id            String   @id @default(cuid())
+  eventKey      String   @unique // stable per-event key (viewerEventKey/viewerSpecialEventKey), e.g. "2026-07-18:oku-kos"
+  scope         String // "hotel" | "event"
+  date          String? // Athens calendar date "YYYY-MM-DD" for a hotel night; null for a multi-day special event (whose window isn't one date)
+  hotelId       String? // hotel slug for a hotel night; null for a special event
+  eventSlug     String? // special-event slug for scope="event"; null for a hotel night
+  unique        Int // SCARD of the unique-viewers set at snapshot time
+  maxConcurrent Int // the ratcheted max-concurrent score at snapshot time
+  source        String   @default("finish") // "finish" (live snapshot) | "backfill" (reconstructed from surviving Redis keys)
+  capturedAt    DateTime @default(now()) // when this snapshot was taken (finish time, or backfill run time)
+
+  @@index([date]) // ?date= lookups and season browsing
+}
+
 // One row per ingested image.
 // source is denormalized from Observation for query convenience —
 // we often query frames by source directly without joining.
