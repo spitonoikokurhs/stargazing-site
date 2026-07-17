@@ -562,6 +562,7 @@ function getDemoStaleSeconds(): number {
   return Number.isFinite(n) && n > 0 ? n : 0
 }
 
+
 // One representative demo object per catalog type, so item 4's type icons +
 // definitions can each be reviewed in context (?demo=known-galaxy, etc.)
 // rather than only ever seeing the nebula case. Real image files already
@@ -930,10 +931,9 @@ function getDemoStatusBody(): StatusResponse | null {
         visualHint: known.visualHint,
         drawer: known.drawer,
       },
-      // Only history-test injects mock history — every other known-* demo
-      // stays history-free so those pages keep reviewing their own card
-      // content in isolation, undistracted by a strip underneath.
-      ...(mode === 'history-test' ? { history: MOCK_HISTORY } : {}),
+      // Include mock history for history-test (testing the strip itself) and
+      // for known/stale demos (testing frame-stale transition UX with context).
+      ...(mode === 'history-test' || mode === 'known' ? { history: MOCK_HISTORY } : {}),
     }
   }
   if (mode === 'moving') {
@@ -1840,7 +1840,6 @@ function LiveViewPresentation({ state, history }: { state: LiveStatusState; hist
     return (
       <TransitionScreen
         history={history}
-        selectedHistoryRunId={null}
         historyPreloadError={historyPreloadError}
         onSelectHistoryRun={handleSelectHistoryRun}
       />
@@ -1868,33 +1867,89 @@ function LiveViewPresentation({ state, history }: { state: LiveStatusState; hist
 // no <img> at all — .sky-square's own dark background IS the "empty
 // telescope frame" the spec asks for — plus the loader and the same
 // rotating moving-phrase copy TransitionCopy already uses for the
+// Get wowFacts for a catalog object, used for the "Did you know?" fact type
+// during transitions. Returns empty array if objectId is missing or not found
+// in the catalog (falls back to tech facts only in those cases).
+function wowFactsForObject(objectId: string | null | undefined): string[] {
+  if (!objectId) return []
+  const obj = CATALOG_BY_ID.get(objectId)
+  return obj?.wowFacts ?? []
+}
+
 // 'moving' DisplayObject.kind case (astrometryState-driven), so a guest
 // sees the same visual language whether the transition is "new stack run
 // detected" or "telescope reports it's slewing" or "the feed's gone quiet."
 function TransitionScreen({
   history,
-  selectedHistoryRunId,
   historyPreloadError,
   onSelectHistoryRun,
 }: {
   history: HistoryEntry[]
-  selectedHistoryRunId: string | null
   historyPreloadError: string | null
   onSelectHistoryRun: (run: HistoryEntry | null) => void
 }) {
+  // Local state for viewing a history pill's image on the transition screen —
+  // NOT connected to LiveViewPresentation's selectedHistoryRun (which routes to
+  // LiveFrameView). Tapping a pill here only swaps the loader image, stays on
+  // TransitionScreen. Only calling onSelectHistoryRun(null) when clicking the
+  // live pill to return to the loader.
+  const [transitionSelectedHistoryRunId, setTransitionSelectedHistoryRunId] = useState<string | null>(null)
+  // Alternate between object wowFacts and tech facts via round-robin: start
+  // with object fact if history exists, then tech fact, then object, etc.
+  // First target of the night (no history) starts with tech fact.
+  const justFinishedObjectId = history[0]?.objectId
+  const objectFacts = wowFactsForObject(justFinishedObjectId)
+  const shouldShowObjectFact = history.length > 0 && (objectFacts.length > 0 || false)
+
+  // Round-robin state tracker: derive from history.length parity
+  const transitionIndex = Math.max(0, history.length - 1)
+  const isOddTransition = transitionIndex % 2 === 0
+  const factPool = (shouldShowObjectFact && isOddTransition) ? objectFacts : TECH_FACTS
+  const factLabel = (shouldShowObjectFact && isOddTransition) ? 'Did you know?' : 'How this works'
+  const factPhrase = useRandomNoRepeatPhrase(factPool, FACT_ROTATION_MS)
+  const movingPhrase = useRandomNoRepeatPhrase(MOVING_PHRASES, MOVING_PHRASE_ROTATE_MS)
+
+  // Sequential reveal: recap+pills fade in at 1s, facts fade in at 2s
+  const [showRecap, setShowRecap] = useState(false)
+  const [showFact, setShowFact] = useState(false)
+
+  useEffect(() => {
+    const recapTimer = setTimeout(() => setShowRecap(true), 1000)
+    const factTimer = setTimeout(() => setShowFact(true), 2000)
+    return () => {
+      clearTimeout(recapTimer)
+      clearTimeout(factTimer)
+    }
+  }, [history.length])
+
   return (
     <div className="live-root">
       <div className="page">
-        <header className="topbar" aria-label="Live page status">
-          <div className="topbar__live">
-            <span className="red-dot reconnecting" aria-hidden="true" />
-            <span>NEXT OBJECT INCOMING</span>
-          </div>
-        </header>
+        {/* Status line + moving phrases (immediate, no fade) */}
+        <div className="transition-status">
+          <span className="red-dot transition-status__dot" aria-hidden="true" />
+          <span className="transition-status__text">THE TELESCOPE IS MOVING</span>
+        </div>
 
+        <div className="content content--transition-status" aria-live="polite">
+          <p className={`transition-moving-phrase${movingPhrase.visible ? ' is-visible' : ''}`}>{movingPhrase.text}</p>
+        </div>
+
+        {/* Circle with enlarged loader or selected history pill image */}
         <section className="viewer viewer--transition" aria-label="Telescope repositioning">
           <div className="sky-square">
-            <TelescopeLoader />
+            {transitionSelectedHistoryRunId !== null ? (
+              // Showing a selected history pill's image (no fade, direct swap)
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={history.find((h) => h.id === transitionSelectedHistoryRunId)?.blobUrl ?? ''}
+                alt="Selected target"
+                className="transition-target-image"
+              />
+            ) : (
+              // Default: showing loader animation
+              <TelescopeLoader className="scope-loader--transition" />
+            )}
           </div>
           <svg className="rim" viewBox="0 0 100 100" aria-hidden="true">
             <circle className="rim-ring outer" cx="50" cy="50" r="48" />
@@ -1902,41 +1957,59 @@ function TransitionScreen({
           </svg>
         </section>
 
-        {/* A tap here can fail (null blobUrl, or preload failure/timeout) the
-            exact same way it can from LiveFrameView — handleSelectHistoryRun
-            in LiveViewPresentation is the SAME entry point regardless of
-            which screen the tap happened on (see its own doc comment). Without
-            rendering this here too, a failed tap on THIS screen would fail
-            completely silently — the error state would be set, but nothing
-            on screen would ever show it, since selectedHistoryRun stays null
-            and the render stays on TransitionScreen. Mirrors LiveFrameView's
-            own historyPreloadError rendering exactly. */}
-        {historyPreloadError && (
-          <p className="history-preload-error" role="status">
-            {historyPreloadError}
-          </p>
+        {/* Recap section: fades in at 3s */}
+        {showRecap && (
+          <div className="transition-recap-section">
+            {history.length > 0 && (
+              <div className="transition-context">
+                <span className="transition-context__label">You just watched:</span>
+                {history[0]?.objectName && (
+                  <span className="transition-context__object-name">{history[0].objectName}</span>
+                )}
+              </div>
+            )}
+
+            {historyPreloadError && (
+              <p className="history-preload-error" role="status">
+                {historyPreloadError}
+              </p>
+            )}
+
+            {history.length > 0 && (
+              <div className="transition-journey-label">Tonight&apos;s journey so far:</div>
+            )}
+
+            <SessionHistoryStrip
+              history={history}
+              selectedHistoryRunId={transitionSelectedHistoryRunId}
+              onSelectHistoryRun={onSelectHistoryRun}
+              onPillTap={(run) => {
+                // Tapping the live/active pill returns to the loader.
+                // Tapping any other pill (or re-tapping the selected one) shows its image.
+                if (run.active) {
+                  setTransitionSelectedHistoryRunId(null)
+                } else {
+                  setTransitionSelectedHistoryRunId(run.id)
+                }
+              }}
+              justFinishedRunId={history.find((h) => h.active)?.id}
+            />
+          </div>
         )}
 
-        {/* History keeps updating during transition (see /api/status's history
-            field, refreshed on every poll regardless of transitionReason) —
-            the new active run shows up as SessionHistoryStrip's own neutral
-            "…" settling pill (isDisplayableRun is false until a StackRun gets
-            a confident object match), which is exactly the guest-facing signal
-            that a new run is underway even before its frame is ready to show.
-            Pills stay tappable here too — selectedHistoryRunId is always null
-            on THIS screen (LiveViewPresentation routes to LiveFrameView's
-            historical view instead once a selection exists), but a tap here
-            still needs to fire onSelectHistoryRun so the NEXT render picks up
-            the selection and switches away from this screen. */}
-        <SessionHistoryStrip
-          history={history}
-          selectedHistoryRunId={selectedHistoryRunId}
-          onSelectHistoryRun={onSelectHistoryRun}
-        />
-
-        <div className="content content--transition" aria-live="polite">
-          <TransitionCopy mainPhrases={MOVING_PHRASES} />
-        </div>
+        {/* Fact section: fades in at 6s */}
+        {showFact && (
+          <div className="transition-fact-section">
+            {(factPool.length > 0 || TECH_FACTS.length > 0) && (
+              <div className="transition-fact">
+                <span className={`transition-fact__label transition-fact__label--${factLabel === 'Did you know?' ? 'object' : 'tech'}`}>
+                  {factLabel}
+                </span>
+                <span className="transition-fact__text">{factPhrase.text}</span>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   )
@@ -2136,6 +2209,8 @@ function LiveFrameView({
   // conventions elsewhere.
   const viewerRef = useRef<HTMLElement>(null)
   const [milestoneSelection, setMilestoneSelection] = useState<MilestoneKey>('current')
+  // Image crossfade when switching between history pills or transitioning in from TransitionScreen
+  const [isImageTransitioning, setIsImageTransitioning] = useState(false)
   // Demo mode is purely local synthetic data (see getDemoStatusBody) — never
   // fetch real milestone data for a fake observationId in that case.
   const isDemo = getDemoMode() !== null
@@ -2170,6 +2245,11 @@ function LiveFrameView({
   useEffect(() => {
     if (selectedHistoryRun) {
       setMilestoneSelection('current')
+      // Trigger image crossfade when switching to a history pill
+      setIsImageTransitioning(true)
+      // Clear the transitioning state after fade completes
+      const timer = setTimeout(() => setIsImageTransitioning(false), 400)
+      return () => clearTimeout(timer)
     }
   }, [selectedHistoryRun])
 
@@ -2439,7 +2519,7 @@ function LiveFrameView({
             <img
               src={displaySrc}
               alt={objectLabel(effectiveDisplayObject)}
-              className="fov-image"
+              className={`fov-image${isImageTransitioning ? ' fov-image--transitioning' : ''}`}
             />
             <div className="fov-vignette" aria-hidden="true" />
           </div>
@@ -3003,10 +3083,14 @@ function HistoryPill({
   run,
   selectedHistoryRunId,
   onSelectHistoryRun,
+  isJustFinished,
+  onPillTap,
 }: {
   run: HistoryEntry
   selectedHistoryRunId: string | null
   onSelectHistoryRun: (run: HistoryEntry | null) => void
+  isJustFinished?: boolean
+  onPillTap?: (run: HistoryEntry) => void
 }) {
   const isSettling = !isDisplayableRun(run)
   const isSelected = run.id === selectedHistoryRunId
@@ -3044,6 +3128,14 @@ function HistoryPill({
       } as React.CSSProperties)
 
   function handleClick() {
+    // When onPillTap is provided (TransitionScreen), it always gets the RAW
+    // tapped run — it needs to distinguish "re-tapped the selected past pill"
+    // (keep showing it) from "tapped the live pill" (return to loader), a
+    // distinction the null-collapsed onSelectHistoryRun below can't express.
+    if (onPillTap) {
+      onPillTap(run)
+      return
+    }
     // Tapping the live/active pill — REGARDLESS of whether anything is
     // currently selected — always means "go to/stay at live," never
     // "select this as a historical run." Without the unconditional
@@ -3070,7 +3162,7 @@ function HistoryPill({
     <div role="listitem">
       <button
         type="button"
-        className={`history-pill${run.active ? ' is-active' : ''}${isSettling ? ' is-unresolved' : ''}${hasNoImage ? ' history-pill--no-image' : ''}${isSelected ? ' is-selected' : ''}`}
+        className={`history-pill${run.active ? ' is-active' : ''}${isSettling ? ' is-unresolved' : ''}${hasNoImage ? ' history-pill--no-image' : ''}${isSelected ? ' is-selected' : ''}${isJustFinished ? ' is-just-finished' : ''}`}
         style={colorVars}
         title={title}
         aria-label={ariaLabel}
@@ -3123,10 +3215,19 @@ function SessionHistoryStrip({
   history,
   selectedHistoryRunId,
   onSelectHistoryRun,
+  justFinishedRunId,
+  onPillTap,
 }: {
   history: HistoryEntry[]
   selectedHistoryRunId: string | null
   onSelectHistoryRun: (run: HistoryEntry | null) => void
+  justFinishedRunId?: string | null
+  // Optional raw-tap callback: always receives the tapped run itself (never
+  // null-collapsed), so a caller can distinguish "re-tapped the selected pill"
+  // from "tapped the active pill" — a distinction onSelectHistoryRun alone
+  // can't express. Used by TransitionScreen, where re-tapping a past pill must
+  // keep showing it but tapping the live pill must return to the loader.
+  onPillTap?: (run: HistoryEntry) => void
 }) {
   if (history.length === 0) return null
 
@@ -3142,6 +3243,8 @@ function SessionHistoryStrip({
             run={run}
             selectedHistoryRunId={selectedHistoryRunId}
             onSelectHistoryRun={onSelectHistoryRun}
+            isJustFinished={run.id === justFinishedRunId}
+            onPillTap={onPillTap}
           />
         ))}
       </div>
@@ -3159,6 +3262,8 @@ function SessionHistoryStrip({
             run={run}
             selectedHistoryRunId={selectedHistoryRunId}
             onSelectHistoryRun={onSelectHistoryRun}
+            isJustFinished={run.id === justFinishedRunId}
+            onPillTap={onPillTap}
           />
         ))}
       </div>
@@ -3169,6 +3274,8 @@ function SessionHistoryStrip({
             run={run}
             selectedHistoryRunId={selectedHistoryRunId}
             onSelectHistoryRun={onSelectHistoryRun}
+            isJustFinished={run.id === justFinishedRunId}
+            onPillTap={onPillTap}
           />
         ))}
       </div>
@@ -3807,14 +3914,30 @@ const MOVING_PHRASES = [
   'Searching the archives of the universe…',
   'This next object is not just far away — it is long ago…',
   'The sky keeps records. We are opening one now…',
-  'Another fossil of light is coming into view…',
-  'The next target is a postcard from the past…',
-  'We are not just changing direction — we are changing time…',
-  'Old light, new wonder…',
-  'The telescope is collecting yesterday’s universe…',
+  "Another fossil of light is coming into view...",
+  "The next target is a postcard from the past...",
+  "We are not just changing direction - we are changing time...",
+  "Old light, new wonder...",
+  "The telescope is collecting yesterday’s universe...",
 ]
 
-// Shown for kind: 'fallback' (solved, but no confident catalog match) as the
+// Educational facts explaining the technology/process, shown during transitions
+// to fill the wait time with context about HOW and WHY the images look the way
+// they do. Rotates via round-robin alternation with object-specific wowFacts
+// (see transition-fact rendering logic). Facts are static and object-agnostic.
+const TECH_FACTS = [
+  "Your eye’s pupil opens to about 7mm in the dark. This telescope’s lens is 100mm - about 200 times more light-gathering power than your own eye.",
+  "Your eye can’t ‘save up’ light - it refreshes what it sees about 10 times a second. This camera keeps collecting light for minutes at a time, building up detail your eye could never gather on its own.",
+  "That’s why deep-sky objects look faint and grey through a regular eyepiece, but rich and colorful here - the camera simply gathers more light, for longer, than any human eye can.",
+  "Each image you see is actually dozens of shorter exposures stacked together. Stacking reinforces the real, faint light from the object while canceling out random noise - the same principle used in professional long-exposure astrophotography.",
+  "Before the telescope can track a target with precision, it takes a photo of the star field and matches the pattern against a catalog of millions of known stars - a process called plate-solving. It’s the same technique used by professional observatories and even spacecraft to navigate.",
+  "The camera sensor inside this telescope is actively cooled below the outside air temperature. Cooling reduces electronic noise, which is a big part of why the images stay clean even on a warm summer night.",
+  "Everything happening right now - target confirmation, tracking, exposure stacking, sensor cooling - is normally hours of manual astrophotography work. Here, it’s fully automated, live, right in front of you.",
+]
+
+const FACT_ROTATION_MS = 15 * 1000
+
+// Shown for kind: ‘fallback’ (solved, but no confident catalog match) as the
 // warm supporting line beneath the "Deep-sky field" pill — so this state
 // reads as an intentional design choice, not an error.
 //
@@ -3862,7 +3985,7 @@ function useRotatingPhrase(
   return { text: phrases[index], visible }
 }
 
-const MOVING_PHRASE_ROTATE_MS = 10 * 1000
+const MOVING_PHRASE_ROTATE_MS = 15 * 1000
 
 // Same crossfade mechanism as useRotatingPhrase (identical fade timing/
 // interval shape), but TRUE random selection each tick instead of sequential
@@ -4272,7 +4395,10 @@ const ORBIT_DURATION_MS = 4000
 // transition card (see ObjectDescription/TransitionCopy) — only --scope-size
 // changes (via the scope-loader--small modifier), so both contexts share one
 // "the telescope is working" visual instead of a second bespoke widget.
-function TelescopeLoader({ small }: { small?: boolean }) {
+//
+// `className`: additional classes to apply (e.g. scope-loader--transition for
+// the enlarged variant on TransitionScreen).
+function TelescopeLoader({ small, className }: { small?: boolean; className?: string }) {
   // Start at index 0 (moon) so the server-rendered and first client render
   // match (no hydration mismatch), then step through the list every lap.
   const [index, setIndex] = useState(0)
@@ -4285,7 +4411,7 @@ function TelescopeLoader({ small }: { small?: boolean }) {
 
   const chosen = ORBIT_BODIES[index]
   return (
-    <span className={`scope-loader${small ? ' scope-loader--small' : ''}`} aria-hidden="true">
+    <span className={`scope-loader${small ? ' scope-loader--small' : ''}${className ? ` ${className}` : ''}`} aria-hidden="true">
       <span className="scope-loader__ring" />
       <span className="scope-loader__orbit">
         <span className={`scope-loader__body${chosen.modifier ? ` ${chosen.modifier}` : ''}`}>{chosen.glyph}</span>
