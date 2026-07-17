@@ -92,6 +92,42 @@ function resolveStackRunMatch(
   }
 }
 
+// Solved astrometry coordinates from a frame's metadata, or null if this
+// frame hasn't solved (astrometryState !== 'solved' or ra/dec absent) — the
+// SAME gate resolveStackRunMatch uses, factored out so the match logging
+// below can distinguish "no coordinates to match yet" (unsolved, mid-slew —
+// not worth a line) from "solved but landed in empty catalog space" (the
+// real Deep-sky-field fallback we want visibility into).
+function solvedCoords(metadata: Prisma.InputJsonValue | null): { ra: number; dec: number } | null {
+  if (metadata === null || typeof metadata !== 'object' || Array.isArray(metadata)) return null
+  const m = metadata as Record<string, unknown>
+  if (m.astrometryState !== 'solved') return null
+  if (typeof m.raDegrees !== 'number' || typeof m.decDegrees !== 'number') return null
+  return { ra: m.raDegrees, dec: m.decDegrees }
+}
+
+// Structured, greppable one-liner emitted at each StackRun identity decision
+// (creation match + opportunistic upgrade). Server-side/Vercel-logs only,
+// never touches the DB or the guest response — purely diagnostic, built for
+// `grep stackrun-match` after an event to answer "how often did we fall back
+// tonight, and at which coordinates" for catalog-radius tuning. Coordinates
+// are only known when the frame actually solved (see solvedCoords); an
+// unsolved-frame decision logs ra/dec as 'null'.
+function logStackRunMatch(fields: {
+  stackRunId: string
+  coords: { ra: number; dec: number } | null
+  result: 'matched' | 'fallback' | 'upgraded'
+  objectId: string | null
+  confidence: Confidence | null
+}) {
+  const ra = fields.coords ? fields.coords.ra.toFixed(4) : 'null'
+  const dec = fields.coords ? fields.coords.dec.toFixed(4) : 'null'
+  console.log(
+    `stackrun-match: stackRunId=${fields.stackRunId} ra=${ra} dec=${dec} ` +
+      `result=${fields.result} objectId=${fields.objectId ?? 'null'} confidence=${fields.confidence ?? 'null'}`,
+  )
+}
+
 function isP2002(e: unknown): e is Prisma.PrismaClientKnownRequestError {
   return e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002'
 }
@@ -501,7 +537,7 @@ export async function POST(req: NextRequest) {
               data: { endedAt: now },
             })
             const match = resolveStackRunMatch(metadata)
-            await tx.stackRun.create({
+            const newRun = await tx.stackRun.create({
               data: {
                 sessionId: session.id,
                 observationId: observation.id,
@@ -519,6 +555,31 @@ export async function POST(req: NextRequest) {
                   : {}),
               },
             })
+            // Creation-time outcome. Only log a 'fallback' when this frame
+            // actually SOLVED but matched nothing (the Deep-sky-field case);
+            // a null match on an unsolved frame is the ordinary mid-slew "no
+            // coordinates yet" state that the opportunistic-upgrade branch
+            // below is expected to resolve a frame or two later — not a
+            // fallback, and noise if logged as one. 'matched' always has real
+            // solved coordinates behind it.
+            const coords = solvedCoords(metadata)
+            if (match) {
+              logStackRunMatch({
+                stackRunId: newRun.id,
+                coords,
+                result: 'matched',
+                objectId: match.objectId,
+                confidence: match.confidence,
+              })
+            } else if (coords) {
+              logStackRunMatch({
+                stackRunId: newRun.id,
+                coords,
+                result: 'fallback',
+                objectId: null,
+                confidence: null,
+              })
+            }
           } else {
             const openRun = await tx.stackRun.findFirst({
               where: { observationId: observation.id, endedAt: null },
@@ -570,6 +631,35 @@ export async function POST(req: NextRequest) {
                     : {}),
                 },
               })
+              // Opportunistic-upgrade outcome. Two loggable cases; every other
+              // subsequent-frame decision (a solved frame that only re-confirms
+              // an equal-or-lower-confidence match already stored) is deliberately
+              // NOT logged, to keep the log one-line-per-real-decision rather than
+              // one-per-frame:
+              //   - 'upgraded': this frame's match strictly beat what was stored
+              //     (includes a previously-null run finally getting an identity).
+              //   - 'fallback': the run is STILL unidentified (stored objectId
+              //     null) and this frame solved but matched nothing — the same
+              //     Deep-sky-field visibility the creation branch logs, for a run
+              //     that never solved at creation time.
+              const coords = solvedCoords(metadata)
+              if (isUpgrade) {
+                logStackRunMatch({
+                  stackRunId: openRun.id,
+                  coords,
+                  result: 'upgraded',
+                  objectId: match!.objectId,
+                  confidence: match!.confidence,
+                })
+              } else if (match === null && coords && openRun.objectId === null) {
+                logStackRunMatch({
+                  stackRunId: openRun.id,
+                  coords,
+                  result: 'fallback',
+                  objectId: null,
+                  confidence: null,
+                })
+              }
             }
             // No open StackRun found for an existing (non-fresh) Observation
             // is a pre-migration data gap (an Observation created before this
