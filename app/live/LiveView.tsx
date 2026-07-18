@@ -8,9 +8,11 @@ import {
   type OfflinePayload,
   type DisplayObject,
 } from '@/lib/live-status'
-import { pickFarewellVariant, formatNextSessionLines, NO_NEXT_SESSION_LINE } from '@/lib/live-farewell'
+import { formatNextSessionLines, NO_NEXT_SESSION_LINE } from '@/lib/live-farewell'
 import { eventFor, nextEvent } from '@/lib/schedule'
 import { FarewellAegeanUfo } from './FarewellAegeanUfo'
+import { FarewellEclipse } from './FarewellEclipse'
+import { resolveFarewellScene, forcedSceneFromQuery, type FarewellScene } from './farewell-scene-choice'
 import { SpecialEventFarewell } from './SpecialEventFarewell'
 import {
   pickFlavor,
@@ -1541,6 +1543,25 @@ function offlineCopy(state: LiveStatusState): { heading: string; sub?: string; l
 function LiveViewPresentation({ state, history }: { state: LiveStatusState; history: HistoryEntry[] }) {
   const { uiState, lastLiveFrame } = state
 
+  // Which farewell scene (UFO vs. eclipse) THIS client shows, resolved once on
+  // the client after mount so the 50/50 roll / sessionStorage read (both
+  // window-only) never run during SSR and can't cause a hydration mismatch.
+  // Null until resolved; the finished-state render below waits for it rather
+  // than guessing, so a guest never sees one scene flash then swap to another.
+  // Kept ABOVE every early return so the hooks order is stable regardless of
+  // uiState (finished/live/offline/etc. all execute these same two hooks).
+  // Scene choice is deliberately SEPARATE from the finished terminal lock: the
+  // lock (see the poll loop's finished handling) freezes uiState itself, so
+  // once finished, this component keeps rendering the finished branch and the
+  // already-resolved scene — the lock applies identically to both scenes
+  // because it operates on uiState, one level above which scene was picked.
+  const [farewellScene, setFarewellScene] = useState<FarewellScene | null>(null)
+  const finishedDate = uiState === 'finished' && state.finishedInfo ? state.finishedInfo.date : null
+  useEffect(() => {
+    if (!finishedDate) return
+    setFarewellScene(resolveFarewellScene(finishedDate, forcedSceneFromQuery()))
+  }, [finishedDate])
+
   // Which StackRun (if any) the guest has tapped in the history strip to
   // browse — lifted all the way up HERE, above the transition-screen/
   // LiveFrameView branch below, rather than living inside LiveFrameView's
@@ -1702,27 +1723,40 @@ function LiveViewPresentation({ state, history }: { state: LiveStatusState; hist
   // Checked early, ahead of degraded/offline/live — matches the reducer's
   // own "wins from any state" handling of POLL_FINISHED (see
   // lib/live-status.ts). Renders its own full-screen farewell scene rather
-  // than StatusScreen: FarewellAegeanUfo is a self-contained stage with its
-  // own heading/sub/background, so nesting it inside StatusScreen's steady
-  // block would duplicate/conflict with that scene rather than complement
-  // it. Variant is picked once per event night (seeded on the Athens
-  // calendar date from /api/status, NOT per page-load) so every guest phone
-  // and the lobby TV show the same closer tonight — see lib/live-farewell.ts
-  // for how a 2nd/3rd variant slots into pickFarewellVariant's registry.
+  // than StatusScreen: both farewell scenes are self-contained stages with
+  // their own heading/sub/background, so nesting one inside StatusScreen's
+  // steady block would duplicate/conflict with it rather than complement it.
+  //
+  // Scene choice (UFO vs. eclipse) is PER CLIENT/DEVICE, not per event night:
+  // resolveFarewellScene rolls 50/50 once per client and persists it in
+  // sessionStorage keyed by the event date, so two guests at the same event
+  // can see DIFFERENT closers (the intended compare-and-talk moment) while a
+  // single guest's choice stays stable across refreshes for the night. This is
+  // deliberately distinct from lib/live-farewell.ts's pickFarewellVariant,
+  // which remains a per-event-night deterministic registry (unused by this
+  // path now, kept for any future per-night variant work).
   if (uiState === 'finished' && state.finishedInfo) {
-    const variant = pickFarewellVariant(state.finishedInfo.date)
     const nextSessionLines = formatNextSessionLines(state.finishedInfo.date, state.finishedInfo.next)
-    switch (variant) {
-      case 'aegean-ufo':
-      default:
-        return (
-          <FarewellAegeanUfo
-            nextSessionLead={nextSessionLines?.lead ?? (state.finishedInfo.next ? null : NO_NEXT_SESSION_LINE)}
-            nextSessionSchedule={nextSessionLines?.schedule ?? null}
-            nextSessionLogoSrc={nextSessionLines?.logoSrc ?? null}
-          />
-        )
+    const farewellProps = {
+      nextSessionLead: nextSessionLines?.lead ?? (state.finishedInfo.next ? null : NO_NEXT_SESSION_LINE),
+      nextSessionSchedule: nextSessionLines?.schedule ?? null,
+      nextSessionLogoSrc: nextSessionLines?.logoSrc ?? null,
     }
+    // Wait for the client-side scene resolution (farewellScene stays null until
+    // the effect runs) rather than rendering a guessed scene that could then
+    // swap — a full-screen dark placeholder holds for the one frame before the
+    // effect fires, matching both scenes' dark backdrop so there's no flash.
+    // NOTE: pickFarewellVariant is intentionally NOT used here anymore — scene
+    // choice is now per-client (see farewellScene / resolveFarewellScene). The
+    // per-night variant registry stays in place, unused by this path, for any
+    // future per-night variant work; the UFO scene itself is unchanged.
+    if (farewellScene === null) {
+      return <div style={{ position: 'fixed', inset: 0, background: '#05060c' }} aria-hidden="true" />
+    }
+    if (farewellScene === 'eclipse') {
+      return <FarewellEclipse {...farewellProps} />
+    }
+    return <FarewellAegeanUfo {...farewellProps} />
   }
 
   // A special event's own finished state — deliberately a separate branch
