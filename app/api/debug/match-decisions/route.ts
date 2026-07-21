@@ -109,11 +109,17 @@ export async function GET(req: NextRequest) {
 
     // Per-outcome summary — the headline "how many fallbacks tonight" number,
     // computed over the returned rows (already date/result-scoped).
-    const summary = { matched: 0, fallback: 0, upgraded: 0, total: decisions.length }
+    // `contested` counts matched/upgraded decisions whose field had an in-range
+    // runner-up — the season-end "how often are our matches contested" signal
+    // (the live card withholds the name on a contested medium; see
+    // shouldShowMatchName in app/live/LiveView.tsx). Older rows predating the
+    // column have hasInRangeRunnerUp === null and are not counted.
+    const summary = { matched: 0, fallback: 0, upgraded: 0, contested: 0, total: decisions.length }
     for (const d of decisions) {
       if (d.result === 'matched') summary.matched++
       else if (d.result === 'fallback') summary.fallback++
       else if (d.result === 'upgraded') summary.upgraded++
+      if (d.hasInRangeRunnerUp === true) summary.contested++
     }
 
     return json({
@@ -129,6 +135,7 @@ export async function GET(req: NextRequest) {
           dec: d.dec,
           objectId: d.objectId,
           confidence: d.confidence,
+          hasInRangeRunnerUp: d.hasInRangeRunnerUp, // null on fallback / pre-column rows
           at: d.createdAt.toISOString(),
         }
         // Nearest-object enrichment for FALLBACK rows — computed at READ time

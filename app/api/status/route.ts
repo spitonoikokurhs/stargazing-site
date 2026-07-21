@@ -97,6 +97,15 @@ function hotelViewerEventKey(): string {
 type ObjectMatch = {
   name: string
   confidence: 'high' | 'medium' | 'low' | 'none'
+  // Objective "is the field contested" fact from matchCoordinates (see its
+  // doc comment): true when a SECOND catalog object is within its own display
+  // radius of this solve. The client's shared display-name policy uses it to
+  // decide whether a 'medium' match is safe to name (off-center, no rival) or
+  // should be withheld (genuinely ambiguous). Surfaced as the raw fact, not a
+  // display verdict, so the live card and history strip can each apply their
+  // own policy. Absent-in-payload defaults to false ("no rival") on the
+  // client, the safe direction for the guardrail (see isValidObjectMatch).
+  hasInRangeRunnerUp: boolean
   description: string
   type: string
   constellation?: string
@@ -117,6 +126,12 @@ type HistoryEntry = {
   objectName: string | null
   objectType: string | null
   confidence: string | null
+  // Contested-field fact for this run's stored match (StackRun.hasInRangeRunnerUp;
+  // see lib/catalog.ts). The TAPPABLE history strip gates the pill's name on
+  // this via the SAME shouldShowMatchName policy the live card uses. null on
+  // runs with no match / rows predating the column — the client treats null as
+  // false ("not contested"), matching today's behavior for old runs.
+  hasInRangeRunnerUp: boolean | null
   startedAt: string
   endedAt: string | null
   blobUrl: string | null
@@ -172,6 +187,7 @@ async function fetchHistory(sessionId: string, source: string): Promise<HistoryE
       objectName: r.objectName,
       objectType: r.objectType,
       confidence: r.confidence,
+      hasInRangeRunnerUp: r.hasInRangeRunnerUp,
       startedAt: r.startedAt.toISOString(),
       endedAt: r.endedAt ? r.endedAt.toISOString() : null,
       blobUrl: (r.latestFrameId && blobById.get(r.latestFrameId)) || (r.firstFrameId && blobById.get(r.firstFrameId)) || null,
@@ -216,6 +232,7 @@ function resolveObjectMatch(telemetry: LatestFrame['telemetry']): ObjectMatch | 
   return {
     name: result.match.primaryName,
     confidence: result.confidence,
+    hasInRangeRunnerUp: result.hasInRangeRunnerUp,
     description: result.match.description,
     type: result.match.type,
     ...(result.match.constellation ? { constellation: result.match.constellation } : {}),

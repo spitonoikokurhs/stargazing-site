@@ -76,7 +76,7 @@ function confidenceRank(c: Confidence | null): number {
 // fields, are the only signal available/trustworthy today).
 function resolveStackRunMatch(
   metadata: Prisma.InputJsonValue | null,
-): { objectId: string; objectName: string; objectType: string; confidence: Confidence } | null {
+): { objectId: string; objectName: string; objectType: string; confidence: Confidence; hasInRangeRunnerUp: boolean } | null {
   if (metadata === null || typeof metadata !== 'object' || Array.isArray(metadata)) return null
   const m = metadata as Record<string, unknown>
   if (m.astrometryState !== 'solved') return null
@@ -89,6 +89,11 @@ function resolveStackRunMatch(
     objectName: result.match.primaryName,
     objectType: result.match.type,
     confidence: result.confidence,
+    // Surfaced for MatchDecision persistence (season-end contested-field
+    // analysis). The StackRun row itself does NOT store this — only the
+    // MatchDecision diagnostic record does — so it's carried through
+    // logStackRunMatch, not written onto the StackRun.
+    hasInRangeRunnerUp: result.hasInRangeRunnerUp,
   }
 }
 
@@ -119,6 +124,10 @@ type MatchDecisionRecord = {
   dec: number
   objectId: string | null
   confidence: Confidence | null
+  // Whether the winning match's field was contested (matchCoordinates'
+  // hasInRangeRunnerUp). null on a fallback (no winning match); a boolean on
+  // matched/upgraded. See the MatchDecision model doc in prisma/schema.prisma.
+  hasInRangeRunnerUp: boolean | null
 }
 
 // Emits the greppable Vercel-log line for a StackRun identity decision (live
@@ -144,12 +153,16 @@ function logStackRunMatch(fields: {
   result: 'matched' | 'fallback' | 'upgraded'
   objectId: string | null
   confidence: Confidence | null
+  // Contested-field fact for a matched/upgraded decision; null on a fallback
+  // (no winning match). Defaulted to null by the callers that have no match.
+  hasInRangeRunnerUp: boolean | null
 }): MatchDecisionRecord | null {
   const ra = fields.coords ? fields.coords.ra.toFixed(4) : 'null'
   const dec = fields.coords ? fields.coords.dec.toFixed(4) : 'null'
   console.log(
     `stackrun-match: stackRunId=${fields.stackRunId} ra=${ra} dec=${dec} ` +
-      `result=${fields.result} objectId=${fields.objectId ?? 'null'} confidence=${fields.confidence ?? 'null'}`,
+      `result=${fields.result} objectId=${fields.objectId ?? 'null'} confidence=${fields.confidence ?? 'null'} ` +
+      `contested=${fields.hasInRangeRunnerUp ?? 'null'}`,
   )
   if (!fields.coords) return null // no solved coordinates -> nothing durable to persist
   return {
@@ -161,6 +174,7 @@ function logStackRunMatch(fields: {
     dec: fields.coords.dec,
     objectId: fields.objectId,
     confidence: fields.confidence,
+    hasInRangeRunnerUp: fields.hasInRangeRunnerUp,
   }
 }
 
@@ -594,6 +608,7 @@ export async function POST(req: NextRequest) {
                       objectName: match.objectName,
                       objectType: match.objectType,
                       confidence: match.confidence,
+                      hasInRangeRunnerUp: match.hasInRangeRunnerUp,
                     }
                   : {}),
               },
@@ -615,6 +630,7 @@ export async function POST(req: NextRequest) {
                 result: 'matched',
                 objectId: match.objectId,
                 confidence: match.confidence,
+                hasInRangeRunnerUp: match.hasInRangeRunnerUp,
               })
               if (rec) matchDecisions.push(rec)
             } else if (coords) {
@@ -626,6 +642,7 @@ export async function POST(req: NextRequest) {
                 result: 'fallback',
                 objectId: null,
                 confidence: null,
+                hasInRangeRunnerUp: null, // no winning match to be contested
               })
               if (rec) matchDecisions.push(rec)
             }
@@ -676,6 +693,12 @@ export async function POST(req: NextRequest) {
                         objectName: match!.objectName,
                         objectType: match!.objectType,
                         confidence: match!.confidence,
+                        // Kept in lockstep with the identity it describes: only
+                        // written when we actually apply the upgraded match, so
+                        // the stored contested fact always matches the stored
+                        // objectId/confidence (never a stale rival flag from a
+                        // previous, lower-confidence identity).
+                        hasInRangeRunnerUp: match!.hasInRangeRunnerUp,
                       }
                     : {}),
                 },
@@ -701,6 +724,7 @@ export async function POST(req: NextRequest) {
                   result: 'upgraded',
                   objectId: match!.objectId,
                   confidence: match!.confidence,
+                  hasInRangeRunnerUp: match!.hasInRangeRunnerUp,
                 })
                 if (rec) matchDecisions.push(rec)
               } else if (match === null && coords && openRun.objectId === null) {
@@ -712,6 +736,7 @@ export async function POST(req: NextRequest) {
                   result: 'fallback',
                   objectId: null,
                   confidence: null,
+                  hasInRangeRunnerUp: null, // no winning match to be contested
                 })
                 if (rec) matchDecisions.push(rec)
               }

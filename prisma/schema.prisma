@@ -108,6 +108,21 @@ model StackRun {
   objectName    String? // catalog display name, e.g. "Hercules Globular Cluster"
   objectType    String? // catalog type string, e.g. "Globular Cluster" — drives type-color tinting
   confidence    String? // matchCoordinates' real Confidence value: "high" | "medium" | "low" | "none" — stored as-is, not collapsed; the client decides its own display threshold
+  // Whether this run's winning match was CONTESTED — a second catalog object
+  // within its own display radius of the solve (matchCoordinates'
+  // hasInRangeRunnerUp; see lib/catalog.ts). Stored HERE, not only on the
+  // MatchDecision diagnostic row, because the session-history strip is
+  // TAPPABLE: tapping a pill renders the full named object card
+  // (displayObjectForHistoryRun in app/live/LiveView.tsx), so history must gate
+  // the name on the SAME contested fact the live card uses (shouldShowMatchName
+  // in lib/match-display.ts) — otherwise a contested medium the live card
+  // correctly withholds could still surface as a named pill AND a
+  // possibly-wrong named card on tap. Written on matched/upgraded runs (same
+  // two ingest points that set objectId/confidence); null on runs with no
+  // match, and null on rows predating this column (client treats null as false
+  // = "not contested" = today's behavior for old runs — safe, the fix protects
+  // going-forward runs).
+  hasInRangeRunnerUp Boolean? // null when no match / pre-column; true|false on matched/upgraded
   firstFrameId  String? // the frame whose detectTransition verdict triggered this StackRun
   latestFrameId String? // updated on every subsequent frame belonging to this run — feeds blobUrl in the history endpoint
   createdAt     DateTime  @default(now())
@@ -151,6 +166,13 @@ model MatchDecision {
   dec         Float // solved declination (degrees) at the decision moment
   objectId    String? // catalog id when matched/upgraded; null on fallback
   confidence  String? // "high" | "medium" | "low" | "none" when matched/upgraded; null on fallback
+  // Whether the winning match's field was CONTESTED — a second catalog object
+  // within its own display radius of this solve (matchCoordinates'
+  // hasInRangeRunnerUp; see lib/catalog.ts). Recorded so season-end tuning can
+  // answer "how often are our matches contested, and does that correlate with
+  // the medium tier we withhold on the live card." Null on a fallback (no
+  // winning match to be contested); a real boolean on matched/upgraded.
+  hasInRangeRunnerUp Boolean? // null on fallback; true/false for matched/upgraded
   createdAt   DateTime @default(now())
 
   @@index([sessionId, createdAt]) // the debug endpoint's own query: this night's decisions, chronological

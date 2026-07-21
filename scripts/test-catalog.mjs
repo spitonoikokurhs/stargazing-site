@@ -379,6 +379,62 @@ function assert(label, cond, detail) {
   assert('M64 exact coords -> high confidence', rM64.confidence === 'high', `got ${rM64.confidence}`)
 }
 
+// N. hasInRangeRunnerUp — the objective "contested field" fact matchCoordinates
+//    now surfaces, which the /live client uses to decide whether a 'medium'
+//    match is safe to name (off-center, no rival -> show) or must be withheld
+//    (genuinely ambiguous -> "Deep-sky field"). See shouldShowMatchName in
+//    app/live/LiveView.tsx. This is the root-cause fix for the 2026-07-20 Astir
+//    M101 miss: the first M101 stack solved off-center (medium) and the old
+//    high-only display gate hid the name even though the field was NOT
+//    contested.
+{
+  // The EXACT off-center solve from the Astir session (StackRun 19:13, the one
+  // that was wrongly hidden): a medium match that is NOT contested -> the
+  // client must show "M101".
+  const rOffCenter = matchCoordinates(210.6233367919922, 54.47222137451172)
+  assert(
+    'M101 off-center Astir solve -> match M101',
+    rOffCenter.match?.id === 'M101',
+    `got ${rOffCenter.match?.id ?? 'null'}`,
+  )
+  assert(
+    'M101 off-center Astir solve -> medium confidence (off-center, not dead-center)',
+    rOffCenter.confidence === 'medium',
+    `got ${rOffCenter.confidence}`,
+  )
+  assert(
+    'M101 off-center Astir solve -> NOT contested (isolated object, name is safe to show)',
+    rOffCenter.hasInRangeRunnerUp === false,
+    `got ${rOffCenter.hasInRangeRunnerUp}`,
+  )
+
+  // The other Astir M101 solve (StackRun 19:54, RA 210.877) — closer, high
+  // confidence — is also uncontested. Confirms hasInRangeRunnerUp is false
+  // across the high tier too, not only medium.
+  const rClose = matchCoordinates(210.8770904541016, 54.39611053466797)
+  assert('M101 close Astir solve -> match M101 high', rClose.match?.id === 'M101' && rClose.confidence === 'high', `got ${rClose.match?.id}/${rClose.confidence}`)
+  assert('M101 close Astir solve -> NOT contested', rClose.hasInRangeRunnerUp === false, `got ${rClose.hasInRangeRunnerUp}`)
+
+  // The genuinely-contested case (same real M65/Leo-Triplet near-tie point as
+  // test 2d): a second catalog object IS within its own radius of this solve,
+  // so hasInRangeRunnerUp must be true -> the client withholds the name. This
+  // is the case the fix must NOT over-show.
+  const rContested = matchCoordinates(169.7333, 13.1372)
+  assert(
+    'crowded M65/Leo-Triplet point -> hasInRangeRunnerUp true (field is contested)',
+    rContested.hasInRangeRunnerUp === true,
+    `got ${rContested.hasInRangeRunnerUp}`,
+  )
+
+  // A no-match empty-sky point has no winner and therefore no runner-up.
+  const rEmpty = matchCoordinates(200, 70)
+  assert(
+    'empty-sky coords -> hasInRangeRunnerUp false (no match, nothing to contest)',
+    rEmpty.hasInRangeRunnerUp === false,
+    `got ${rEmpty.hasInRangeRunnerUp}`,
+  )
+}
+
 console.log('')
 if (failures > 0) {
   console.log(`${failures} assertion(s) failed.`)

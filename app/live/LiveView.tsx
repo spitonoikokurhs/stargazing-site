@@ -34,6 +34,7 @@ import { typeDefinition } from '@/lib/object-types'
 import { typeColor } from '@/lib/type-colors'
 import catalogData from '@/config/catalog.json'
 import type { CatalogObject } from '@/lib/catalog'
+import { shouldShowMatchName } from '@/lib/match-display'
 import { computeRunKey } from '@/lib/detect-transition'
 
 // Crossfade duration for a flavor-line swap; must match the opacity transition
@@ -87,6 +88,12 @@ type HistoryEntry = {
   objectName: string | null
   objectType: string | null
   confidence: string | null
+  // Contested-field fact for this run's stored match (see /api/status's
+  // HistoryEntry and StackRun.hasInRangeRunnerUp). Optional/nullable: absent on
+  // an older server, null on runs with no match or rows predating the column.
+  // isDisplayableRun feeds it (null/absent -> false) into shouldShowMatchName so
+  // the TAPPABLE strip gates a pill's name on the same fact the live card uses.
+  hasInRangeRunnerUp?: boolean | null
   startedAt: string
   endedAt: string | null
   blobUrl: string | null
@@ -126,6 +133,15 @@ type StatusLive = {
   objectMatch?: {
     name: string
     confidence: ObjectMatchConfidence
+    // "Contested field" fact from the server matcher (see ObjectMatch in
+    // app/api/status/route.ts and matchCoordinates in lib/catalog.ts): a
+    // second catalog object is within its own radius of this solve. Optional
+    // for forward/backward compat — an older server omits it; the client
+    // defaults a missing value to false ("no rival"), which is the safe
+    // direction for shouldShowMatchName (a genuinely ambiguous match on an
+    // old server would then show its name, i.e. exactly today's behavior, no
+    // regression). Consumed only by shouldShowMatchName.
+    hasInRangeRunnerUp?: boolean
     description: string
     type: string
     constellation?: string
@@ -261,6 +277,10 @@ function isValidObjectMatch(v: unknown): v is StatusLive['objectMatch'] {
     isString(v.name) &&
     isString(v.confidence) &&
     validConfidence.includes(v.confidence) &&
+    // Optional (older server omits it); when present must be a boolean. A wrong
+    // type invalidates the whole objectMatch rather than being silently coerced
+    // — same all-or-nothing discipline as the other fields here.
+    (v.hasInRangeRunnerUp === undefined || typeof v.hasInRangeRunnerUp === 'boolean') &&
     isString(v.description) &&
     isString(v.type) &&
     (v.constellation === undefined || isString(v.constellation)) &&
@@ -287,6 +307,10 @@ function isValidHistoryEntry(v: unknown): v is HistoryEntry {
     (v.objectName === null || isString(v.objectName)) &&
     (v.objectType === null || isString(v.objectType)) &&
     (v.confidence === null || isString(v.confidence)) &&
+    // Optional (older server omits it), nullable (no match / pre-column). A
+    // wrong type drops just this one entry (sanitizeHistory filters), never the
+    // whole strip — same best-effort discipline as the fields above.
+    (v.hasInRangeRunnerUp === undefined || v.hasInRangeRunnerUp === null || typeof v.hasInRangeRunnerUp === 'boolean') &&
     isString(v.startedAt) &&
     (v.endedAt === null || isString(v.endedAt)) &&
     (v.blobUrl === null || isString(v.blobUrl)) &&
@@ -391,7 +415,11 @@ const MOVING_ASTROMETRY_STATES = new Set(['unavailable', 'failed'])
 // lib/live-status.ts for why this is a resolved decision, not raw passthrough.
 function resolveDisplayObject(body: StatusLive): DisplayObject {
   const astrometryState = body.telemetry?.astrometryState
-  if (astrometryState === 'solved' && body.objectMatch?.confidence === 'high') {
+  if (
+    astrometryState === 'solved' &&
+    body.objectMatch !== undefined &&
+    shouldShowMatchName(body.objectMatch.confidence, body.objectMatch.hasInRangeRunnerUp ?? false)
+  ) {
     return {
       kind: 'known',
       name: body.objectMatch.name,
@@ -426,6 +454,14 @@ type DemoMode =
   | 'known-planetary'
   | 'known-supernova-remnant'
   | 'known-enriched'
+  // Two medium-confidence cases exercising shouldShowMatchName's medium branch
+  // (the M101-fix behavior): 'medium-offcenter' is a medium match with NO
+  // in-range runner-up — the off-center-but-unambiguous case (what M101 hit) —
+  // and MUST show the object name. 'medium-ambiguous' is a medium match WITH an
+  // in-range runner-up — the genuinely-contested case — and MUST withhold the
+  // name, showing the neutral "Deep-sky field" fallback instead.
+  | 'medium-offcenter'
+  | 'medium-ambiguous'
   | 'moving'
   | 'fallback'
   | 'new-target'
@@ -442,6 +478,8 @@ const DEMO_MODES: DemoMode[] = [
   'known-planetary',
   'known-supernova-remnant',
   'known-enriched',
+  'medium-offcenter',
+  'medium-ambiguous',
   'moving',
   'fallback',
   'new-target',
@@ -609,9 +647,12 @@ const KNOWN_DEMO_SOURCE: Record<string, { catalogId: string; blobUrl: string; to
 // lookup, the null-blobUrl/unresolved edge cases) without writing anything
 // to Postgres. Deliberately mixes short catalog ids that print as-is (M13,
 // M27, M31) with the long hyphenated ones (NGC6960-6992, LEO-TRIPLET) that
-// force shortHistoryLabel's name-based fallback — 9 entries total (one more
-// than double HISTORY_ROW_MAX), so the strip wraps to two rows of 4/5 —
-// still exercising the two-row layout, not a special case of it.
+// force shortHistoryLabel's name-based fallback. The list wraps to two rows
+// (comfortably more than double HISTORY_ROW_MAX), still exercising the two-row
+// layout, not a special case of it. Note the entry count exceeds the number of
+// VISIBLE pills: mock-9 (unresolved past run) and mock-contested (a contested
+// medium) are both deliberately dropped by isDisplayableRun, so the strip shows
+// fewer pills than there are entries — that omission IS what those two verify.
 //
 // Most entries carry a REAL blobUrl (an existing /public/images asset —
 // see KNOWN_DEMO_SOURCE above for the same pattern) so tapping them
@@ -623,9 +664,12 @@ const KNOWN_DEMO_SOURCE: Record<string, { catalogId: string; blobUrl: string; to
 // 'none', not the active one) to confirm a non-active unresolved run is
 // correctly omitted from the strip entirely (see isDisplayableRun's own
 // doc comment: only the ACTIVE run gets the neutral settling treatment;
-// a past run that never resolved is dropped, not shown as "…").
-// mock-10 is the active/current one (matches the demo's own
-// KNOWN_DEMOS['history-test'] = M13 card).
+// a past run that never resolved is dropped, not shown as "…"). mock-7 is
+// an off-center medium WITHOUT a runner-up (shown, tappable — the M101 fix's
+// "name is safe" case); mock-contested is a medium WITH a runner-up (dropped —
+// the "withhold the possibly-wrong name, even on tap" case). mock-10 is the
+// active/current one (matches the demo's own KNOWN_DEMOS['history-test'] = M13
+// card).
 const MOCK_HISTORY: HistoryEntry[] = [
   {
     id: 'mock-1',
@@ -701,9 +745,31 @@ const MOCK_HISTORY: HistoryEntry[] = [
     objectName: 'Pinwheel Galaxy',
     objectType: 'Spiral Galaxy',
     confidence: 'medium',
+    // Off-center medium with NO in-range runner-up — the exact M101 case from
+    // 2026-07-20. Must remain a NORMAL named, tappable pill (shouldShowMatchName
+    // true), and tapping it must render the full "Pinwheel Galaxy" card.
+    hasInRangeRunnerUp: false,
     startedAt: '2026-07-09T21:12:00.000Z',
     endedAt: '2026-07-09T21:24:00.000Z',
     blobUrl: '/images/galaxy-ic342-hidden.jpg',
+    active: false,
+  },
+  {
+    // Contested medium: a completed, named run whose field HAD an in-range
+    // runner-up. isDisplayableRun -> false, so this pill is OMITTED from the
+    // strip entirely (non-active + non-displayable), which is the withhold: no
+    // pill means no tap means no possibly-wrong named card. This is the
+    // history-side proof of the tappable-pill fix — before it, this would have
+    // shown as a tappable "Bode's Galaxy" pill and rendered its card on tap.
+    id: 'mock-contested',
+    objectId: 'M81',
+    objectName: "Bode's Galaxy",
+    objectType: 'Spiral Galaxy',
+    confidence: 'medium',
+    hasInRangeRunnerUp: true,
+    startedAt: '2026-07-09T21:24:30.000Z',
+    endedAt: '2026-07-09T21:30:00.000Z',
+    blobUrl: '/images/galaxy-ngc2403.jpg',
     active: false,
   },
   {
@@ -760,10 +826,14 @@ const CATALOG_ID_BY_NAME = new Map(
 // Facts, ObjectDescription/EnrichedCard, headingParts) renders a historical
 // object with no new code path, just different data in.
 //
-// Catalog lookup by objectId is the common/expected case (a StackRun that
-// made it into the history strip at all already passed isDisplayableRun's
-// high/medium-confidence gate — see that function's own doc comment — so it
-// should always have a real objectId the catalog recognizes). objectId
+// Only ever reached for a run that already passed isDisplayableRun (settling/
+// non-displayable pills are disabled and never selectable — see HistoryPill's
+// `disabled={isSettling}`), so by the time we're rendering a card here the run
+// has cleared the SAME name-display policy the live card uses: high, or medium
+// with no in-range runner-up (see shouldShowMatchName). A contested medium is
+// withheld upstream and can never render a named card here. Catalog lookup by
+// objectId is the common/expected case (a displayable run always has a real
+// objectId the catalog recognizes). objectId
 // missing or not found in the catalog is a defensive fallback, not a normal
 // path: render a safe MINIMAL card from the StackRun's own denormalized
 // fields (objectName/objectType) rather than failing or inventing content
@@ -913,6 +983,39 @@ function getDemoStatusBody(): StatusResponse | null {
     sessionId: 'demo-session',
   }
 
+  // Two medium-confidence demos exercising shouldShowMatchName's medium branch
+  // (the M101 display-gate fix). Both reuse the galaxy demo's rich card content
+  // (M101 is a galaxy) and set astrometryState 'solved' + confidence 'medium';
+  // they differ ONLY in hasInRangeRunnerUp, which is the whole point:
+  //   - medium-offcenter (no runner-up)  -> shouldShowMatchName true  -> name shown
+  //   - medium-ambiguous (has runner-up) -> shouldShowMatchName false -> "Deep-sky field"
+  // This is what M101 would have looked like: an off-center medium correctly
+  // named, vs. a genuinely-contested medium correctly withheld.
+  if (mode === 'medium-offcenter' || mode === 'medium-ambiguous') {
+    const galaxy = KNOWN_DEMOS['known-galaxy']
+    return {
+      ...base,
+      telemetry: {
+        state: 'IMAGE_STACK_RUNNING',
+        totalAccumulatedTime: galaxy?.totalAccumulatedTime ?? 3120,
+        astrometryState: 'solved',
+      },
+      objectMatch: {
+        name: galaxy?.name ?? 'Triangulum Galaxy',
+        confidence: 'medium',
+        hasInRangeRunnerUp: mode === 'medium-ambiguous',
+        description: galaxy?.description ?? '',
+        type: galaxy?.type ?? 'Spiral Galaxy',
+        constellation: galaxy?.constellation,
+        distanceLy: galaxy?.distanceLy,
+        sizeDescription: galaxy?.sizeDescription,
+        wowFacts: galaxy?.wowFacts,
+        visualHint: galaxy?.visualHint,
+        drawer: galaxy?.drawer,
+      },
+    }
+  }
+
   if (known) {
     return {
       ...base,
@@ -924,6 +1027,7 @@ function getDemoStatusBody(): StatusResponse | null {
       objectMatch: {
         name: known.name,
         confidence: 'high',
+        hasInRangeRunnerUp: false,
         description: known.description,
         type: known.type,
         constellation: known.constellation,
@@ -3080,9 +3184,26 @@ function MilestoneToggle({
 // the settling treatment.) Old unresolved runs (never confidently
 // identified before the NEXT run started) are omitted entirely rather than
 // cluttering the strip with failed transitions.
-const HISTORY_CONFIDENT_TIERS = new Set(['high', 'medium'])
 function isDisplayableRun(run: HistoryEntry): boolean {
-  return run.objectId !== null && HISTORY_CONFIDENT_TIERS.has(run.confidence ?? '')
+  if (run.objectId === null) return false
+  const confidence = run.confidence ?? ''
+  if (confidence !== 'high' && confidence !== 'medium' && confidence !== 'low' && confidence !== 'none') {
+    return false
+  }
+  // Gated through the SAME shouldShowMatchName policy the live card uses, fed
+  // the SAME contested-field fact — now that StackRun persists
+  // hasInRangeRunnerUp and /api/status returns it (see HistoryEntry). This
+  // matters because the history strip is TAPPABLE: tapping a pill renders the
+  // full named object card (displayObjectForHistoryRun), so a contested medium
+  // the live card withholds must be withheld here too, or a possibly-wrong name
+  // reaches the guest on tap. The surfaces are now GENUINELY consistent — same
+  // policy, same fact — not merely apparently so.
+  //
+  // null/absent hasInRangeRunnerUp (a run with no match, a row predating the
+  // column, or an older server) resolves to false = "not contested" = the
+  // pre-fix behavior for those runs (safe: the fix protects going-forward
+  // matched/upgraded runs, which do carry the real value).
+  return shouldShowMatchName(confidence, run.hasInRangeRunnerUp ?? false)
 }
 
 // A catalog id like "M13"/"M27" is already the natural pill label — short,

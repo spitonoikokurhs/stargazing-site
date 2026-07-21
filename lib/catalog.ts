@@ -47,6 +47,29 @@ export type MatchResult = {
   match: CatalogObject | null
   confidence: Confidence
   separationDeg: number
+  // True when a SECOND catalog object (not the winner) is within ITS OWN
+  // displayRadiusDeg of this solve — the exact predicate the runner-up
+  // guardrail below already uses. This is an OBJECTIVE FACT about the sky +
+  // catalog, deliberately NOT a display decision: it says "the field is
+  // contested," and leaves "should we therefore show/withhold the name" to the
+  // presentation layer (see resolveDisplayObject / shouldShowMatchName in
+  // app/live/LiveView.tsx). Kept as a fact so different surfaces (live card vs.
+  // history strip vs. season-end MatchDecision analysis) can each apply their
+  // own policy to it rather than being handed one baked-in verdict.
+  //
+  // IMPORTANT — the predicate is "within its own radius," NOT "within some
+  // fixed angular distance." An object can have sky neighbors that are close in
+  // degrees yet nowhere near their own radius of this solve (e.g. M101 that
+  // night): those are NOT runner-ups and must NOT set this true, or an
+  // off-center-but-unambiguous match would be wrongly withheld.
+  //
+  // CATALOG-DENSITY DEPENDENT: this value is a function of what's in the
+  // catalog. Adding a nearby entry later (M81/M82, the Virgo cluster galaxies,
+  // a double cluster) can make a currently-clean isolated target sprout an
+  // in-range runner-up and start withholding its name. That's correct behavior
+  // (the field genuinely became contested), but flagged here so a future
+  // catalog addition changing an unrelated object's label isn't a surprise.
+  hasInRangeRunnerUp: boolean
 }
 
 // Cast once at module load: JSON has no way to express `null` vs "absent" for
@@ -180,35 +203,47 @@ export function matchCoordinates(raDeg: number, decDeg: number): MatchResult {
   }
 
   if (best === null) {
-    return { match: null, confidence: 'none', separationDeg: Infinity }
+    return { match: null, confidence: 'none', separationDeg: Infinity, hasInRangeRunnerUp: false }
   }
 
   const radius = best.obj.displayRadiusDeg as number
   const fractionOfRadius = best.separationDeg / radius
   let confidence: Confidence = fractionOfRadius <= highConfidenceCutoffFraction(radius) ? 'high' : 'medium'
 
-  // Runner-up check: only matters when the winner would otherwise be "high" —
-  // a "medium" result is already the safe/hedged outcome, nothing to guard.
-  // Score every OTHER in-range candidate the same way (fraction of its own
-  // radius) and find the most convincing one; if it's not clearly worse than
-  // the winner's own score, this is a crowded field and "high" isn't safe.
-  if (confidence === 'high') {
-    let bestRunnerUpScore = Infinity
-    for (const obj of STATIC_CATALOG) {
-      if (obj.id === best.obj.id) continue
-      const separationDeg = angularSeparationDeg(raDeg, decDeg, obj.raDeg as number, obj.decDeg as number)
-      if (separationDeg > (obj.displayRadiusDeg as number)) continue
-      const score = separationDeg / (obj.displayRadiusDeg as number)
-      if (score < bestRunnerUpScore) bestRunnerUpScore = score
-    }
+  // Single runner-up scan, run UNCONDITIONALLY (not only on the high path) —
+  // it feeds two independent outputs:
+  //   1. bestRunnerUpScore: the most convincing OTHER in-range candidate,
+  //      scored the same way (fraction of ITS OWN radius), used by the "high"
+  //      downgrade guardrail below.
+  //   2. hasInRangeRunnerUp: whether ANY second object is within its own
+  //      display radius of this solve — the objective "contested field" fact
+  //      surfaced on MatchResult (see its doc comment). This is exactly the
+  //      per-object `separationDeg > displayRadiusDeg` in-range test the loop
+  //      already applies, so the fact and the guardrail can never disagree
+  //      about what "in range" means.
+  let bestRunnerUpScore = Infinity
+  let hasInRangeRunnerUp = false
+  for (const obj of STATIC_CATALOG) {
+    if (obj.id === best.obj.id) continue
+    const separationDeg = angularSeparationDeg(raDeg, decDeg, obj.raDeg as number, obj.decDeg as number)
+    if (separationDeg > (obj.displayRadiusDeg as number)) continue // not within ITS OWN radius -> not a runner-up
+    hasInRangeRunnerUp = true
+    const score = separationDeg / (obj.displayRadiusDeg as number)
+    if (score < bestRunnerUpScore) bestRunnerUpScore = score
+  }
 
+  // Runner-up downgrade: only matters when the winner would otherwise be
+  // "high" — a "medium" result is already the safe/hedged outcome, nothing to
+  // guard. If the best runner-up isn't clearly worse than the winner's own
+  // score, this is a crowded field and "high" isn't safe.
+  if (confidence === 'high') {
     const winnerScore = fractionOfRadius
     if (bestRunnerUpScore < runnerUpClearMarginThreshold(winnerScore)) {
       confidence = 'medium'
     }
   }
 
-  return { match: best.obj, confidence, separationDeg: best.separationDeg }
+  return { match: best.obj, confidence, separationDeg: best.separationDeg, hasInRangeRunnerUp }
 }
 
 export type NearestObject = {
