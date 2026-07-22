@@ -2338,7 +2338,7 @@ function StartingSky() {
         // dissipates slowly in place, rather than vanishing the instant the head
         // dies. (This is separate from the tail-age falloff along the streak.)
         const afterLife = Math.max(0, sh.life - sh.ttl)
-        const STREAK_LINGER_S = 1.2
+        const STREAK_LINGER_S = 1.56 // 30% slower dissipation than before (was 1.2s)
         const streakFade = (sh.life < sh.ttl ? 1 : Math.max(0, 1 - afterLife / STREAK_LINGER_S)) * sh.bright
         const c = sh.color
         const r = parseInt(c.slice(1, 3), 16)
