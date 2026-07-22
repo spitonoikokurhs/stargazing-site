@@ -2217,7 +2217,8 @@ function StartingSky() {
 
     function build() {
       stars = []
-      const count = Math.round((window.innerWidth * window.innerHeight) / 5200)
+      // Divisor 6500 (was 5200) → ~20% fewer stars, a calmer, less busy field.
+      const count = Math.round((window.innerWidth * window.innerHeight) / 6500)
       for (let i = 0; i < count; i++) {
         const depth = Math.random()
         stars.push({
@@ -2277,7 +2278,7 @@ function StartingSky() {
         trail: [],
       })
     }
-    const TRAIL_MAX = 22 // how many lagging points to keep (trail length + smoothness)
+    const TRAIL_MAX = 30 // how many lagging points to keep (longer, lingering streak)
 
     let last = performance.now()
     function frame(now: number) {
@@ -2330,7 +2331,15 @@ function StartingSky() {
         sh.trail.unshift({ x: sh.x, y: sh.y })
         if (sh.trail.length > TRAIL_MAX) sh.trail.length = TRAIL_MAX
 
-        const fade = Math.max(0, 1 - sh.life / sh.ttl) * sh.bright
+        const fade = Math.max(0, 1 - sh.life / sh.ttl) * sh.bright // head brightness
+        // The LIGHT STREAK the meteor leaves persists longer than the head: it
+        // stays near-full while the star is alive, then fades gently over ~1.2s
+        // AFTER the head is gone — so the deposited glow lingers on the sky and
+        // dissipates slowly in place, rather than vanishing the instant the head
+        // dies. (This is separate from the tail-age falloff along the streak.)
+        const afterLife = Math.max(0, sh.life - sh.ttl)
+        const STREAK_LINGER_S = 1.2
+        const streakFade = (sh.life < sh.ttl ? 1 : Math.max(0, 1 - afterLife / STREAK_LINGER_S)) * sh.bright
         const c = sh.color
         const r = parseInt(c.slice(1, 3), 16)
         const gch = parseInt(c.slice(3, 5), 16)
@@ -2344,7 +2353,7 @@ function StartingSky() {
           const p0 = sh.trail[t]
           const p1 = sh.trail[t + 1]
           const age = t / TRAIL_MAX // 0 at head … →1 at tail
-          const seg = (1 - age) * fade // segment brightness
+          const seg = (1 - age) * streakFade // segment brightness (lingers post-death)
           if (seg <= 0.01) continue
           // soft glow underlay
           ctx.strokeStyle = `rgba(${r},${gch},${b},${0.18 * seg})`
@@ -2378,12 +2387,12 @@ function StartingSky() {
           ctx.fill()
         }
 
-        // Retire only once the star is dead AND its trail has fully drained off,
-        // so the tail keeps dissipating after the head is gone/offscreen.
-        const off = sh.x > W + 60 || sh.x < -60 || sh.y > H + 60
-        if ((sh.life > sh.ttl || off) && sh.trail.length > 1) {
-          sh.trail.pop() // drain the oldest point each frame → tail recedes/fades
-        } else if (sh.life > sh.ttl || off) {
+        // Retire only once the star is dead AND its lingering streak has fully
+        // faded out (streakFade → 0). The deposited light stays put and dims in
+        // place over STREAK_LINGER_S; we do NOT drain trail points early, so the
+        // whole streak lingers and fades together rather than receding.
+        const off = sh.x > W + 120 || sh.x < -120 || sh.y > H + 120
+        if ((sh.life > sh.ttl && streakFade <= 0.01) || off) {
           shooters.splice(i, 1)
         }
       }
@@ -2460,7 +2469,7 @@ function StartingUfo() {
         setPhase('flee') // 4.3s: bolts away
         startingSkyControl.frozen = false // sky resumes drifting
       })
-      at(5450, () => setPhase('hidden')) // gone once the (30%-slower, 1.1s) flee completes
+      at(5650, () => setPhase('hidden')) // gone once the (1.32s) flee travel completes
     }
 
     const first = setTimeout(runOnce, 5000)
@@ -2478,9 +2487,12 @@ function StartingUfo() {
 
   return (
     <>
-      {/* Red alarm-siren wash — flashes over the whole screen the instant the
-          UFO is detected (the 'spotted' beat), like a security alert going off. */}
-      {phase === 'spotted' && <div className="starting-ufo-alarm" aria-hidden="true" />}
+      {/* Red alarm-siren wash — flashes over the whole screen from the instant
+          the UFO is detected ('spotted') and keeps blaring through its escape
+          ('flee'), like a security alert that stays on until it's gone. */}
+      {(phase === 'spotted' || phase === 'flee') && <div className="starting-ufo-alarm" aria-hidden="true" />}
+      {/* Teleport flash-line — flares as the alien squashes down and beams out. */}
+      {phase === 'flee' && <div className="starting-ufo-flash" aria-hidden="true" />}
       <div className={`starting-ufo starting-ufo--${phase}`} aria-hidden="true">
       <svg viewBox="0 0 120 68">
         {/* dome */}
