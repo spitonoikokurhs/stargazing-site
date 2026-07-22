@@ -53,6 +53,20 @@ export function athensToday(): string {
   }).format(new Date())
 }
 
+// The Europe/Athens weekday name ("Monday", "Thursday", …) for a YYYY-MM-DD
+// calendar date. The single source of the site's weekday-of-an-event-date
+// convention: parse the date as midnight UTC (matching how event dates are
+// stored as bare YYYY-MM-DD Athens calendar days) and format the weekday in the
+// Athens zone with en-US long names. Reused by the farewell "next session" line
+// (lib/live-farewell.ts) and the live-status pill's off-event panel
+// (lib/live-pill.ts) so both read the same weekday for the same date.
+export function athensWeekday(date: string): string {
+  return new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Europe/Athens',
+    weekday: 'long',
+  }).format(new Date(`${date}T00:00:00Z`))
+}
+
 // Add n calendar days to a YYYY-MM-DD date. Arithmetic is done in UTC so it is
 // pure calendar-day math (no DST drift) and the result is formatted back to
 // YYYY-MM-DD — matching how DAY_KEYS is derived above.

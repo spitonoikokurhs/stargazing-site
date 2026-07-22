@@ -13,6 +13,7 @@
 // would flicker between variants on every refresh.
 
 import { hotelDisplayName, hotelLogoSrc } from '@/lib/live-copy'
+import { athensWeekday } from '@/lib/schedule'
 
 export type FarewellVariantId = 'aegean-ufo'
 
@@ -92,10 +93,7 @@ export function formatNextSessionLines(
   next: { date: string; hotelId: string; start: string; end: string } | null,
 ): NextSessionLines {
   if (!next) return null
-  const weekday = new Intl.DateTimeFormat('en-US', {
-    timeZone: 'Europe/Athens',
-    weekday: 'long',
-  }).format(new Date(`${next.date}T00:00:00Z`))
+  const weekday = athensWeekday(next.date) // shared Athens-weekday mechanism (see lib/schedule.ts)
   const venue = hotelDisplayName(next.hotelId)
   return {
     lead: pickNextSessionLeadLine(seed),

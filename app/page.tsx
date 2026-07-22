@@ -1,6 +1,7 @@
 /* eslint-disable @next/next/no-img-element */
 import type { Metadata } from 'next'
 import Script from 'next/script'
+import { LiveStatusPill } from './components/LiveStatusPill'
 import './homepage.css'
 
 const professionalServiceJsonLd = `{
@@ -151,6 +152,7 @@ export default function HomePage() {
             <a href="#faq">FAQ</a>
             <a href="/bodrum-hotelleri">Bodrum TR</a>
             <a href="#guest-feedback">Feedback</a>
+            <LiveStatusPill variant="header" />
             <a href="#contact" className="btn">Contact</a>
             <a href="mailto:mike@stargazing.events" className="btn primary">Email Michalis</a>
           </nav>
@@ -171,6 +173,7 @@ export default function HomePage() {
             <div className="hero-cta">
               <a className="btn primary" href="#contact">Discuss a partnership</a>
               <a className="btn" href="#gallery">View gallery</a>
+              <LiveStatusPill variant="hero" />
             </div>
           </div>
         </section>
