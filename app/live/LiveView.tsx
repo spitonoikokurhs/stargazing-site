@@ -2375,14 +2375,11 @@ function StartingSky() {
           ctx.stroke()
         }
 
-        // bright head with a soft halo (only while the star itself is alive)
+        // Bright head — just a small clean point, NO surrounding halo (the dim
+        // translucent halo read as a "shadow dot" around the nucleus).
         if (sh.life < sh.ttl) {
           ctx.beginPath()
-          ctx.arc(sh.x, sh.y, 3.2 * DPR, 0, Math.PI * 2)
-          ctx.fillStyle = `rgba(${r},${gch},${b},${0.26 * fade})`
-          ctx.fill()
-          ctx.beginPath()
-          ctx.arc(sh.x, sh.y, 1.4 * DPR, 0, Math.PI * 2)
+          ctx.arc(sh.x, sh.y, 1.3 * DPR, 0, Math.PI * 2)
           ctx.fillStyle = `rgba(255,255,255,${fade})`
           ctx.fill()
         }
