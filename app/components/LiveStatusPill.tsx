@@ -1,7 +1,12 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { deriveLivePillState, type LiveStatusResponse, type LivePillState } from '@/lib/live-pill'
+import {
+  deriveLivePillState,
+  forcedStatusFromQuery,
+  type LiveStatusResponse,
+  type LivePillState,
+} from '@/lib/live-pill'
 import './live-status-pill.css'
 
 // Guest-facing live-status pill. Always shows current state (via a colored dot)
@@ -44,6 +49,18 @@ export function LiveStatusPill({ variant = 'header' }: { variant?: Variant }) {
 
   useEffect(() => {
     mountedRef.current = true
+    // ?pill-demo=live|tonight|idle (review-only, see forcedStatusFromQuery):
+    // pin a synthetic status and skip polling entirely, so a reviewer can hold
+    // a state still. Resolved in the effect (not during render) so the server
+    // and first client paint agree — same SSR-safety discipline as the /live
+    // demo hooks. With no param this branch is inert and normal polling runs.
+    const forced = forcedStatusFromQuery(window.location.search)
+    if (forced) {
+      setStatus(forced)
+      return () => {
+        mountedRef.current = false
+      }
+    }
     poll()
     const id = setInterval(poll, POLL_INTERVAL_MS)
     return () => {

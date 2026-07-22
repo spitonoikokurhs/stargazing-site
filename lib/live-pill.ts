@@ -89,6 +89,38 @@ export function buildNextSessionPanel(next: LiveStatusResponse['next']): NextSes
   return { schedule: composeNextSessionSchedule(next), resumeLine: RESUME_KNOWN }
 }
 
+// Dev/review-only override: ?pill-demo=live|tonight|idle forces the pill into a
+// given state so all three (plus the panel) can be eyeballed on any day, without
+// waiting for a real event. Matches the existing ?demo= pattern in
+// app/live/LiveView.tsx exactly: purely query-param driven (no NODE_ENV gate),
+// unlinked anywhere, and SIDE-EFFECT-FREE — it only returns a synthetic
+// /api/status-shaped response for the component to render; it never suppresses
+// the real poll's network call beyond substituting what gets displayed, and it
+// touches no backend/relay/db. Absent/invalid param -> null -> normal behavior.
+//
+// The synthetic responses use realistic values so the render matches production:
+// - live:    live=true
+// - tonight: an event today (start 21:30), not cancelled
+// - idle:    no event today, a real upcoming `next` so the panel has content
+// Returns null on the server (no window) and for any unrecognized value.
+export type PillDemoMode = 'live' | 'tonight' | 'idle'
+
+const PILL_DEMO_RESPONSES: Record<PillDemoMode, LiveStatusResponse> = {
+  live: { live: true, tonight: null, next: null },
+  tonight: { live: false, tonight: { hotelId: 'oku-kos', start: '21:30', end: '22:30' }, next: null },
+  idle: {
+    live: false,
+    tonight: null,
+    next: { date: '2026-07-23', hotelId: 'paralos-kyma-dunes', start: '21:30', end: '22:30' },
+  },
+}
+
+export function forcedStatusFromQuery(search: string): LiveStatusResponse | null {
+  const raw = new URLSearchParams(search).get('pill-demo')
+  if (raw === 'live' || raw === 'tonight' || raw === 'idle') return PILL_DEMO_RESPONSES[raw]
+  return null
+}
+
 // THE state machine. Maps a /api/status response (or null, when the fetch
 // failed / hasn't returned yet) to exactly one LivePillState.
 //

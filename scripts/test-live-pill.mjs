@@ -6,7 +6,7 @@
 // Front-end-only feature: this covers the /api/status -> pill-state mapping and
 // all the edge cases (cancelled tonight, degraded, next null, null response).
 
-import { deriveLivePillState, buildNextSessionPanel } from '../lib/live-pill.ts'
+import { deriveLivePillState, buildNextSessionPanel, forcedStatusFromQuery } from '../lib/live-pill.ts'
 
 let failures = 0
 function assert(label, cond, detail) {
@@ -83,6 +83,20 @@ const NEXT = { date: '2026-07-23', hotelId: 'paralos-kyma-dunes', start: '21:30'
   assert('panel: schedule composed', p.schedule === 'Thursday 23 July · 21:30 · Paralos Kyma Dunes', p.schedule)
   const pn = buildNextSessionPanel(null)
   assert('panel(null): schedule null + coming-soon', pn.schedule === null && pn.resumeLine === 'Next session coming soon.')
+}
+
+// --- ?pill-demo= review override (dev-only, query-param driven) ---
+{
+  // Each forced mode round-trips through the real state machine to the expected state.
+  assert('pill-demo=live -> live state', deriveLivePillState(forcedStatusFromQuery('?pill-demo=live')).kind === 'live')
+  assert('pill-demo=tonight -> tonight state', deriveLivePillState(forcedStatusFromQuery('?pill-demo=tonight')).kind === 'tonight')
+  const idle = deriveLivePillState(forcedStatusFromQuery('?pill-demo=idle'))
+  assert('pill-demo=idle -> idle state', idle.kind === 'idle', idle.kind)
+  assert('pill-demo=idle -> panel has schedule', idle.kind === 'idle' && idle.panel.schedule !== null)
+  // Absent / invalid -> null -> component falls back to real polling.
+  assert('no pill-demo param -> null', forcedStatusFromQuery('') === null)
+  assert('pill-demo=bogus -> null', forcedStatusFromQuery('?pill-demo=bogus') === null)
+  assert('other params ignored -> null', forcedStatusFromQuery('?foo=bar&x=1') === null)
 }
 
 console.log('')
