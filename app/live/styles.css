@@ -3785,46 +3785,65 @@
 @keyframes starting-reticle-breathe { 0%, 100% { opacity: 0.75; } 50% { opacity: 1; } }
 @keyframes starting-reticle-spin { to { transform: rotate(360deg); } }
 
-/* Copy block — poetic rotating line + instruction + optional logo + venue line,
-   anchored toward the lower third, centered, over the sky. */
+/* Tightened copy block: ONE poetic lead line + the quiet venue line only,
+   anchored in the lower third, centered over the sky. (The old instruction line
+   and the separate loader were dropped — redundant with the reticle + lead.) */
 .starting-copy {
   position: absolute;
   left: 0;
   right: 0;
-  bottom: 12vh;
+  bottom: 13vh;
   z-index: 3;
   display: flex;
   flex-direction: column;
   align-items: center;
   text-align: center;
   padding: 0 24px;
-  gap: 12px;
+  gap: 10px;
   animation: starting-copy-in 1.4s ease 0.6s backwards;
 }
 @keyframes starting-copy-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
 
-/* Lift the rotating main line a touch brighter than the old dark-panel value —
-   it now sits over a full-bleed starfield and needs to read cleanly. The
-   instruction + venue lines stay muted/secondary. */
-.starting-copy .transition-main {
-  color: rgba(237, 234, 227, 0.92);
-  text-shadow: 0 1px 12px rgba(0, 0, 0, 0.55);
+/* The single poetic lead line — Cormorant italic, the emotional beat of the
+   screen. Bright enough to read cleanly over the starfield; gentle crossfade. */
+.starting-lead {
+  margin: 0;
+  font-family: var(--font-display), "Cormorant Garamond", Georgia, serif;
+  font-style: italic;
+  font-weight: 500;
+  font-size: clamp(1.5rem, 5.6vw, 2.3rem);
+  line-height: 1.15;
+  color: rgba(237, 234, 227, 0.94);
+  text-shadow: 0 1px 14px rgba(0, 0, 0, 0.6);
+  text-wrap: balance;
+  opacity: 0;
+  transition: opacity 0.6s ease;
 }
-.starting-copy .transition-instruction {
-  text-shadow: 0 1px 10px rgba(0, 0, 0, 0.5);
-}
+.starting-lead.is-visible { opacity: 1; }
 
-/* The venue-grounding line — muted, small, sits under the copy. */
+/* The venue-grounding line — quiet, small, SENTENCE case (not the old shouty
+   uppercase), sits just under the lead. */
 .starting-copy .starting-session-context {
   margin: 0;
-  font-size: clamp(0.82rem, 3.2vw, 0.95rem);
-  color: var(--muted);
+  max-width: min(90vw, 460px);
+  font-size: clamp(0.8rem, 3vw, 0.92rem);
+  color: rgba(168, 166, 160, 0.72);
   letter-spacing: 0.02em;
+  line-height: 1.4;
+  text-transform: none; /* override the legacy uppercase rule */
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.5);
 }
-.starting-copy .starting-hotel-logo {
-  height: 30px;
+
+/* Hotel logo — a small, quiet brand mark pinned to the TOP-RIGHT (out of the
+   centered copy stack, so it no longer adds a competing row in the middle). */
+.starting-hotel-logo {
+  position: absolute;
+  top: max(12px, env(safe-area-inset-top));
+  right: 14px;
+  z-index: 3;
+  height: 26px;
   width: auto;
-  opacity: 0.85;
+  opacity: 0.7;
   filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.5));
 }
 
@@ -3837,4 +3856,5 @@
   }
   .starting-reticle { transform: translate(-50%, -50%) !important; opacity: 1 !important; }
   .starting-copy { opacity: 1 !important; transform: none !important; }
+  .starting-lead { opacity: 1 !important; transition: none !important; }
 }

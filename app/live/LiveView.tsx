@@ -2224,15 +2224,18 @@ function StartingSky() {
           warm: Math.random() < 0.22,
         })
       }
+      // A gentle extra scatter of faint stars for texture — deliberately NOT a
+      // tight diagonal band (that read as a visible "line" across the sky).
+      // Spread broadly with a soft vertical bias toward the upper-middle so it
+      // adds depth without forming a streak.
       band = []
-      const bandCount = Math.round(count * 0.5)
+      const bandCount = Math.round(count * 0.35)
       for (let i = 0; i < bandCount; i++) {
-        const t = Math.random()
         band.push({
-          x: t * W,
-          y: t * H * 0.85 + H * 0.05 + (Math.random() - 0.5) * H * 0.28,
-          r: (0.3 + Math.random() * 0.8) * DPR,
-          a: 0.06 + Math.random() * 0.14,
+          x: Math.random() * W,
+          y: Math.random() * H,
+          r: (0.3 + Math.random() * 0.6) * DPR,
+          a: 0.05 + Math.random() * 0.1,
         })
       }
     }
@@ -2264,13 +2267,8 @@ function StartingSky() {
       last = now
       ctx.clearRect(0, 0, W, H)
 
-      const g = ctx.createLinearGradient(0, 0, W, H)
-      g.addColorStop(0.3, 'rgba(120,130,170,0)')
-      g.addColorStop(0.5, 'rgba(150,160,200,0.05)')
-      g.addColorStop(0.7, 'rgba(120,130,170,0)')
-      ctx.fillStyle = g
-      ctx.fillRect(0, 0, W, H)
-
+      // (No diagonal haze wash — it read as a visible line across the sky. The
+      // faint `band` stars below provide texture on their own.)
       for (const b of band) {
         ctx.beginPath()
         ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2)
@@ -2347,6 +2345,17 @@ function StartingSky() {
   return <canvas ref={canvasRef} className="starting-sky-canvas" aria-hidden="true" />
 }
 
+// The single rotating poetic line for the starting screen — replaces the old
+// TransitionCopy (which also forced an instruction line + a loader, redundant
+// here with the reticle and the venue line). Just one calm line, gently
+// crossfading through STARTING_PHRASES.
+function StartingLead() {
+  const phrase = useRandomNoRepeatPhrase(STARTING_PHRASES, MOVING_PHRASE_ROTATE_MS)
+  return (
+    <p className={`starting-lead${phrase.visible ? ' is-visible' : ''}`}>{phrase.text}</p>
+  )
+}
+
 function startingHotelLogo(payload: OfflinePayload | null): { src: string; alt: string } | null {
   const hotelId = payload?.tonight?.hotelId
   if (!hotelId) return null
@@ -2398,19 +2407,22 @@ function StartingScreen({ payload }: { payload: OfflinePayload | null }) {
         </svg>
       </div>
 
+      {/* Tightened copy: just ONE poetic rotating line + the quiet venue line.
+          The old layout stacked five things (status / reticle / poetic line /
+          "first observation appears automatically" instruction / venue line) —
+          the instruction + loader were redundant with the poetic line and the
+          reticle (which is already the "getting ready" cue), so they're dropped.
+          The hotel logo also moves out of the copy stack: it now sits with the
+          topbar as a small brand mark rather than adding a fourth centered row. */}
       <div className="starting-copy" aria-live="polite">
-        <TransitionCopy
-          mainPhrases={STARTING_PHRASES}
-          showLoader
-          instruction="The first live observation will appear here automatically."
-          className="live-object-desc--starting-copy"
-        />
-        {logo ? (
-          // eslint-disable-next-line @next/next/no-img-element -- local /public hotel logo, tiny optional badge, no next/image sizing needed here
-          <img src={logo.src} alt={logo.alt} className="starting-hotel-logo" />
-        ) : null}
+        <StartingLead />
         {sessionContext ? <p className="starting-session-context">{sessionContext}</p> : null}
       </div>
+
+      {logo ? (
+        // eslint-disable-next-line @next/next/no-img-element -- local /public hotel logo, tiny optional badge, no next/image sizing needed here
+        <img src={logo.src} alt={logo.alt} className="starting-hotel-logo" />
+      ) : null}
     </div>
   )
 }
