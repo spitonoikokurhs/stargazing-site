@@ -2094,6 +2094,15 @@ function TransitionScreen({
             <circle className="rim-ring outer" cx="50" cy="50" r="48" />
             <circle className="rim-ring" cx="50" cy="50" r="45.9" />
           </svg>
+
+          {/* Discreet back-to-home arrow — the transition ("moving to the next
+              object") state is part of the live/immersive family, so it gets
+              the same quiet corner arrow as the live and starting views. Placed
+              here so the arrow stays PUT across a target change (live ->
+              transition -> live) instead of blinking out each time the scope
+              slews, which would read as broken. Same pattern as StartingScreen
+              and the live viewer. */}
+          <BackToHome variant="arrow" />
         </section>
 
         {/* Recap section: fades in at 3s */}

@@ -37,7 +37,9 @@ export function BackToHome({ variant }: { variant: 'arrow' | 'link' }) {
   }
 
   return (
-    <a href="/" className="back-home back-home--link">
+    // aria-label mirrors the arrow variant so a screen reader announces the
+    // INTENT ("back … home"), not just the bare domain the visible label shows.
+    <a href="/" className="back-home back-home--link" aria-label="Back to stargazing.events home">
       <span className="back-home__arrow" aria-hidden="true">
         ←
       </span>
