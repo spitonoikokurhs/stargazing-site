@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { BackToHome } from './BackToHome'
 
 // Ported from docs/ufo-escalatev1.html (the standalone prototype), preserving
 // the design/animation/tap-tier logic as-is per explicit instruction. The
@@ -639,6 +640,13 @@ export function FarewellAegeanUfo({
             <br />
             Same time, next star.
           </div>
+          {/* The calm high point of the event — a receptive guest who just had
+              a great experience is the best moment to offer a path into the
+              rest of the site. Prominent link (like the offline state), and
+              above the decorative sea/shimmer layers so it stays tappable. */}
+          <div className="farewell-back-home">
+            <BackToHome variant="link" />
+          </div>
         </div>
         <div className="farewell-sea" />
         <div className="farewell-shimmer" />
@@ -725,6 +733,11 @@ export function FarewellAegeanUfo({
             The photons have gone home.
             <br />
             Same time, next star.
+          </div>
+          {/* Prominent back-to-home link at the calm end-of-event moment (see
+              the static path above for the rationale). */}
+          <div className="farewell-back-home">
+            <BackToHome variant="link" />
           </div>
         </div>
       </div>

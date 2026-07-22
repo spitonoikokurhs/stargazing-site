@@ -35,6 +35,7 @@ import { typeColor } from '@/lib/type-colors'
 import catalogData from '@/config/catalog.json'
 import type { CatalogObject } from '@/lib/catalog'
 import { shouldShowMatchName } from '@/lib/match-display'
+import { BackToHome } from './BackToHome'
 import { computeRunKey } from '@/lib/detect-transition'
 
 // Crossfade duration for a flavor-line swap; must match the opacity transition
@@ -2214,6 +2215,11 @@ function StartingScreen({ payload }: { payload: OfflinePayload | null }) {
               </textPath>
             </text>
           </svg>
+
+          {/* Discreet back-to-home arrow — the starting state is the pre-live
+              immersive phase (event on, first frame not yet in), so it gets the
+              same quiet corner arrow as the live view, not the prominent link. */}
+          <BackToHome variant="arrow" />
         </section>
 
         <div className="content content--starting" aria-live="polite">
@@ -2691,6 +2697,13 @@ function LiveFrameView({
           >
             ⛶
           </button>
+
+          {/* Discreet back-to-home arrow, top-left (opposite the fullscreen
+              button). Quiet during the immersive live view — a guest only
+              reaches for it when they're done watching. NOT rendered in
+              fullscreen mode, which is deliberately chrome-free (see the
+              live-root--fullscreen branch above). */}
+          <BackToHome variant="arrow" />
         </section>
 
         {/* Milestone selection and history-run selection must never stack —
@@ -4636,6 +4649,12 @@ function StatusScreen({
         ) : null}
       </div>
       {flavorContext ? <FlavorLine context={flavorContext} secondary={cancelled || finished} /> : null}
+      {/* Prominent back-to-home link — the stranded-guest case: there's no live
+          view to protect here, so a guest who arrived (QR / Live pill / direct
+          link) on an off night gets a clear path to the rest of the site. */}
+      <div className="status-back-home">
+        <BackToHome variant="link" />
+      </div>
     </div>
   )
 }
