@@ -2465,6 +2465,21 @@ function nextUfoDelay(): number {
   return 22_000 + Math.random() * 8_000 // 22–30s
 }
 
+// FIRST-appearance timing, rolled ONCE per device:
+//   • ~33% of guests get an EARLY sighting — within the first ~5s (the "whoa,
+//     did you see that?!" beat).
+//   • the other ~67% first see it later, on the normal 22–30s cycle.
+// Independent per device, so side by side one person tends to catch the early
+// one while the other is still waiting — which gets them talking. Everyone sees
+// it eventually; only the timing of the FIRST sighting differs.
+const UFO_EARLY_CHANCE = 1 / 3
+function firstUfoDelay(): number {
+  if (Math.random() < UFO_EARLY_CHANCE) {
+    return 2_000 + Math.random() * 3_000 // early third: ~2–5s
+  }
+  return nextUfoDelay() // everyone else: the normal 22–30s window
+}
+
 // onLock fires the instant the crosshair catches the UFO — the parent uses it to
 // pulse the reticle (see StartingScreen).
 function StartingUfo({ onLock }: { onLock?: () => void }) {
@@ -2505,8 +2520,9 @@ function StartingUfo({ onLock }: { onLock?: () => void }) {
       })
     }
 
-    // First appearance a touch sooner, then randomized recurring gaps.
-    const first = setTimeout(runOnce, 3500)
+    // First appearance rolled per-device across a wide band (see firstUfoDelay)
+    // so not everyone catches it early — then randomized recurring gaps.
+    const first = setTimeout(runOnce, firstUfoDelay())
     timers.push(first)
     return () => {
       clearTimeout(first)
