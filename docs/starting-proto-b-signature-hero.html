@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Starting screen — B · Signature hero</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&family=Inter:wght@300;400&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --text: #edeae3;
+    --muted: #a8a6a0;
+    --soft: #7b7870;
+    --gold: #c7a869;
+    --red: #e25c58;
+    --font-display: "Cormorant Garamond", Georgia, serif;
+    --font-body: Inter, system-ui, sans-serif;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    background: var(--bg); color: var(--text);
+    font-family: var(--font-body); overflow: hidden; -webkit-font-smoothing: antialiased;
+  }
+  .stage { position: fixed; inset: 0; }
+
+  /* Sky gradient: deep space at top easing to a faint warm horizon glow (the
+     last of dusk over the Aegean). */
+  .skygrad {
+    position: absolute; inset: 0;
+    background:
+      radial-gradient(120% 80% at 50% 88%, rgba(199,168,105,0.10), transparent 46%),
+      linear-gradient(180deg, #06060c 0%, #0a0b12 46%, #0d1018 72%, #10131c 100%);
+  }
+  #sky { position: absolute; inset: 0; display: block; width: 100%; height: 100%; }
+
+  /* Foreground scene: a headland silhouette with a telescope on it, against the
+     Milky Way. Bottom-anchored, fixed proportion. SVG so it scales crisply. */
+  .scene {
+    position: absolute; left: 0; right: 0; bottom: 0;
+    width: 100%; height: 40vh; min-height: 240px;
+    display: block; pointer-events: none;
+  }
+  .scene svg { width: 100%; height: 100%; }
+  .hill { fill: #05060a; }
+  .hill--far { fill: #0b0d15; }
+  .cypress { fill: #05060a; }
+  .scope { stroke: #12131b; stroke-width: 1.4; fill: #0a0b11; }
+  .scope-glow {
+    fill: none; stroke: var(--gold); stroke-width: 0.7; opacity: 0;
+    animation: scope-wake 5.5s ease-in-out 1.2s infinite;
+  }
+  @keyframes scope-wake { 0%,100% { opacity: 0; } 45% { opacity: .5; } }
+
+  /* A soft beam easing up from the telescope toward the sky — "the observatory
+     waking", aligning to the first target. */
+  .beam {
+    position: absolute; left: 50%; bottom: 30vh;
+    width: 3px; height: 42vh; transform-origin: bottom center;
+    transform: translateX(-50%) rotate(-8deg) scaleY(0);
+    background: linear-gradient(to top, rgba(199,168,105,0.30), rgba(199,168,105,0.02) 70%, transparent);
+    filter: blur(1px); pointer-events: none;
+    animation: beam-rise 5.5s ease-in-out 1.2s infinite;
+  }
+  @keyframes beam-rise {
+    0%,100% { transform: translateX(-50%) rotate(-8deg) scaleY(0); opacity: 0; }
+    40% { transform: translateX(-50%) rotate(-8deg) scaleY(1); opacity: .8; }
+    70% { transform: translateX(-50%) rotate(-3deg) scaleY(1); opacity: .5; }
+  }
+
+  .vignette {
+    position: absolute; inset: 0; pointer-events: none;
+    background: radial-gradient(130% 100% at 50% 30%, transparent 60%, rgba(0,0,0,0.5) 100%);
+  }
+
+  .copy {
+    position: absolute; left: 0; right: 0; top: 16vh; text-align: center; padding: 0 24px;
+    opacity: 1; animation: copy-in 1.6s ease .6s backwards;
+  }
+  .status {
+    display: inline-flex; align-items: center; gap: 9px;
+    font-size: .72rem; letter-spacing: .22em; text-transform: uppercase;
+    color: var(--muted); margin-bottom: 20px;
+  }
+  .dot { width: 7px; height: 7px; border-radius: 50%;
+    background: radial-gradient(circle at 35% 35%, #fff, var(--red));
+    box-shadow: 0 0 10px var(--red); animation: dot-pulse 2s ease-in-out infinite; }
+  @keyframes dot-pulse { 0%,100% { opacity:.85 } 50% { opacity:1; box-shadow: 0 0 15px var(--red) } }
+  .lead {
+    font-family: var(--font-display); font-weight: 500; font-style: italic;
+    font-size: clamp(1.9rem, 6.4vw, 3rem); line-height: 1.12; text-wrap: balance;
+  }
+  .sub { margin-top: 14px; font-size: clamp(.85rem, 3.4vw, 1rem); color: var(--soft); font-weight: 300; }
+  @keyframes copy-in { from { opacity:0; transform: translateY(12px);} to { opacity:1; transform:none; } }
+
+  .backhome {
+    position: absolute; top: 14px; left: 14px; width: 34px; height: 34px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(10,10,15,.45); backdrop-filter: blur(4px);
+    color: var(--muted); text-decoration: none; font-size: 18px; opacity: .62;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .beam, .scope-glow, .copy, .dot { animation: none !important; }
+    .copy { opacity: 1 !important; }
+    .beam { transform: translateX(-50%) rotate(-8deg) scaleY(1); opacity:.5; }
+  }
+</style>
+</head>
+<body>
+  <div class="stage">
+    <div class="skygrad"></div>
+    <canvas id="sky"></canvas>
+    <div class="beam" aria-hidden="true"></div>
+
+    <svg class="scene" viewBox="0 0 400 200" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
+      <!-- far ridge -->
+      <path class="hill--far" d="M0 150 Q 80 120 160 138 T 320 128 T 400 140 L400 200 L0 200 Z" />
+      <!-- near headland -->
+      <path class="hill" d="M0 172 Q 90 150 190 166 Q 280 178 400 160 L400 200 L0 200 Z" />
+      <!-- a couple of cypress silhouettes -->
+      <path class="cypress" d="M56 168 q3 -30 5 -34 q2 4 5 34 z" />
+      <path class="cypress" d="M330 158 q2.5 -26 4 -30 q1.5 4 4 30 z" />
+      <!-- telescope on the headland, slightly right of center -->
+      <g transform="translate(210 150)">
+        <line class="scope" x1="0" y1="0" x2="0" y2="18" />           <!-- pier -->
+        <line class="scope" x1="-7" y1="18" x2="7" y2="18" />         <!-- base -->
+        <line class="scope" x1="-9" y1="-14" x2="12" y2="2" stroke-width="2.4" /> <!-- OTA -->
+        <circle class="scope" cx="-9" cy="-14" r="2.2" />            <!-- objective -->
+        <line class="scope-glow" x1="-9" y1="-14" x2="-16" y2="-24" /> <!-- glow line of sight -->
+      </g>
+    </svg>
+
+    <div class="vignette"></div>
+    <a class="backhome" href="#" aria-label="Back to stargazing.events home">←</a>
+
+    <div class="copy">
+      <div class="status"><span class="dot"></span> Starting soon</div>
+      <div class="lead" id="lead">The night is about to open.</div>
+      <div class="sub">The first live observation will appear here automatically.</div>
+    </div>
+  </div>
+
+<script>
+  // Starfield above the horizon (denser toward the top; the Milky Way arcs down
+  // to meet the headland). Reuses the same technique as prototype A but the
+  // scene/beam are the hero, so the field is quieter.
+  const canvas = document.getElementById('sky');
+  const ctx = canvas.getContext('2d');
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let W, H, DPR, stars = [], band = [];
+
+  function resize() {
+    DPR = Math.min(devicePixelRatio || 1, 2);
+    W = canvas.width = innerWidth * DPR;
+    H = canvas.height = innerHeight * DPR;
+    canvas.style.width = innerWidth + 'px'; canvas.style.height = innerHeight + 'px';
+    build();
+  }
+  function build() {
+    stars = [];
+    const count = Math.round((innerWidth * innerHeight) / 6000);
+    for (let i = 0; i < count; i++) {
+      const y = Math.random() * H * 0.72;            // keep above the horizon
+      const depth = Math.random();
+      stars.push({ x: Math.random()*W, y, r:(0.4+depth*1.4)*DPR, a:0.22+depth*0.55,
+        tw: Math.random()*6.28, tws:0.4+Math.random()*1.1, warm: Math.random()<0.2 });
+    }
+    band = [];
+    const bc = Math.round(count*0.6);
+    for (let i=0;i<bc;i++){
+      const t = Math.random();
+      const x = t*W;
+      const y = (0.12 + t*0.55) * H + (Math.random()-0.5)*H*0.16; // arc toward horizon
+      if (y < H*0.72) band.push({ x, y, r:(0.3+Math.random()*0.7)*DPR, a:0.05+Math.random()*0.12 });
+    }
+  }
+  let last = performance.now();
+  function frame(now){
+    const dt = Math.min(33, now-last); last=now;
+    ctx.clearRect(0,0,W,H);
+    for (const b of band){ ctx.beginPath(); ctx.arc(b.x,b.y,b.r,0,6.28); ctx.fillStyle=`rgba(190,200,230,${b.a})`; ctx.fill(); }
+    for (const s of stars){
+      if(!reduce) s.tw += s.tws*(dt/1000)*Math.PI;
+      const tw = reduce?1:(0.72+0.28*Math.sin(s.tw));
+      const alpha=s.a*tw;
+      ctx.beginPath(); ctx.arc(s.x,s.y,s.r,0,6.28);
+      ctx.fillStyle = s.warm?`rgba(226,196,140,${alpha})`:`rgba(237,234,227,${alpha})`; ctx.fill();
+      if(s.r>1.2*DPR){ ctx.beginPath(); ctx.arc(s.x,s.y,s.r*2.6,0,6.28); ctx.fillStyle=`rgba(237,234,227,${alpha*0.09})`; ctx.fill(); }
+    }
+    requestAnimationFrame(frame);
+  }
+  // gently rotate a short pool of hero lines (more "set-piece" than A's status pool)
+  const LINES = ['The night is about to open.', 'Tonight’s sky is waking.', 'Aligning on the first target.'];
+  let li=0; const leadEl=document.getElementById('lead');
+  if(!reduce) setInterval(()=>{ li=(li+1)%LINES.length; leadEl.style.transition='opacity .6s ease'; leadEl.style.opacity='0'; setTimeout(()=>{leadEl.textContent=LINES[li]; leadEl.style.opacity='1';},600); }, 5500);
+  addEventListener('resize', resize); resize(); requestAnimationFrame(frame);
+</script>
+</body>
+</html>

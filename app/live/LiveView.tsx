@@ -2163,10 +2163,188 @@ function TransitionScreen({
   )
 }
 
+// Venue-grounding line for the starting screen — deliberately NO hard start
+// time (the event sometimes begins a little after the scheduled slot, so a
+// literal "21:30" would occasionally be wrong and read as broken). Poetic and
+// reassuring instead: it tells an early guest they're in the right place and
+// first light is imminent. Venue via hotelDisplayName (single source of truth);
+// null when there's no tonight hotel to name.
 function formatStartingSessionContext(payload: OfflinePayload | null): string | null {
   const tonight = payload?.tonight
   if (!tonight) return null
-  return `Tonight at ${hotelDisplayName(tonight.hotelId)} · ${tonight.start}–${tonight.end}`
+  return `Tonight at ${hotelDisplayName(tonight.hotelId)} · first light any moment now`
+}
+
+// Living night sky for the starting screen (ported from the approved prototype
+// docs/starting-proto-a-living-sky.html). A full-bleed canvas starfield with
+// depth layers, a faint Milky Way haze band, slow drift, gentle twinkle, and
+// occasional soft shooting stars — so the pre-live screen reads as a real sky
+// about to reveal tonight's target, not an empty black eyepiece. The whole
+// imperative loop is scoped to a canvas ref (never touches global DOM) and torn
+// down on unmount. prefers-reduced-motion drops all motion (static field, no
+// drift/twinkle/shooters) but keeps the field itself, so it's still a sky, not
+// a void.
+function StartingSky() {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null)
+
+  useEffect(() => {
+    const canvasEl = canvasRef.current
+    if (!canvasEl) return
+    const context = canvasEl.getContext('2d')
+    if (!context) return
+    // Non-null aliases so the nested rAF/resize closures below keep the narrowed
+    // types (TS widens back to `| null` for captured refs otherwise).
+    const canvas: HTMLCanvasElement = canvasEl
+    const ctx: CanvasRenderingContext2D = context
+
+    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false
+    let raf = 0
+    let W = 0
+    let H = 0
+    let DPR = 1
+    let stars: {
+      x: number; y: number; r: number; a: number; tw: number; tws: number; vx: number; warm: boolean
+    }[] = []
+    let band: { x: number; y: number; r: number; a: number }[] = []
+    let shooters: { x: number; y: number; life: number; len: number; vx: number; vy: number }[] = []
+
+    function build() {
+      stars = []
+      const count = Math.round((window.innerWidth * window.innerHeight) / 5200)
+      for (let i = 0; i < count; i++) {
+        const depth = Math.random()
+        stars.push({
+          x: Math.random() * W,
+          y: Math.random() * H,
+          r: (0.4 + depth * 1.6) * DPR,
+          a: 0.25 + depth * 0.6,
+          tw: Math.random() * Math.PI * 2,
+          tws: 0.4 + Math.random() * 1.2,
+          vx: (-0.02 - depth * 0.06) * DPR,
+          warm: Math.random() < 0.22,
+        })
+      }
+      band = []
+      const bandCount = Math.round(count * 0.5)
+      for (let i = 0; i < bandCount; i++) {
+        const t = Math.random()
+        band.push({
+          x: t * W,
+          y: t * H * 0.85 + H * 0.05 + (Math.random() - 0.5) * H * 0.28,
+          r: (0.3 + Math.random() * 0.8) * DPR,
+          a: 0.06 + Math.random() * 0.14,
+        })
+      }
+    }
+
+    function resize() {
+      DPR = Math.min(window.devicePixelRatio || 1, 2)
+      W = canvas.width = window.innerWidth * DPR
+      H = canvas.height = window.innerHeight * DPR
+      canvas.style.width = window.innerWidth + 'px'
+      canvas.style.height = window.innerHeight + 'px'
+      build()
+    }
+
+    function spawnShooter() {
+      if (reduce) return
+      shooters.push({
+        x: Math.random() * W * 0.7,
+        y: Math.random() * H * 0.4,
+        life: 0,
+        len: (120 + Math.random() * 120) * DPR,
+        vx: (3 + Math.random() * 2) * DPR,
+        vy: (1.4 + Math.random() * 1) * DPR,
+      })
+    }
+
+    let last = performance.now()
+    function frame(now: number) {
+      const dt = Math.min(33, now - last)
+      last = now
+      ctx.clearRect(0, 0, W, H)
+
+      const g = ctx.createLinearGradient(0, 0, W, H)
+      g.addColorStop(0.3, 'rgba(120,130,170,0)')
+      g.addColorStop(0.5, 'rgba(150,160,200,0.05)')
+      g.addColorStop(0.7, 'rgba(120,130,170,0)')
+      ctx.fillStyle = g
+      ctx.fillRect(0, 0, W, H)
+
+      for (const b of band) {
+        ctx.beginPath()
+        ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2)
+        ctx.fillStyle = `rgba(190,200,230,${b.a})`
+        ctx.fill()
+      }
+
+      for (const s of stars) {
+        if (!reduce) {
+          s.x += s.vx * (dt / 16)
+          if (s.x < -4) s.x = W + 4
+          s.tw += s.tws * (dt / 1000) * Math.PI
+        }
+        const tw = reduce ? 1 : 0.72 + 0.28 * Math.sin(s.tw)
+        const alpha = s.a * tw
+        ctx.beginPath()
+        ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2)
+        ctx.fillStyle = s.warm ? `rgba(226,196,140,${alpha})` : `rgba(237,234,227,${alpha})`
+        ctx.fill()
+        if (s.r > 1.3 * DPR) {
+          ctx.beginPath()
+          ctx.arc(s.x, s.y, s.r * 2.6, 0, Math.PI * 2)
+          ctx.fillStyle = s.warm
+            ? `rgba(199,168,105,${alpha * 0.12})`
+            : `rgba(237,234,227,${alpha * 0.1})`
+          ctx.fill()
+        }
+      }
+
+      for (let i = shooters.length - 1; i >= 0; i--) {
+        const sh = shooters[i]
+        sh.x += sh.vx * (dt / 16)
+        sh.y += sh.vy * (dt / 16)
+        sh.life += dt / 1000
+        const fade = Math.max(0, 1 - sh.life / 1.1)
+        const tailX = sh.x - sh.vx * (sh.len / (sh.vx || 1))
+        const tailY = sh.y - sh.vy * (sh.len / (sh.vx || 1))
+        const grad = ctx.createLinearGradient(sh.x, sh.y, tailX, tailY)
+        grad.addColorStop(0, `rgba(255,250,235,${0.9 * fade})`)
+        grad.addColorStop(1, 'rgba(255,250,235,0)')
+        ctx.strokeStyle = grad
+        ctx.lineWidth = 1.6 * DPR
+        ctx.lineCap = 'round'
+        ctx.beginPath()
+        ctx.moveTo(sh.x, sh.y)
+        ctx.lineTo(tailX, tailY)
+        ctx.stroke()
+        if (sh.life > 1.2 || sh.x > W + 40) shooters.splice(i, 1)
+      }
+
+      raf = requestAnimationFrame(frame)
+    }
+
+    resize()
+    window.addEventListener('resize', resize)
+    raf = requestAnimationFrame(frame)
+    // Static field only when reduced-motion: draw one frame, no shooters/loop
+    // churn beyond the (motionless) twinkle-less render above.
+    let shooterTimer: ReturnType<typeof setInterval> | null = null
+    let firstShooter: ReturnType<typeof setTimeout> | null = null
+    if (!reduce) {
+      shooterTimer = setInterval(spawnShooter, 4200)
+      firstShooter = setTimeout(spawnShooter, 1600)
+    }
+
+    return () => {
+      cancelAnimationFrame(raf)
+      window.removeEventListener('resize', resize)
+      if (shooterTimer) clearInterval(shooterTimer)
+      if (firstShooter) clearTimeout(firstShooter)
+    }
+  }, [])
+
+  return <canvas ref={canvasRef} className="starting-sky-canvas" aria-hidden="true" />
 }
 
 function startingHotelLogo(payload: OfflinePayload | null): { src: string; alt: string } | null {
@@ -2185,65 +2363,53 @@ function StartingScreen({ payload }: { payload: OfflinePayload | null }) {
   const logo = startingHotelLogo(payload)
 
   return (
-    <div className="live-root">
-      <div className="page">
-        <header className="topbar" aria-label="Session starting up">
-          <div className="topbar__live topbar__live--starting">
-            <span className="red-dot checking" aria-hidden="true" />
-            <span>STARTING SOON</span>
-          </div>
-        </header>
+    // Full-bleed living sky (see StartingSky) instead of the old empty circular
+    // eyepiece — the pre-live screen now reads as a real sky about to reveal
+    // tonight's first target, not a dark porthole. Topbar status, the rotating
+    // poetic copy, the optional hotel logo, and the venue-grounding line all sit
+    // OVER the sky.
+    <div className="live-root starting-root">
+      <StartingSky />
 
-        <section className="viewer viewer--starting" aria-label="Telescope setup">
-          <div className="sky-square">
-            <div className="starting-eyepiece" aria-hidden="true">
-              <span className="starting-star starting-star--one" />
-              <span className="starting-star starting-star--two" />
-              <span className="starting-star starting-star--three" />
-              <span className="starting-star starting-star--four" />
-              <span className="starting-star starting-star--five" />
-            </div>
-          </div>
-          <svg className="rim" viewBox="0 0 100 100" aria-hidden="true">
-            <defs>
-              <path id="startingRimBrandArc" d="M 12.8 28.5 A 43 43 0 0 1 87.2 28.5" />
-            </defs>
-            <circle className="rim-ring outer" cx="50" cy="50" r="48" />
-            <circle className="rim-ring" cx="50" cy="50" r="45.9" />
-            <line className="rim-tick" x1="50" y1="2.2" x2="50" y2="4.2" />
-            <line className="rim-tick" x1="50" y1="95.8" x2="50" y2="97.8" />
-            <line className="rim-tick" x1="2.2" y1="50" x2="4.2" y2="50" />
-            <line className="rim-tick" x1="95.8" y1="50" x2="97.8" y2="50" />
-            <line className="rim-tick" x1="15.8" y1="15.8" x2="17.2" y2="17.2" />
-            <line className="rim-tick" x1="84.2" y1="15.8" x2="82.8" y2="17.2" />
-            <line className="rim-tick" x1="15.8" y1="84.2" x2="17.2" y2="82.8" />
-            <line className="rim-tick" x1="84.2" y1="84.2" x2="82.8" y2="82.8" />
-            <text className="rim-brand">
-              <textPath href="#startingRimBrandArc" startOffset="50%" textAnchor="middle" textLength={52} lengthAdjust="spacing">
-                STARGAZING.WORLD
-              </textPath>
-            </text>
-          </svg>
+      {/* Discreet back-to-home arrow — the starting state is the pre-live
+          immersive phase (event on, first frame not yet in), so it gets the
+          same quiet corner arrow as the live view, not the prominent link.
+          (Integrated with feat/live-back-nav's BackToHome.) */}
+      <BackToHome variant="arrow" />
 
-          {/* Discreet back-to-home arrow — the starting state is the pre-live
-              immersive phase (event on, first frame not yet in), so it gets the
-              same quiet corner arrow as the live view, not the prominent link. */}
-          <BackToHome variant="arrow" />
-        </section>
-
-        <div className="content content--starting" aria-live="polite">
-          <TransitionCopy
-            mainPhrases={STARTING_PHRASES}
-            showLoader
-            instruction="The first live observation will appear here automatically."
-            className="live-object-desc--starting-copy"
-          />
-          {logo ? (
-            // eslint-disable-next-line @next/next/no-img-element -- local /public hotel logo, tiny optional badge, no next/image sizing needed here
-            <img src={logo.src} alt={logo.alt} className="starting-hotel-logo" />
-          ) : null}
-          {sessionContext ? <p className="starting-session-context">{sessionContext}</p> : null}
+      <header className="topbar starting-topbar" aria-label="Session starting up">
+        <div className="topbar__live topbar__live--starting">
+          <span className="red-dot checking" aria-hidden="true" />
+          <span>STARTING SOON</span>
         </div>
+      </header>
+
+      {/* Acquiring reticle — a subtle brass target ring easing toward center
+          ("aligning on tonight's first object"), not a spinner. Decorative. */}
+      <div className="starting-reticle" aria-hidden="true">
+        <svg viewBox="0 0 100 100">
+          <circle className="sr-ring sr-ring--outer" cx="50" cy="50" r="46" />
+          <circle className="sr-ring" cx="50" cy="50" r="34" />
+          <circle className="sr-ring sr-ring--inner" cx="50" cy="50" r="20" />
+          <line className="sr-cross" x1="50" y1="8" x2="50" y2="24" />
+          <line className="sr-cross" x1="50" y1="76" x2="50" y2="92" />
+          <line className="sr-cross" x1="8" y1="50" x2="24" y2="50" />
+          <line className="sr-cross" x1="76" y1="50" x2="92" y2="50" />
+        </svg>
+      </div>
+
+      <div className="starting-copy" aria-live="polite">
+        <TransitionCopy
+          mainPhrases={STARTING_PHRASES}
+          showLoader
+          instruction="The first live observation will appear here automatically."
+          className="live-object-desc--starting-copy"
+        />
+        {logo ? (
+          // eslint-disable-next-line @next/next/no-img-element -- local /public hotel logo, tiny optional badge, no next/image sizing needed here
+          <img src={logo.src} alt={logo.alt} className="starting-hotel-logo" />
+        ) : null}
+        {sessionContext ? <p className="starting-session-context">{sessionContext}</p> : null}
       </div>
     </div>
   )

@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Starting screen — C · Warm arrival card</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&family=Inter:wght@300;400;500&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #0a0a0f; --text: #edeae3; --muted: #a8a6a0; --soft: #7b7870;
+    --gold: #c7a869; --red: #e25c58; --line: rgba(237,234,227,0.095);
+    --panel: rgba(237,234,227,0.045);
+    --font-display: "Cormorant Garamond", Georgia, serif;
+    --font-body: Inter, system-ui, sans-serif;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; }
+  body { background: var(--bg); color: var(--text); font-family: var(--font-body);
+    overflow: hidden; -webkit-font-smoothing: antialiased; }
+  .stage { position: fixed; inset: 0; display: grid; place-items: center; }
+  #sky { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  .vignette { position: absolute; inset: 0; pointer-events: none;
+    background: radial-gradient(90% 70% at 50% 46%, transparent 50%, rgba(0,0,0,0.55) 100%); }
+
+  /* The arrival card — the hero here is the CARD, orienting the early guest.
+     Understated glass panel, centered, Cormorant heading + calm sub. */
+  .card {
+    position: relative; z-index: 2; text-align: center;
+    padding: clamp(28px, 6vw, 44px) clamp(24px, 6vw, 48px);
+    max-width: min(90vw, 460px);
+    border: 1px solid var(--line); border-radius: 20px;
+    background: linear-gradient(180deg, rgba(237,234,227,0.05), rgba(237,234,227,0.02));
+    backdrop-filter: blur(6px);
+    box-shadow: 0 24px 60px rgba(0,0,0,0.45);
+    opacity: 1; animation: card-in 1.2s ease .3s backwards;
+  }
+  @keyframes card-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+
+  /* Breathing "acquiring" ring at the top of the card — a calm, non-spinner
+     indicator that the telescope is getting ready. */
+  .breath {
+    width: 64px; height: 64px; margin: 0 auto 22px; position: relative;
+  }
+  .breath .ring {
+    position: absolute; inset: 0; border-radius: 50%;
+    border: 1px solid rgba(199,168,105,0.5);
+    animation: breath-pulse 3.4s ease-in-out infinite;
+  }
+  .breath .ring:nth-child(2) { animation-delay: 1.1s; }
+  .breath .ring:nth-child(3) { animation-delay: 2.2s; }
+  .breath .core {
+    position: absolute; inset: 40%; border-radius: 50%;
+    background: radial-gradient(circle at 40% 40%, #fff, var(--gold));
+    box-shadow: 0 0 16px rgba(199,168,105,0.6);
+  }
+  @keyframes breath-pulse {
+    0% { transform: scale(0.5); opacity: 0.9; }
+    100% { transform: scale(1.6); opacity: 0; }
+  }
+
+  .status {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-size: .68rem; letter-spacing: .22em; text-transform: uppercase;
+    color: var(--muted); margin-bottom: 16px;
+  }
+  .dot { width: 6px; height: 6px; border-radius: 50%;
+    background: radial-gradient(circle at 35% 35%, #fff, var(--red));
+    box-shadow: 0 0 9px var(--red); animation: dot-pulse 2s ease-in-out infinite; }
+  @keyframes dot-pulse { 0%,100% { opacity:.85 } 50% { opacity:1 } }
+
+  .lead {
+    font-family: var(--font-display); font-weight: 500; font-style: italic;
+    font-size: clamp(1.7rem, 6vw, 2.4rem); line-height: 1.15; text-wrap: balance;
+  }
+  .sub { margin-top: 12px; font-size: clamp(.85rem, 3.4vw, .98rem); color: var(--soft); font-weight: 300; }
+
+  /* Venue grounding + reassurance — you're in the right place, it's coming.
+     Deliberately no hard start time (sometimes starts a little after 21:30). */
+  .venue {
+    margin-top: 24px; padding-top: 18px; border-top: 1px solid var(--line);
+    font-size: .82rem; color: var(--muted); font-weight: 400; letter-spacing: .02em;
+  }
+  .venue strong { color: var(--text); font-weight: 500; }
+
+  .backhome {
+    position: absolute; top: 14px; left: 14px; width: 34px; height: 34px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(10,10,15,.45); backdrop-filter: blur(4px);
+    color: var(--muted); text-decoration: none; font-size: 18px; opacity: .62; z-index: 3;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .breath .ring, .card, .dot { animation: none !important; }
+    .card { opacity: 1 !important; transform: none !important; }
+    .breath .ring { opacity: .4; transform: scale(1.1); }
+  }
+</style>
+</head>
+<body>
+  <div class="stage">
+    <canvas id="sky"></canvas>
+    <div class="vignette"></div>
+    <a class="backhome" href="#" aria-label="Back to stargazing.events home">←</a>
+
+    <div class="card">
+      <div class="breath" aria-hidden="true">
+        <span class="ring"></span><span class="ring"></span><span class="ring"></span>
+        <span class="core"></span>
+      </div>
+      <div class="status"><span class="dot"></span> Starting soon</div>
+      <div class="lead" id="lead">Waiting for first light…</div>
+      <div class="sub">The first live observation will appear here automatically.</div>
+      <div class="venue">Tonight at <strong>Paralos Kyma Dunes</strong> · first light any moment now.</div>
+    </div>
+  </div>
+
+<script>
+  // A quieter starfield sits BEHIND the card (the card is the hero here).
+  const canvas = document.getElementById('sky');
+  const ctx = canvas.getContext('2d');
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let W,H,DPR,stars=[];
+  function resize(){ DPR=Math.min(devicePixelRatio||1,2); W=canvas.width=innerWidth*DPR; H=canvas.height=innerHeight*DPR;
+    canvas.style.width=innerWidth+'px'; canvas.style.height=innerHeight+'px'; build(); }
+  function build(){ stars=[]; const c=Math.round((innerWidth*innerHeight)/7000);
+    for(let i=0;i<c;i++){ const d=Math.random(); stars.push({x:Math.random()*W,y:Math.random()*H,r:(0.4+d*1.2)*DPR,a:0.18+d*0.4,tw:Math.random()*6.28,tws:0.4+Math.random()*1,warm:Math.random()<0.18}); } }
+  let last=performance.now();
+  function frame(now){ const dt=Math.min(33,now-last); last=now; ctx.clearRect(0,0,W,H);
+    for(const s of stars){ if(!reduce) s.tw+=s.tws*(dt/1000)*Math.PI; const tw=reduce?1:(0.72+0.28*Math.sin(s.tw)); const a=s.a*tw;
+      ctx.beginPath(); ctx.arc(s.x,s.y,s.r,0,6.28); ctx.fillStyle=s.warm?`rgba(226,196,140,${a})`:`rgba(237,234,227,${a})`; ctx.fill(); }
+    requestAnimationFrame(frame); }
+  const PHRASES=['Waiting for first light…',"Finding tonight's first target…",'The telescope is waking up…','Preparing the first view…','Settling under the stars…'];
+  let pi=0; const leadEl=document.getElementById('lead');
+  if(!reduce) setInterval(()=>{ pi=(pi+1)%PHRASES.length; leadEl.style.transition='opacity .6s ease'; leadEl.style.opacity='0'; setTimeout(()=>{leadEl.textContent=PHRASES[pi]; leadEl.style.opacity='1';},600); },5000);
+  addEventListener('resize',resize); resize(); requestAnimationFrame(frame);
+</script>
+</body>
+</html>

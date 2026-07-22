@@ -1,0 +1,278 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Starting screen — A · Living night sky</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&family=Inter:wght@300;400&display=swap" rel="stylesheet" />
+<style>
+  /* Matches /live's committed tokens (app/live/styles.css). Prototype only —
+     full-bleed sky, no eyepiece circle, poetic copy (no hard start time). */
+  :root {
+    --bg: #0a0a0f;
+    --text: #edeae3;
+    --muted: #a8a6a0;
+    --soft: #7b7870;
+    --gold: #c7a869;
+    --red: #e25c58;
+    --font-display: "Cormorant Garamond", Georgia, serif;
+    --font-body: Inter, system-ui, sans-serif;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-body);
+    overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+  .stage { position: fixed; inset: 0; }
+  /* Full-viewport canvas holds the whole sky: starfield, Milky Way, drift,
+     shooting stars. A radial vignette + a soft warm "acquiring" glow near
+     center give depth without a circular mask. */
+  #sky { position: absolute; inset: 0; display: block; width: 100%; height: 100%; }
+  .vignette {
+    position: absolute; inset: 0; pointer-events: none;
+    background:
+      radial-gradient(120% 90% at 50% 42%, transparent 55%, rgba(0,0,0,0.55) 100%),
+      radial-gradient(60% 45% at 50% 46%, rgba(199,168,105,0.05), transparent 60%);
+  }
+  /* The "acquiring" reticle — a target ring + crosshair that eases into place
+     and gently breathes, saying "aligning on tonight's first object" without a
+     spinner. SVG so the strokes stay crisp. */
+  .reticle {
+    position: absolute; top: 46%; left: 50%;
+    width: min(46vmin, 320px); height: min(46vmin, 320px);
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+    opacity: 1; /* default visible — the entrance animation only eases it IN;
+                   a non-firing animation must never leave it invisible */
+    animation: reticle-in 2.4s cubic-bezier(.2,.7,.2,1) .3s backwards;
+  }
+  .reticle svg { width: 100%; height: 100%; overflow: visible; }
+  .reticle .ring {
+    fill: none; stroke: rgba(199,168,105,0.32); stroke-width: 0.4;
+    transform-origin: 50% 50%;
+    animation: reticle-breathe 6s ease-in-out infinite;
+  }
+  .reticle .ring--outer { stroke: rgba(199,168,105,0.18); stroke-dasharray: 2 4; animation: reticle-spin 60s linear infinite; }
+  .reticle .cross { stroke: rgba(199,168,105,0.30); stroke-width: 0.35; }
+  .reticle .tick { stroke: rgba(199,168,105,0.42); stroke-width: 0.5; }
+  @keyframes reticle-in {
+    from { opacity: 0; transform: translate(-50%,-50%) scale(1.16); }
+    to   { opacity: 1; transform: translate(-50%,-50%) scale(1); }
+  }
+  @keyframes reticle-breathe {
+    0%,100% { opacity: .75; } 50% { opacity: 1; }
+  }
+  @keyframes reticle-spin { to { transform: rotate(360deg); } }
+
+  /* Copy block — poetic, calm, Cormorant display + Inter sub. Fades up. */
+  .copy {
+    position: absolute; left: 0; right: 0; bottom: 12vh;
+    text-align: center; padding: 0 24px;
+    opacity: 1; animation: copy-in 1.4s ease .8s backwards;
+  }
+  .status {
+    display: inline-flex; align-items: center; gap: 9px;
+    font-size: .72rem; letter-spacing: .22em; text-transform: uppercase;
+    color: var(--muted); margin-bottom: 22px;
+  }
+  .dot { width: 7px; height: 7px; border-radius: 50%;
+    background: radial-gradient(circle at 35% 35%, #fff, var(--red));
+    box-shadow: 0 0 10px var(--red); animation: dot-pulse 2s ease-in-out infinite; }
+  @keyframes dot-pulse { 0%,100% { opacity:.85 } 50% { opacity:1; box-shadow: 0 0 15px var(--red) } }
+  .lead {
+    font-family: var(--font-display); font-weight: 500;
+    font-size: clamp(1.7rem, 6vw, 2.7rem); font-style: italic;
+    color: var(--text); letter-spacing: .01em; line-height: 1.15;
+    text-wrap: balance;
+  }
+  .sub { margin-top: 14px; font-size: clamp(.85rem, 3.4vw, 1rem); color: var(--soft); font-weight: 300; }
+  @keyframes copy-in { from { opacity:0; transform: translateY(10px); } to { opacity:1; transform:none; } }
+
+  .backhome {
+    position: absolute; top: 14px; left: 14px;
+    width: 34px; height: 34px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(10,10,15,.45); backdrop-filter: blur(4px);
+    color: var(--muted); text-decoration: none; font-size: 18px; opacity: .62;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .reticle, .ring, .ring--outer, .copy, .dot { animation: none !important; opacity: 1 !important; }
+    .reticle { transform: translate(-50%,-50%) !important; }
+  }
+</style>
+</head>
+<body>
+  <div class="stage">
+    <canvas id="sky"></canvas>
+    <div class="vignette"></div>
+
+    <div class="reticle" aria-hidden="true">
+      <svg viewBox="0 0 100 100">
+        <circle class="ring ring--outer" cx="50" cy="50" r="46" />
+        <circle class="ring" cx="50" cy="50" r="34" />
+        <circle class="ring" cx="50" cy="50" r="20" opacity="0.6" />
+        <line class="cross" x1="50" y1="8" x2="50" y2="24" />
+        <line class="cross" x1="50" y1="76" x2="50" y2="92" />
+        <line class="cross" x1="8" y1="50" x2="24" y2="50" />
+        <line class="cross" x1="76" y1="50" x2="92" y2="50" />
+        <line class="tick" x1="50" y1="2" x2="50" y2="6" />
+        <line class="tick" x1="50" y1="94" x2="50" y2="98" />
+        <line class="tick" x1="2" y1="50" x2="6" y2="50" />
+        <line class="tick" x1="94" y1="50" x2="98" y2="50" />
+      </svg>
+    </div>
+
+    <a class="backhome" href="#" aria-label="Back to stargazing.events home">←</a>
+
+    <div class="copy">
+      <div class="status"><span class="dot"></span> Starting soon</div>
+      <div class="lead" id="lead">Waiting for first light…</div>
+      <div class="sub">The first live observation will appear here automatically.</div>
+    </div>
+  </div>
+
+<script>
+  // ---- Living starfield on canvas: depth layers, slow drift, twinkle,
+  //      a faint Milky Way band, and occasional soft shooting stars. ----
+  const canvas = document.getElementById('sky');
+  const ctx = canvas.getContext('2d');
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let W, H, DPR, stars = [], band = [], shooters = [];
+
+  function resize() {
+    DPR = Math.min(devicePixelRatio || 1, 2);
+    W = canvas.width = innerWidth * DPR;
+    H = canvas.height = innerHeight * DPR;
+    canvas.style.width = innerWidth + 'px';
+    canvas.style.height = innerHeight + 'px';
+    build();
+  }
+
+  function build() {
+    stars = [];
+    const count = Math.round((innerWidth * innerHeight) / 5200); // density
+    for (let i = 0; i < count; i++) {
+      const depth = Math.random();            // 0 far … 1 near
+      stars.push({
+        x: Math.random() * W,
+        y: Math.random() * H,
+        r: (0.4 + depth * 1.6) * DPR,
+        a: 0.25 + depth * 0.6,
+        tw: Math.random() * Math.PI * 2,      // twinkle phase
+        tws: 0.4 + Math.random() * 1.2,       // twinkle speed
+        vx: (-0.02 - depth * 0.06) * DPR,     // parallax drift (nearer = faster)
+        warm: Math.random() < 0.22,           // a few warm/brass stars
+      });
+    }
+    // Milky Way band: a soft diagonal cloud of extra faint stars + haze
+    band = [];
+    const bandCount = Math.round(count * 0.5);
+    for (let i = 0; i < bandCount; i++) {
+      const t = Math.random();
+      // diagonal from top-left to bottom-right, with gaussian spread
+      const cx = t * W;
+      const cy = t * H * 0.85 + H * 0.05 + (Math.random() - 0.5) * H * 0.28;
+      band.push({ x: cx, y: cy, r: (0.3 + Math.random() * 0.8) * DPR, a: 0.06 + Math.random() * 0.14 });
+    }
+  }
+
+  function spawnShooter() {
+    if (reduce) return;
+    // start somewhere in the upper area, streak down-right
+    const sx = Math.random() * W * 0.7;
+    const sy = Math.random() * H * 0.4;
+    shooters.push({ x: sx, y: sy, life: 0, len: (120 + Math.random() * 120) * DPR,
+      vx: (3 + Math.random() * 2) * DPR, vy: (1.4 + Math.random() * 1) * DPR, max: 1 });
+  }
+
+  let last = performance.now();
+  function frame(now) {
+    const dt = Math.min(33, now - last); last = now;
+    ctx.clearRect(0, 0, W, H);
+
+    // Milky Way haze — a soft blurred diagonal wash behind the band stars
+    const g = ctx.createLinearGradient(0, 0, W, H);
+    g.addColorStop(0.30, 'rgba(120,130,170,0)');
+    g.addColorStop(0.50, 'rgba(150,160,200,0.05)');
+    g.addColorStop(0.70, 'rgba(120,130,170,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, W, H);
+
+    for (const b of band) {
+      ctx.beginPath();
+      ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(190,200,230,${b.a})`;
+      ctx.fill();
+    }
+
+    for (const s of stars) {
+      if (!reduce) {
+        s.x += s.vx * (dt / 16);
+        if (s.x < -4) s.x = W + 4;
+        s.tw += s.tws * (dt / 1000) * Math.PI;
+      }
+      const tw = reduce ? 1 : (0.72 + 0.28 * Math.sin(s.tw));
+      const alpha = s.a * tw;
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+      ctx.fillStyle = s.warm
+        ? `rgba(226,196,140,${alpha})`
+        : `rgba(237,234,227,${alpha})`;
+      ctx.fill();
+      if (s.r > 1.3 * DPR) { // faint glow on the brighter stars
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, s.r * 2.6, 0, Math.PI * 2);
+        ctx.fillStyle = s.warm ? `rgba(199,168,105,${alpha * 0.12})` : `rgba(237,234,227,${alpha * 0.10})`;
+        ctx.fill();
+      }
+    }
+
+    // shooting stars
+    for (let i = shooters.length - 1; i >= 0; i--) {
+      const sh = shooters[i];
+      sh.x += sh.vx * (dt / 16); sh.y += sh.vy * (dt / 16); sh.life += dt / 1000;
+      const fade = Math.max(0, 1 - sh.life / 1.1);
+      const tailX = sh.x - sh.vx * (sh.len / (sh.vx || 1));
+      const tailY = sh.y - sh.vy * (sh.len / (sh.vx || 1));
+      const grad = ctx.createLinearGradient(sh.x, sh.y, tailX, tailY);
+      grad.addColorStop(0, `rgba(255,250,235,${0.9 * fade})`);
+      grad.addColorStop(1, 'rgba(255,250,235,0)');
+      ctx.strokeStyle = grad; ctx.lineWidth = 1.6 * DPR; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(sh.x, sh.y); ctx.lineTo(tailX, tailY); ctx.stroke();
+      if (sh.life > 1.2 || sh.x > W + 40) shooters.splice(i, 1);
+    }
+
+    requestAnimationFrame(frame);
+  }
+
+  // rotate the poetic lead line gently (matches the app's phrase pool)
+  const PHRASES = [
+    'Waiting for first light…',
+    "Finding tonight's first target…",
+    'The telescope is waking up…',
+    'Preparing the first view…',
+    'Settling under the stars…',
+  ];
+  let pi = 0;
+  const leadEl = document.getElementById('lead');
+  if (!reduce) setInterval(() => {
+    pi = (pi + 1) % PHRASES.length;
+    leadEl.style.transition = 'opacity .6s ease';
+    leadEl.style.opacity = '0';
+    setTimeout(() => { leadEl.textContent = PHRASES[pi]; leadEl.style.opacity = '1'; }, 600);
+  }, 5000);
+
+  addEventListener('resize', resize);
+  resize();
+  requestAnimationFrame(frame);
+  if (!reduce) { setInterval(spawnShooter, 4200); setTimeout(spawnShooter, 1600); }
+</script>
+</body>
+</html>
