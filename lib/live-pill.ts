@@ -51,13 +51,13 @@ export type NextSessionPanel = {
   // e.g. "Thursday 23 July · 21:30 · Paralos Kyma Dunes", or null when no next
   // event is scheduled (component shows the coming-soon copy instead).
   schedule: string | null
-  // Always present. "Live telescope views resume then." with a known next
+  // Always present. "The live telescope view returns then." with a known next
   // event; "Next session coming soon." otherwise.
   resumeLine: string
 }
 
 const NEUTRAL_FALLBACK_LABEL = 'Live'
-const RESUME_KNOWN = 'Live telescope views resume then.'
+const RESUME_KNOWN = 'The live telescope view returns then.'
 const RESUME_UNKNOWN = 'Next session coming soon.'
 
 // Compose the panel's schedule anchor: "Thursday 23 July · 21:30 · <Venue>".
@@ -89,16 +89,22 @@ export function buildNextSessionPanel(next: LiveStatusResponse['next']): NextSes
   return { schedule: composeNextSessionSchedule(next), resumeLine: RESUME_KNOWN }
 }
 
-// Dev/review-only override: ?pill-demo=live|tonight|idle forces the pill into a
-// given state so all three (plus the panel) can be eyeballed on any day, without
-// waiting for a real event. Matches the existing ?demo= pattern in
-// app/live/LiveView.tsx exactly: purely query-param driven (no NODE_ENV gate),
-// unlinked anywhere, and SIDE-EFFECT-FREE — it only returns a synthetic
-// /api/status-shaped response for the component to render; it never suppresses
-// the real poll's network call beyond substituting what gets displayed, and it
-// touches no backend/relay/db. Absent/invalid param -> null -> normal behavior.
+// Dev-only override: ?pill-demo=live|tonight|idle forces the pill into a given
+// state so all three (plus the panel) can be eyeballed on any day, without
+// waiting for a real event. SIDE-EFFECT-FREE — it only returns a synthetic
+// /api/status-shaped response for the component to render; touches no
+// backend/relay/db.
 //
-// The synthetic responses use realistic values so the render matches production:
+// DEV-GATED (NODE_ENV !== 'production'): unlike /live?demo= (which lives on the
+// already-demo /live surface), this pill is on the PUBLIC MARKETING homepage, so
+// a shared ?pill-demo=live link could show a fake "Live now" to real visitors on
+// a dead night. The gate makes the hook work in local dev and vanish entirely in
+// the production build (the branch is dead-code-eliminated / always returns
+// null), so no production visitor can force a state. Absent/invalid param, or
+// any production request, -> null -> normal /api/status-driven behavior.
+//
+// The synthetic responses use realistic values so the dev render matches
+// production:
 // - live:    live=true
 // - tonight: an event today (start 21:30), not cancelled
 // - idle:    no event today, a real upcoming `next` so the panel has content
@@ -116,6 +122,9 @@ const PILL_DEMO_RESPONSES: Record<PillDemoMode, LiveStatusResponse> = {
 }
 
 export function forcedStatusFromQuery(search: string): LiveStatusResponse | null {
+  // Production hard-off: the demo hook is a local-review tool only and must
+  // never let a public visitor fake a state on the marketing homepage.
+  if (process.env.NODE_ENV === 'production') return null
   const raw = new URLSearchParams(search).get('pill-demo')
   if (raw === 'live' || raw === 'tonight' || raw === 'idle') return PILL_DEMO_RESPONSES[raw]
   return null
