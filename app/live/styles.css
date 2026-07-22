@@ -3789,6 +3789,27 @@
 @keyframes starting-reticle-breathe { 0%, 100% { opacity: 0.75; } 50% { opacity: 1; } }
 @keyframes starting-reticle-spin { to { transform: rotate(360deg); } }
 
+/* Lock-on pulse — when the crosshair catches the UFO, the whole reticle flashes
+   brighter brass and gives one quick "tighten" (scale down + back), selling
+   "target acquired". Auto-clears (is-locked removed after ~0.9s). */
+.starting-reticle.is-locked {
+  animation: starting-reticle-lock 0.9s cubic-bezier(0.3, 0.8, 0.3, 1);
+}
+.starting-reticle.is-locked .sr-ring,
+.starting-reticle.is-locked .sr-cross {
+  animation: starting-reticle-lock-glow 0.9s ease-out;
+}
+@keyframes starting-reticle-lock {
+  0%   { transform: translate(-50%, -50%) scale(1); }
+  30%  { transform: translate(-50%, -50%) scale(0.965); } /* snap tighter */
+  100% { transform: translate(-50%, -50%) scale(1); }
+}
+@keyframes starting-reticle-lock-glow {
+  0%   { stroke: rgba(199, 168, 105, 0.3); filter: none; }
+  25%  { stroke: rgba(240, 214, 150, 0.95); filter: drop-shadow(0 0 3px rgba(199, 168, 105, 0.7)); }
+  100% { stroke: rgba(199, 168, 105, 0.3); filter: none; }
+}
+
 /* Tightened copy block: ONE poetic lead line + the quiet venue line only,
    anchored in the lower third, centered over the sky. (The old instruction line
    and the separate loader were dropped — redundant with the reticle + lead.) */
@@ -3890,13 +3911,24 @@
   transition: opacity 0.14s ease;
 }
 
-/* PHASE: flyIn — enters small from the upper-right, off-screen, curving toward
-   the crosshair as if it just drifted into view far away. */
+/* PHASE: flyIn — enters small from an off-screen corner (which corner varies per
+   appearance, see the .starting-ufo--fromXX classes) toward the crosshair. The
+   entry corner is passed in via --ufo-from-x / --ufo-from-y custom properties so
+   one keyframe covers all four directions. */
+.starting-ufo {
+  --ufo-from-x: 78vw;
+  --ufo-from-y: -34vh;
+  --ufo-from-rot: -14deg;
+}
+.starting-ufo--fromTR { --ufo-from-x: 78vw;  --ufo-from-y: -34vh; --ufo-from-rot: -14deg; }
+.starting-ufo--fromTL { --ufo-from-x: -78vw; --ufo-from-y: -34vh; --ufo-from-rot: 14deg; }
+.starting-ufo--fromBR { --ufo-from-x: 78vw;  --ufo-from-y: 40vh;  --ufo-from-rot: 12deg; }
+.starting-ufo--fromBL { --ufo-from-x: -78vw; --ufo-from-y: 40vh;  --ufo-from-rot: -12deg; }
 .starting-ufo--flyIn {
   animation: starting-ufo-flyin 1.2s cubic-bezier(0.3, 0.6, 0.4, 1) forwards;
 }
 @keyframes starting-ufo-flyin {
-  0%   { transform: translate(78vw, -34vh) scale(0.12) rotate(-14deg); opacity: 0; }
+  0%   { transform: translate(var(--ufo-from-x), var(--ufo-from-y)) scale(0.12) rotate(var(--ufo-from-rot)); opacity: 0; }
   25%  { opacity: 1; }
   100% { transform: translate(0, 0) scale(0.34) rotate(0deg); opacity: 1; }
 }

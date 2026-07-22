@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useLayoutEffect, useReducer, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useReducer, useRef, useState } from 'react'
 import {
   liveStatusReducer,
   initialLiveStatusState,
@@ -2447,21 +2447,51 @@ function StartingLead() {
 //          → spotted (eyes snap wide + recoil jolt)
 //          → flee  (bolts off-screen)  → hidden
 type UfoPhase = 'hidden' | 'flyIn' | 'lock' | 'zoom' | 'spotted' | 'flee'
-const UFO_CYCLE_MS = 30_000
 
-function StartingUfo() {
+// Per-appearance variety so it doesn't feel canned on repeat viewings: the UFO
+// enters from a different corner and wears a different set of running-light
+// colours each time. `dirClass` drives which flyIn/flee keyframes run (left vs
+// right entry); `lights` are applied as fills.
+const UFO_ENTRIES = ['fromTR', 'fromTL', 'fromBR', 'fromBL'] as const
+const UFO_LIGHT_SETS: string[][] = [
+  ['#f4c775', '#7ee0c4', '#e88a8a', '#7ee0c4', '#f4c775'], // warm/teal (original)
+  ['#9ad9ff', '#c39aff', '#9dffc9', '#c39aff', '#9ad9ff'], // cool blues/purples
+  ['#ffe89a', '#ff9ad5', '#9dffc9', '#ff9ad5', '#ffe89a'], // playful pink/yellow
+]
+type UfoVariant = { entry: (typeof UFO_ENTRIES)[number]; lights: string[] }
+
+// Interval between appearances — randomized in a band so it isn't metronomic.
+function nextUfoDelay(): number {
+  return 22_000 + Math.random() * 8_000 // 22–30s
+}
+
+// onLock fires the instant the crosshair catches the UFO — the parent uses it to
+// pulse the reticle (see StartingScreen).
+function StartingUfo({ onLock }: { onLock?: () => void }) {
   const [phase, setPhase] = useState<UfoPhase>('hidden')
+  const [variant, setVariant] = useState<UfoVariant>(() => ({ entry: 'fromTR', lights: UFO_LIGHT_SETS[0] }))
+  // Keep onLock in a ref so the long-lived cycle effect (deps: []) always calls
+  // the latest callback without re-running and restarting the UFO schedule.
+  const onLockRef = useRef(onLock)
+  onLockRef.current = onLock
 
   useEffect(() => {
     if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return
     const timers: ReturnType<typeof setTimeout>[] = []
     const at = (ms: number, fn: () => void) => timers.push(setTimeout(fn, ms))
+    let cycleTimer: ReturnType<typeof setTimeout> | null = null
 
     function runOnce() {
+      // Roll a fresh variant for this appearance.
+      setVariant({
+        entry: UFO_ENTRIES[Math.floor(Math.random() * UFO_ENTRIES.length)],
+        lights: UFO_LIGHT_SETS[Math.floor(Math.random() * UFO_LIGHT_SETS.length)],
+      })
       setPhase('flyIn') // 0.0s: enters from off-screen, small/distant
       at(1200, () => {
         setPhase('lock') // 1.2s: crosshair catches it — FREEZE the sky
         startingSkyControl.frozen = true
+        onLockRef.current?.() // tell the reticle to pulse
       })
       at(2100, () => setPhase('zoom')) // 2.1s: zoom huge, up against the eyepiece
       at(3400, () => setPhase('spotted')) // 3.4s: eyes snap wide, recoil
@@ -2469,15 +2499,18 @@ function StartingUfo() {
         setPhase('flee') // 4.3s: bolts away
         startingSkyControl.frozen = false // sky resumes drifting
       })
-      at(5650, () => setPhase('hidden')) // gone once the (1.32s) flee travel completes
+      at(5650, () => {
+        setPhase('hidden') // gone once the (1.32s) flee travel completes
+        cycleTimer = setTimeout(runOnce, nextUfoDelay()) // schedule the next, randomized
+      })
     }
 
-    const first = setTimeout(runOnce, 5000)
-    const cycle = setInterval(runOnce, UFO_CYCLE_MS)
+    // First appearance a touch sooner, then randomized recurring gaps.
+    const first = setTimeout(runOnce, 3500)
     timers.push(first)
     return () => {
       clearTimeout(first)
-      clearInterval(cycle)
+      if (cycleTimer) clearTimeout(cycleTimer)
       timers.forEach(clearTimeout)
       startingSkyControl.frozen = false // never leave the sky stuck frozen
     }
@@ -2493,7 +2526,7 @@ function StartingUfo() {
       {(phase === 'spotted' || phase === 'flee') && <div className="starting-ufo-alarm" aria-hidden="true" />}
       {/* Teleport flash-line — flares as the alien squashes down and beams out. */}
       {phase === 'flee' && <div className="starting-ufo-flash" aria-hidden="true" />}
-      <div className={`starting-ufo starting-ufo--${phase}`} aria-hidden="true">
+      <div className={`starting-ufo starting-ufo--${phase} starting-ufo--${variant.entry}`} aria-hidden="true">
       <svg viewBox="0 0 120 68">
         {/* dome */}
         <ellipse cx="60" cy="32" rx="25" ry="21" fill="#2a3550" />
@@ -2526,12 +2559,12 @@ function StartingUfo() {
         <ellipse cx="60" cy="50" rx="55" ry="16" fill="#3f4d6c" />
         <ellipse cx="60" cy="48" rx="55" ry="14" fill="#5d6d92" />
         <ellipse cx="60" cy="46" rx="46" ry="10" fill="#6f80a8" />
-        {/* running lights */}
-        <circle cx="30" cy="50" r="3.2" fill="#f4c775" />
-        <circle cx="45" cy="53" r="3.2" fill="#7ee0c4" />
-        <circle cx="60" cy="54" r="3.2" fill="#e88a8a" />
-        <circle cx="75" cy="53" r="3.2" fill="#7ee0c4" />
-        <circle cx="90" cy="50" r="3.2" fill="#f4c775" />
+        {/* running lights — colour set varies per appearance (see variant.lights) */}
+        <circle cx="30" cy="50" r="3.2" fill={variant.lights[0]} />
+        <circle cx="45" cy="53" r="3.2" fill={variant.lights[1]} />
+        <circle cx="60" cy="54" r="3.2" fill={variant.lights[2]} />
+        <circle cx="75" cy="53" r="3.2" fill={variant.lights[3]} />
+        <circle cx="90" cy="50" r="3.2" fill={variant.lights[4]} />
       </svg>
       </div>
     </>
@@ -2551,6 +2584,14 @@ function startingHotelLogo(payload: OfflinePayload | null): { src: string; alt: 
 // non-observational waiting eyepiece — not a fake telescope image.
 function StartingScreen({ payload }: { payload: OfflinePayload | null }) {
   const logo = startingHotelLogo(payload)
+  // Brief reticle "lock-on" pulse when the UFO gets caught by the crosshair —
+  // the ring reacts (brass tighten/flash) to sell "the telescope caught
+  // something." Toggled by StartingUfo's onLock, auto-cleared after the pulse.
+  const [locked, setLocked] = useState(false)
+  const handleLock = useCallback(() => {
+    setLocked(true)
+    setTimeout(() => setLocked(false), 900) // matches the pulse animation length
+  }, [])
 
   return (
     // Full-bleed living sky (see StartingSky) instead of the old empty circular
@@ -2575,8 +2616,9 @@ function StartingScreen({ payload }: { payload: OfflinePayload | null }) {
       </header>
 
       {/* Acquiring reticle — a subtle brass target ring easing toward center
-          ("aligning on tonight's first object"), not a spinner. Decorative. */}
-      <div className="starting-reticle" aria-hidden="true">
+          ("aligning on tonight's first object"), not a spinner. Pulses on
+          `is-locked` when the UFO is caught. Decorative. */}
+      <div className={`starting-reticle${locked ? ' is-locked' : ''}`} aria-hidden="true">
         <svg viewBox="0 0 100 100">
           <circle className="sr-ring sr-ring--outer" cx="50" cy="50" r="46" />
           <circle className="sr-ring" cx="50" cy="50" r="34" />
@@ -2590,7 +2632,7 @@ function StartingScreen({ payload }: { payload: OfflinePayload | null }) {
 
       {/* Easter-egg: a UFO peers through the crosshair every ~30s, gets spotted,
           and vanishes (see StartingUfo). Positioned at the reticle center. */}
-      <StartingUfo />
+      <StartingUfo onLock={handleLock} />
 
       {/* Just the rotating poetic line + the hotel logo beneath it — the old
           reassurance line ("First light any moment now") was redundant with the
