@@ -2163,16 +2163,16 @@ function TransitionScreen({
   )
 }
 
-// Venue-grounding line for the starting screen — deliberately NO hard start
-// time (the event sometimes begins a little after the scheduled slot, so a
-// literal "21:30" would occasionally be wrong and read as broken). Poetic and
-// reassuring instead: it tells an early guest they're in the right place and
-// first light is imminent. Venue via hotelDisplayName (single source of truth);
-// null when there's no tonight hotel to name.
+// Reassurance line for the starting screen — deliberately NO hard start time
+// (the event sometimes begins a little after the scheduled slot, so a literal
+// "21:30" would occasionally be wrong and read as broken) and NO venue name
+// (the hotel LOGO sits right above this line and already carries the venue
+// identity — repeating it in words read redundantly). Just the calm "it's
+// imminent" line. Shown only when there's a tonight session at all; null
+// otherwise, so the line is absent rather than context-free.
 function formatStartingSessionContext(payload: OfflinePayload | null): string | null {
-  const tonight = payload?.tonight
-  if (!tonight) return null
-  return `Tonight at ${hotelDisplayName(tonight.hotelId)} · first light any moment now`
+  if (!payload?.tonight) return null
+  return 'First light any moment now'
 }
 
 // Living night sky for the starting screen (ported from the approved prototype
@@ -2206,7 +2206,13 @@ function StartingSky() {
       x: number; y: number; r: number; a: number; tw: number; tws: number; vx: number; warm: boolean
     }[] = []
     let band: { x: number; y: number; r: number; a: number }[] = []
-    let shooters: { x: number; y: number; life: number; len: number; vx: number; vy: number }[] = []
+    let shooters: {
+      x: number; y: number; life: number; ttl: number; len: number; vx: number; vy: number; color: string; bright: number
+    }[] = []
+    // Same signature palette as the farewell/ending screen's shooting stars
+    // (SHOOTING_STAR_COLORS in FarewellAegeanUfo) — soft pink/purple/green/
+    // yellow/blue, picked at random per star.
+    const SHOOTER_COLORS = ['#ff9ad5', '#c39aff', '#9dffc9', '#ffe89a', '#9ad9ff']
 
     function build() {
       stars = []
@@ -2251,13 +2257,23 @@ function StartingSky() {
 
     function spawnShooter() {
       if (reduce) return
+      // Faster, random-everything shooters in the spirit of the ending screen:
+      // random color, random angle (streaking down-left OR down-right), random
+      // speed, length, and brightness. Start just off the top/side so they
+      // sweep across rather than all from one corner.
+      const dir = Math.random() < 0.5 ? 1 : -1 // left-to-right or right-to-left
+      const speed = (7 + Math.random() * 7) * DPR // clearly faster than before
+      const angle = (18 + Math.random() * 30) * (Math.PI / 180) // 18°–48° below horizontal
       shooters.push({
-        x: Math.random() * W * 0.7,
-        y: Math.random() * H * 0.4,
+        x: dir === 1 ? Math.random() * W * 0.5 : W * 0.5 + Math.random() * W * 0.5,
+        y: Math.random() * H * 0.45,
         life: 0,
-        len: (120 + Math.random() * 120) * DPR,
-        vx: (3 + Math.random() * 2) * DPR,
-        vy: (1.4 + Math.random() * 1) * DPR,
+        ttl: 0.6 + Math.random() * 0.7, // shorter-lived + varied → snappier streaks
+        len: (90 + Math.random() * 220) * DPR, // random distance/length
+        vx: Math.cos(angle) * speed * dir,
+        vy: Math.sin(angle) * speed,
+        color: SHOOTER_COLORS[Math.floor(Math.random() * SHOOTER_COLORS.length)],
+        bright: 0.55 + Math.random() * 0.45, // random brightness
       })
     }
 
@@ -2303,20 +2319,32 @@ function StartingSky() {
         sh.x += sh.vx * (dt / 16)
         sh.y += sh.vy * (dt / 16)
         sh.life += dt / 1000
-        const fade = Math.max(0, 1 - sh.life / 1.1)
-        const tailX = sh.x - sh.vx * (sh.len / (sh.vx || 1))
-        const tailY = sh.y - sh.vy * (sh.len / (sh.vx || 1))
+        const fade = Math.max(0, 1 - sh.life / sh.ttl) * sh.bright
+        // Colored tail (the star's random color) fading to transparent, plus a
+        // bright near-white head — matches the ending screen's colored streaks.
+        const speedLen = Math.hypot(sh.vx, sh.vy) || 1
+        const tailX = sh.x - (sh.vx / speedLen) * sh.len
+        const tailY = sh.y - (sh.vy / speedLen) * sh.len
+        const c = sh.color
+        const r = parseInt(c.slice(1, 3), 16)
+        const gch = parseInt(c.slice(3, 5), 16)
+        const b = parseInt(c.slice(5, 7), 16)
         const grad = ctx.createLinearGradient(sh.x, sh.y, tailX, tailY)
-        grad.addColorStop(0, `rgba(255,250,235,${0.9 * fade})`)
-        grad.addColorStop(1, 'rgba(255,250,235,0)')
+        grad.addColorStop(0, `rgba(${r},${gch},${b},${fade})`)
+        grad.addColorStop(1, `rgba(${r},${gch},${b},0)`)
         ctx.strokeStyle = grad
-        ctx.lineWidth = 1.6 * DPR
+        ctx.lineWidth = 1.5 * DPR
         ctx.lineCap = 'round'
         ctx.beginPath()
         ctx.moveTo(sh.x, sh.y)
         ctx.lineTo(tailX, tailY)
         ctx.stroke()
-        if (sh.life > 1.2 || sh.x > W + 40) shooters.splice(i, 1)
+        // bright head
+        ctx.beginPath()
+        ctx.arc(sh.x, sh.y, 1.6 * DPR, 0, Math.PI * 2)
+        ctx.fillStyle = `rgba(255,255,255,${fade})`
+        ctx.fill()
+        if (sh.life > sh.ttl || sh.x > W + 60 || sh.x < -60 || sh.y > H + 60) shooters.splice(i, 1)
       }
 
       raf = requestAnimationFrame(frame)
@@ -2330,8 +2358,8 @@ function StartingSky() {
     let shooterTimer: ReturnType<typeof setInterval> | null = null
     let firstShooter: ReturnType<typeof setTimeout> | null = null
     if (!reduce) {
-      shooterTimer = setInterval(spawnShooter, 4200)
-      firstShooter = setTimeout(spawnShooter, 1600)
+      shooterTimer = setInterval(spawnShooter, 2600)
+      firstShooter = setTimeout(spawnShooter, 900)
     }
 
     return () => {
@@ -2416,13 +2444,12 @@ function StartingScreen({ payload }: { payload: OfflinePayload | null }) {
           topbar as a small brand mark rather than adding a fourth centered row. */}
       <div className="starting-copy" aria-live="polite">
         <StartingLead />
+        {logo ? (
+          // eslint-disable-next-line @next/next/no-img-element -- local /public hotel logo, tiny optional badge, no next/image sizing needed here
+          <img src={logo.src} alt={logo.alt} className="starting-hotel-logo" />
+        ) : null}
         {sessionContext ? <p className="starting-session-context">{sessionContext}</p> : null}
       </div>
-
-      {logo ? (
-        // eslint-disable-next-line @next/next/no-img-element -- local /public hotel logo, tiny optional badge, no next/image sizing needed here
-        <img src={logo.src} alt={logo.alt} className="starting-hotel-logo" />
-      ) : null}
     </div>
   )
 }
