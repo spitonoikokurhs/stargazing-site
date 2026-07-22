@@ -3855,3 +3855,80 @@
   .starting-copy { opacity: 1 !important; transform: none !important; }
   .starting-lead { opacity: 1 !important; transition: none !important; }
 }
+
+/* Starting-screen UFO easter-egg (see StartingUfo in LiveView.tsx). Centered on
+   the reticle; each phase class runs a beat of the zoom-in → peer → spotted →
+   vanish choreography. Positioned like the reticle (top:44%, centered). */
+.starting-ufo {
+  position: absolute;
+  top: 44%;
+  left: 50%;
+  z-index: 2; /* same layer as the reticle, above the sky, below the copy */
+  width: 120px;
+  height: 68px;
+  margin: -34px 0 0 -60px; /* center the 120x68 box on the point */
+  pointer-events: none;
+  will-change: transform, opacity;
+  transform-origin: 50% 42%;
+}
+.starting-ufo svg { display: block; width: 100%; height: 100%; overflow: visible; }
+
+/* PHASE: zoom — approaches from "far away" (tiny, slightly high) to hovering at
+   the crosshair, as if flying in to look through it. */
+.starting-ufo--zoom {
+  animation: starting-ufo-zoom 1.4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+@keyframes starting-ufo-zoom {
+  0%   { transform: translateY(-46px) scale(0.05); opacity: 0; }
+  30%  { opacity: 1; }
+  100% { transform: translateY(0) scale(0.62); opacity: 1; }
+}
+
+/* PHASE: peer — hovers and gently bobs/tilts, "watching" through the crosshair. */
+.starting-ufo--peer {
+  transform: scale(0.62);
+  animation: starting-ufo-peer 1.8s ease-in-out;
+}
+@keyframes starting-ufo-peer {
+  0%   { transform: scale(0.62) translateY(0) rotate(0deg); }
+  25%  { transform: scale(0.62) translateY(-3px) rotate(-3deg); }
+  55%  { transform: scale(0.64) translateY(1px) rotate(2deg); }
+  80%  { transform: scale(0.62) translateY(-2px) rotate(-1deg); }
+  100% { transform: scale(0.62) translateY(0) rotate(0deg); }
+}
+
+/* PHASE: spotted — caught! a startled jolt back, eyes snap wide (below). */
+.starting-ufo--spotted {
+  animation: starting-ufo-jolt 0.8s cubic-bezier(0.36, 0, 0.66, -0.56) both;
+}
+@keyframes starting-ufo-jolt {
+  0%   { transform: scale(0.62) translateY(0); }
+  18%  { transform: scale(0.68) translateY(-6px) rotate(3deg); } /* recoil */
+  40%  { transform: scale(0.63) translateY(-2px) rotate(-2deg); }
+  100% { transform: scale(0.64) translateY(-3px); }
+}
+/* eyes fly wide open on the surprise; mouth drops to a startled round shape */
+.starting-ufo--spotted .starting-ufo__eye {
+  transform: scale(2.1, 2.4);
+  transform-origin: center;
+  transform-box: fill-box;
+  transition: transform 0.14s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.starting-ufo--spotted .starting-ufo__mouth {
+  d: path("M58 36 q2 3 4 0"); /* slightly rounder — "oh!" */
+}
+
+/* PHASE: vanish — a quick pop: puff up a touch then shrink to nothing + fade,
+   as if it blinked out of existence. */
+.starting-ufo--vanish {
+  animation: starting-ufo-vanish 0.7s cubic-bezier(0.5, 0, 0.75, 0) forwards;
+}
+@keyframes starting-ufo-vanish {
+  0%   { transform: scale(0.64) translateY(-3px); opacity: 1; }
+  22%  { transform: scale(0.78) translateY(-3px); opacity: 1; } /* tiny puff */
+  100% { transform: scale(0.02) translateY(-3px); opacity: 0; } /* pop out */
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .starting-ufo { display: none; } /* the whole gag is motion — hide it */
+}

@@ -2163,18 +2163,6 @@ function TransitionScreen({
   )
 }
 
-// Reassurance line for the starting screen — deliberately NO hard start time
-// (the event sometimes begins a little after the scheduled slot, so a literal
-// "21:30" would occasionally be wrong and read as broken) and NO venue name
-// (the hotel LOGO sits right above this line and already carries the venue
-// identity — repeating it in words read redundantly). Just the calm "it's
-// imminent" line. Shown only when there's a tonight session at all; null
-// otherwise, so the line is absent rather than context-free.
-function formatStartingSessionContext(payload: OfflinePayload | null): string | null {
-  if (!payload?.tonight) return null
-  return 'First light any moment now'
-}
-
 // Living night sky for the starting screen (ported from the approved prototype
 // docs/starting-proto-a-living-sky.html). A full-bleed canvas starfield with
 // depth layers, a faint Milky Way haze band, slow drift, gentle twinkle, and
@@ -2207,7 +2195,12 @@ function StartingSky() {
     }[] = []
     let band: { x: number; y: number; r: number; a: number }[] = []
     let shooters: {
-      x: number; y: number; life: number; ttl: number; len: number; vx: number; vy: number; color: string; bright: number
+      x: number; y: number; life: number; ttl: number; vx: number; vy: number; color: string; bright: number
+      // Position history (newest first) — the trail is drawn from these lagging
+      // points and each fades with age, so it reads as a glowing streak the head
+      // LEAVES BEHIND and that dissipates in place, not a rigid line stuck to the
+      // nucleus.
+      trail: { x: number; y: number }[]
     }[] = []
     // Same signature palette as the farewell/ending screen's shooting stars
     // (SHOOTING_STAR_COLORS in FarewellAegeanUfo) — soft pink/purple/green/
@@ -2268,14 +2261,15 @@ function StartingSky() {
         x: dir === 1 ? Math.random() * W * 0.5 : W * 0.5 + Math.random() * W * 0.5,
         y: Math.random() * H * 0.45,
         life: 0,
-        ttl: 0.6 + Math.random() * 0.7, // shorter-lived + varied → snappier streaks
-        len: (90 + Math.random() * 220) * DPR, // random distance/length
+        ttl: 0.9 + Math.random() * 0.8, // varied lifetime
         vx: Math.cos(angle) * speed * dir,
         vy: Math.sin(angle) * speed,
         color: SHOOTER_COLORS[Math.floor(Math.random() * SHOOTER_COLORS.length)],
         bright: 0.55 + Math.random() * 0.45, // random brightness
+        trail: [],
       })
     }
+    const TRAIL_MAX = 22 // how many lagging points to keep (trail length + smoothness)
 
     let last = performance.now()
     function frame(now: number) {
@@ -2319,32 +2313,68 @@ function StartingSky() {
         sh.x += sh.vx * (dt / 16)
         sh.y += sh.vy * (dt / 16)
         sh.life += dt / 1000
+        // Record the head's new position at the FRONT of the trail history and
+        // cap the length. The head moves on; these points stay where they were
+        // dropped, so the streak is left behind and fades in place.
+        sh.trail.unshift({ x: sh.x, y: sh.y })
+        if (sh.trail.length > TRAIL_MAX) sh.trail.length = TRAIL_MAX
+
         const fade = Math.max(0, 1 - sh.life / sh.ttl) * sh.bright
-        // Colored tail (the star's random color) fading to transparent, plus a
-        // bright near-white head — matches the ending screen's colored streaks.
-        const speedLen = Math.hypot(sh.vx, sh.vy) || 1
-        const tailX = sh.x - (sh.vx / speedLen) * sh.len
-        const tailY = sh.y - (sh.vy / speedLen) * sh.len
         const c = sh.color
         const r = parseInt(c.slice(1, 3), 16)
         const gch = parseInt(c.slice(3, 5), 16)
         const b = parseInt(c.slice(5, 7), 16)
-        const grad = ctx.createLinearGradient(sh.x, sh.y, tailX, tailY)
-        grad.addColorStop(0, `rgba(${r},${gch},${b},${fade})`)
-        grad.addColorStop(1, `rgba(${r},${gch},${b},0)`)
-        ctx.strokeStyle = grad
-        ctx.lineWidth = 1.5 * DPR
         ctx.lineCap = 'round'
-        ctx.beginPath()
-        ctx.moveTo(sh.x, sh.y)
-        ctx.lineTo(tailX, tailY)
-        ctx.stroke()
-        // bright head
-        ctx.beginPath()
-        ctx.arc(sh.x, sh.y, 1.6 * DPR, 0, Math.PI * 2)
-        ctx.fillStyle = `rgba(255,255,255,${fade})`
-        ctx.fill()
-        if (sh.life > sh.ttl || sh.x > W + 60 || sh.x < -60 || sh.y > H + 60) shooters.splice(i, 1)
+
+        // Draw the trail as short segments between consecutive history points,
+        // each dimmer and thinner the OLDER it is (further back in the array), so
+        // the tail dissipates rather than staying a solid line pinned to the head.
+        for (let t = 0; t < sh.trail.length - 1; t++) {
+          const p0 = sh.trail[t]
+          const p1 = sh.trail[t + 1]
+          const age = t / TRAIL_MAX // 0 at head … →1 at tail
+          const seg = (1 - age) * fade // segment brightness
+          if (seg <= 0.01) continue
+          // soft glow underlay
+          ctx.strokeStyle = `rgba(${r},${gch},${b},${0.18 * seg})`
+          ctx.lineWidth = (4.5 - age * 3) * DPR
+          ctx.beginPath()
+          ctx.moveTo(p0.x, p0.y)
+          ctx.lineTo(p1.x, p1.y)
+          ctx.stroke()
+          // crisp colored core (whiter near the head)
+          const whiteMix = Math.max(0, 1 - age * 3)
+          const cr = Math.round(r + (255 - r) * whiteMix)
+          const cg = Math.round(gch + (255 - gch) * whiteMix)
+          const cb = Math.round(b + (255 - b) * whiteMix)
+          ctx.strokeStyle = `rgba(${cr},${cg},${cb},${0.95 * seg})`
+          ctx.lineWidth = (1.5 - age) * DPR
+          ctx.beginPath()
+          ctx.moveTo(p0.x, p0.y)
+          ctx.lineTo(p1.x, p1.y)
+          ctx.stroke()
+        }
+
+        // bright head with a soft halo (only while the star itself is alive)
+        if (sh.life < sh.ttl) {
+          ctx.beginPath()
+          ctx.arc(sh.x, sh.y, 3.2 * DPR, 0, Math.PI * 2)
+          ctx.fillStyle = `rgba(${r},${gch},${b},${0.26 * fade})`
+          ctx.fill()
+          ctx.beginPath()
+          ctx.arc(sh.x, sh.y, 1.4 * DPR, 0, Math.PI * 2)
+          ctx.fillStyle = `rgba(255,255,255,${fade})`
+          ctx.fill()
+        }
+
+        // Retire only once the star is dead AND its trail has fully drained off,
+        // so the tail keeps dissipating after the head is gone/offscreen.
+        const off = sh.x > W + 60 || sh.x < -60 || sh.y > H + 60
+        if ((sh.life > sh.ttl || off) && sh.trail.length > 1) {
+          sh.trail.pop() // drain the oldest point each frame → tail recedes/fades
+        } else if (sh.life > sh.ttl || off) {
+          shooters.splice(i, 1)
+        }
       }
 
       raf = requestAnimationFrame(frame)
@@ -2358,8 +2388,8 @@ function StartingSky() {
     let shooterTimer: ReturnType<typeof setInterval> | null = null
     let firstShooter: ReturnType<typeof setTimeout> | null = null
     if (!reduce) {
-      shooterTimer = setInterval(spawnShooter, 2600)
-      firstShooter = setTimeout(spawnShooter, 900)
+      shooterTimer = setInterval(spawnShooter, 7000)
+      firstShooter = setTimeout(spawnShooter, 2500)
     }
 
     return () => {
@@ -2384,6 +2414,83 @@ function StartingLead() {
   )
 }
 
+// A little easter-egg at the crosshair: every ~30s a tiny UFO zooms IN toward
+// the reticle as if coming to peer through it, hovers and "watches" for a beat,
+// then — startled at being spotted — its alien eyes snap wide open and it
+// vanishes with a pop. Purely decorative; disabled under prefers-reduced-motion.
+//
+// Phases (driven by chained timeouts, CSS does the actual motion/scale):
+//   hidden → zoom (approach + scale up) → peer (hover/bob, watching)
+//          → spotted (eyes open, tiny jolt) → vanish (pop + fade) → hidden
+type UfoPhase = 'hidden' | 'zoom' | 'peer' | 'spotted' | 'vanish'
+const UFO_CYCLE_MS = 30_000
+
+function StartingUfo() {
+  const [phase, setPhase] = useState<UfoPhase>('hidden')
+
+  useEffect(() => {
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return
+    const timers: ReturnType<typeof setTimeout>[] = []
+    const at = (ms: number, fn: () => void) => timers.push(setTimeout(fn, ms))
+
+    function runOnce() {
+      // clear any leftover per-run timers before a new sequence
+      setPhase('zoom')
+      at(1400, () => setPhase('peer')) // arrive + hover/watch
+      at(3200, () => setPhase('spotted')) // caught! eyes open + jolt
+      at(4000, () => setPhase('vanish')) // pop away
+      at(4700, () => setPhase('hidden')) // gone; wait for the next cycle
+    }
+
+    // First appearance a few seconds in, then every UFO_CYCLE_MS.
+    const first = setTimeout(runOnce, 5000)
+    const cycle = setInterval(runOnce, UFO_CYCLE_MS)
+    timers.push(first)
+    return () => {
+      clearTimeout(first)
+      clearInterval(cycle)
+      timers.forEach(clearTimeout)
+    }
+  }, [])
+
+  if (phase === 'hidden') return null
+
+  return (
+    <div className={`starting-ufo starting-ufo--${phase}`} aria-hidden="true">
+      <svg viewBox="0 0 120 68" width="120" height="68">
+        {/* dome */}
+        <ellipse cx="60" cy="32" rx="25" ry="21" fill="#2a3550" />
+        <ellipse cx="60" cy="30" rx="21" ry="16" fill="#3d4d72" />
+        <ellipse cx="55" cy="24" rx="6" ry="4" fill="#5b6d95" opacity=".6" />
+        {/* alien face */}
+        <ellipse cx="60" cy="32" rx="7.5" ry="8.5" fill="#7ee0c4" />
+        {/* eyes: small while watching, snap WIDE on 'spotted' (the surprise) */}
+        <ellipse className="starting-ufo__eye" cx="56.5" cy="31" rx="1.7" ry="1.7" fill="#0a0a0f" />
+        <ellipse className="starting-ufo__eye" cx="63.5" cy="31" rx="1.7" ry="1.7" fill="#0a0a0f" />
+        {/* mouth: neutral curve, drops to a startled 'o' on spotted via CSS */}
+        <path
+          className="starting-ufo__mouth"
+          d="M57.5 36 q2.5 2 5 0"
+          stroke="#0a0a0f"
+          strokeWidth="1"
+          fill="none"
+          strokeLinecap="round"
+        />
+        {/* saucer body */}
+        <ellipse cx="60" cy="50" rx="55" ry="16" fill="#3f4d6c" />
+        <ellipse cx="60" cy="48" rx="55" ry="14" fill="#5d6d92" />
+        <ellipse cx="60" cy="46" rx="46" ry="10" fill="#6f80a8" />
+        {/* running lights */}
+        <circle cx="30" cy="50" r="3.2" fill="#f4c775" />
+        <circle cx="45" cy="53" r="3.2" fill="#7ee0c4" />
+        <circle cx="60" cy="54" r="3.2" fill="#e88a8a" />
+        <circle cx="75" cy="53" r="3.2" fill="#7ee0c4" />
+        <circle cx="90" cy="50" r="3.2" fill="#f4c775" />
+      </svg>
+    </div>
+  )
+}
+
 function startingHotelLogo(payload: OfflinePayload | null): { src: string; alt: string } | null {
   const hotelId = payload?.tonight?.hotelId
   if (!hotelId) return null
@@ -2396,7 +2503,6 @@ function startingHotelLogo(payload: OfflinePayload | null): { src: string; alt: 
 // viewer/rim geometry as the real live view, but the circle is explicitly a
 // non-observational waiting eyepiece — not a fake telescope image.
 function StartingScreen({ payload }: { payload: OfflinePayload | null }) {
-  const sessionContext = formatStartingSessionContext(payload)
   const logo = startingHotelLogo(payload)
 
   return (
@@ -2435,20 +2541,19 @@ function StartingScreen({ payload }: { payload: OfflinePayload | null }) {
         </svg>
       </div>
 
-      {/* Tightened copy: just ONE poetic rotating line + the quiet venue line.
-          The old layout stacked five things (status / reticle / poetic line /
-          "first observation appears automatically" instruction / venue line) —
-          the instruction + loader were redundant with the poetic line and the
-          reticle (which is already the "getting ready" cue), so they're dropped.
-          The hotel logo also moves out of the copy stack: it now sits with the
-          topbar as a small brand mark rather than adding a fourth centered row. */}
+      {/* Easter-egg: a UFO peers through the crosshair every ~30s, gets spotted,
+          and vanishes (see StartingUfo). Positioned at the reticle center. */}
+      <StartingUfo />
+
+      {/* Just the rotating poetic line + the hotel logo beneath it — the old
+          reassurance line ("First light any moment now") was redundant with the
+          rotating copy and is dropped. */}
       <div className="starting-copy" aria-live="polite">
         <StartingLead />
         {logo ? (
           // eslint-disable-next-line @next/next/no-img-element -- local /public hotel logo, tiny optional badge, no next/image sizing needed here
           <img src={logo.src} alt={logo.alt} className="starting-hotel-logo" />
         ) : null}
-        {sessionContext ? <p className="starting-session-context">{sessionContext}</p> : null}
       </div>
     </div>
   )
