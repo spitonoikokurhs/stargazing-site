@@ -2460,7 +2460,7 @@ function StartingUfo() {
         setPhase('flee') // 4.3s: bolts away
         startingSkyControl.frozen = false // sky resumes drifting
       })
-      at(5100, () => setPhase('hidden')) // 5.1s: gone until the next cycle
+      at(5450, () => setPhase('hidden')) // gone once the (30%-slower, 1.1s) flee completes
     }
 
     const first = setTimeout(runOnce, 5000)
@@ -2489,16 +2489,18 @@ function StartingUfo() {
         <ellipse cx="55" cy="24" rx="6" ry="4" fill="#5b6d95" opacity=".6" />
         {/* alien face */}
         <ellipse cx="60" cy="32" rx="7.5" ry="8.5" fill="#7ee0c4" />
-        {/* startled brows — hidden until 'spotted' (raised = surprise) */}
-        <path className="starting-ufo__brow" d="M52.8 25.8 q2.2 -1.4 4.4 -0.4" stroke="#0a0a0f" strokeWidth="0.8" fill="none" strokeLinecap="round" opacity="0" />
-        <path className="starting-ufo__brow" d="M62.8 25.4 q2.2 -1 4.4 0.4" stroke="#0a0a0f" strokeWidth="0.8" fill="none" strokeLinecap="round" opacity="0" />
+        {/* startled brows — hidden until 'spotted' (raised = surprise). Sit
+            HIGH (y~21.5) and short, well clear of the enlarged eyes below, which
+            grow up to ~y25 when scaled — so brows and pupils never overlap. */}
+        <path className="starting-ufo__brow" d="M52.6 21.8 q2 -1.1 4 -0.5" stroke="#0a0a0f" strokeWidth="0.7" fill="none" strokeLinecap="round" opacity="0" />
+        <path className="starting-ufo__brow" d="M63.4 21.3 q2 -0.6 4 0.5" stroke="#0a0a0f" strokeWidth="0.7" fill="none" strokeLinecap="round" opacity="0" />
         {/* eye whites — flash in on surprise, behind the pupils. Spaced wider
-            (cx 54.5 / 65.5) so the enlarged eyes don't collide when zoomed. */}
-        <ellipse className="starting-ufo__eyewhite" cx="54.5" cy="31" rx="2.8" ry="3.1" fill="#eafff7" opacity="0" />
-        <ellipse className="starting-ufo__eyewhite" cx="65.5" cy="31" rx="2.8" ry="3.1" fill="#eafff7" opacity="0" />
+            (cx 54.5 / 65.5) so the enlarged eyes don't collide with each other. */}
+        <ellipse className="starting-ufo__eyewhite" cx="54.5" cy="31.5" rx="2.8" ry="3.1" fill="#eafff7" opacity="0" />
+        <ellipse className="starting-ufo__eyewhite" cx="65.5" cy="31.5" rx="2.8" ry="3.1" fill="#eafff7" opacity="0" />
         {/* pupils: small while watching, snap WIDE on 'spotted' (the surprise) */}
-        <ellipse className="starting-ufo__eye" cx="54.5" cy="31" rx="1.7" ry="1.7" fill="#0a0a0f" />
-        <ellipse className="starting-ufo__eye" cx="65.5" cy="31" rx="1.7" ry="1.7" fill="#0a0a0f" />
+        <ellipse className="starting-ufo__eye" cx="54.5" cy="31.5" rx="1.7" ry="1.7" fill="#0a0a0f" />
+        <ellipse className="starting-ufo__eye" cx="65.5" cy="31.5" rx="1.7" ry="1.7" fill="#0a0a0f" />
         {/* mouth: neutral curve, drops to a startled 'o' on spotted via CSS */}
         <path
           className="starting-ufo__mouth"
