@@ -3755,8 +3755,10 @@
   position: absolute;
   top: 44%;
   left: 50%;
-  width: min(46vmin, 300px);
-  height: min(46vmin, 300px);
+  /* ~3x the old size — nearly fills the screen, so the UFO can zoom up to fill
+     the whole crosshair. */
+  width: min(92vmin, 880px);
+  height: min(92vmin, 880px);
   transform: translate(-50%, -50%);
   z-index: 2;
   pointer-events: none;
@@ -3764,20 +3766,22 @@
   animation: starting-reticle-in 2.4s cubic-bezier(0.2, 0.7, 0.2, 1) 0.3s backwards;
 }
 .starting-reticle svg { width: 100%; height: 100%; overflow: visible; }
+/* Stroke widths cut to ~1/3 now the reticle is ~3x larger, so the lines stay
+   elegant/thin at the bigger size rather than reading as heavy bars. */
 .sr-ring {
   fill: none;
   stroke: rgba(199, 168, 105, 0.3);
-  stroke-width: 0.4;
+  stroke-width: 0.14;
   transform-origin: 50% 50%;
   animation: starting-reticle-breathe 6s ease-in-out infinite;
 }
 .sr-ring--outer {
   stroke: rgba(199, 168, 105, 0.16);
-  stroke-dasharray: 2 4;
+  stroke-dasharray: 1 2;
   animation: starting-reticle-spin 60s linear infinite;
 }
 .sr-ring--inner { opacity: 0.6; }
-.sr-cross { stroke: rgba(199, 168, 105, 0.28); stroke-width: 0.35; }
+.sr-cross { stroke: rgba(199, 168, 105, 0.28); stroke-width: 0.13; }
 @keyframes starting-reticle-in {
   from { opacity: 0; transform: translate(-50%, -50%) scale(1.16); }
   to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
@@ -3856,79 +3860,122 @@
   .starting-lead { opacity: 1 !important; transition: none !important; }
 }
 
-/* Starting-screen UFO easter-egg (see StartingUfo in LiveView.tsx). Centered on
-   the reticle; each phase class runs a beat of the zoom-in → peer → spotted →
-   vanish choreography. Positioned like the reticle (top:44%, centered). */
+/* Starting-screen UFO easter-egg (see StartingUfo in LiveView.tsx). Anchored at
+   the crosshair centre; each phase class runs one beat of the choreography:
+   flyIn → lock → zoom (huge, against the eyepiece) → spotted (eyes wide) → flee.
+   The base box is large (240px) so the big zoom fills the view crisply; each
+   keyframe sets its own transform (position + scale). */
 .starting-ufo {
   position: absolute;
   top: 44%;
   left: 50%;
-  z-index: 2; /* same layer as the reticle, above the sky, below the copy */
-  width: 120px;
-  height: 68px;
-  margin: -34px 0 0 -60px; /* center the 120x68 box on the point */
+  z-index: 4; /* above the reticle + sky; the star of the moment */
+  width: 240px;
+  height: 136px;
+  margin: -68px 0 0 -120px; /* centre the 240x136 box on the crosshair point */
   pointer-events: none;
   will-change: transform, opacity;
-  transform-origin: 50% 42%;
+  transform-origin: 50% 44%;
 }
 .starting-ufo svg { display: block; width: 100%; height: 100%; overflow: visible; }
 
-/* PHASE: zoom — approaches from "far away" (tiny, slightly high) to hovering at
-   the crosshair, as if flying in to look through it. */
+/* Shared eye/mouth defaults so transitions have something to animate FROM. */
+.starting-ufo__eye {
+  transform-box: fill-box;
+  transform-origin: center;
+  transition: transform 0.16s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.starting-ufo__eyewhite,
+.starting-ufo__brow {
+  transition: opacity 0.14s ease;
+}
+
+/* PHASE: flyIn — enters small from the upper-right, off-screen, curving toward
+   the crosshair as if it just drifted into view far away. */
+.starting-ufo--flyIn {
+  animation: starting-ufo-flyin 1.2s cubic-bezier(0.3, 0.6, 0.4, 1) forwards;
+}
+@keyframes starting-ufo-flyin {
+  0%   { transform: translate(78vw, -34vh) scale(0.12) rotate(-14deg); opacity: 0; }
+  25%  { opacity: 1; }
+  100% { transform: translate(0, 0) scale(0.34) rotate(0deg); opacity: 1; }
+}
+
+/* PHASE: lock — the crosshair catches it; it settles dead-centre with a tiny
+   "held" wobble while the starfield freezes (see startingSkyControl). */
+.starting-ufo--lock {
+  animation: starting-ufo-lock 0.9s ease-out forwards;
+}
+@keyframes starting-ufo-lock {
+  0%   { transform: translate(0,0) scale(0.34); }
+  55%  { transform: translate(0,0) scale(0.40); }   /* tiny catch/overshoot */
+  100% { transform: translate(0,0) scale(0.36); }
+}
+
+/* PHASE: zoom — rushes right up to the eyepiece, filling the (now ~3x larger)
+   crosshair. Big beat: from the small fly-in size up to ~3.5 scale so the
+   saucer spans nearly the whole reticle. */
 .starting-ufo--zoom {
-  animation: starting-ufo-zoom 1.4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation: starting-ufo-zoom 1.3s cubic-bezier(0.5, 0, 0.2, 1) forwards;
 }
 @keyframes starting-ufo-zoom {
-  0%   { transform: translateY(-46px) scale(0.05); opacity: 0; }
-  30%  { opacity: 1; }
-  100% { transform: translateY(0) scale(0.62); opacity: 1; }
+  0%   { transform: translate(0,0) scale(0.36); }
+  100% { transform: translate(0, 6px) scale(3.5); }  /* fills the big crosshair */
 }
 
-/* PHASE: peer — hovers and gently bobs/tilts, "watching" through the crosshair. */
-.starting-ufo--peer {
-  transform: scale(0.62);
-  animation: starting-ufo-peer 1.8s ease-in-out;
-}
-@keyframes starting-ufo-peer {
-  0%   { transform: scale(0.62) translateY(0) rotate(0deg); }
-  25%  { transform: scale(0.62) translateY(-3px) rotate(-3deg); }
-  55%  { transform: scale(0.64) translateY(1px) rotate(2deg); }
-  80%  { transform: scale(0.62) translateY(-2px) rotate(-1deg); }
-  100% { transform: scale(0.62) translateY(0) rotate(0deg); }
-}
-
-/* PHASE: spotted — caught! a startled jolt back, eyes snap wide (below). */
+/* PHASE: spotted — realises it's been SEEN: a hard recoil back + shrink, while
+   the alien eyes snap huge. The distinct "surprise" beat. */
 .starting-ufo--spotted {
-  animation: starting-ufo-jolt 0.8s cubic-bezier(0.36, 0, 0.66, -0.56) both;
+  animation: starting-ufo-spotted 0.9s cubic-bezier(0.34, 1.4, 0.5, 1) forwards;
 }
-@keyframes starting-ufo-jolt {
-  0%   { transform: scale(0.62) translateY(0); }
-  18%  { transform: scale(0.68) translateY(-6px) rotate(3deg); } /* recoil */
-  40%  { transform: scale(0.63) translateY(-2px) rotate(-2deg); }
-  100% { transform: scale(0.64) translateY(-3px); }
+@keyframes starting-ufo-spotted {
+  0%   { transform: translate(0, 6px) scale(3.5) rotate(0deg); }
+  16%  { transform: translate(0, -14px) scale(3.85) rotate(2deg); } /* flinch bigger */
+  40%  { transform: translate(0, -26px) scale(3.05) rotate(-4deg); } /* jerk back */
+  100% { transform: translate(0, -34px) scale(2.9) rotate(-2deg); }
 }
-/* eyes fly wide open on the surprise; mouth drops to a startled round shape */
+/* Eyes fly WIDE open (much more dramatic than before) + whites flash; mouth
+   drops to a startled round "oh!". */
+.starting-ufo--zoom .starting-ufo__eye,
+.starting-ufo--spotted .starting-ufo__eye { }
 .starting-ufo--spotted .starting-ufo__eye {
-  transform: scale(2.1, 2.4);
-  transform-origin: center;
-  transform-box: fill-box;
-  transition: transform 0.14s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transform: scale(2.6, 3.4); /* big surprised eyes (kept narrow enough not to
+                                 collide with the wider-spaced eye centres) */
 }
+.starting-ufo--spotted .starting-ufo__eyewhite { opacity: 1; }
 .starting-ufo--spotted .starting-ufo__mouth {
-  d: path("M58 36 q2 3 4 0"); /* slightly rounder — "oh!" */
+  d: path("M57.5 35.5 q2.5 3.4 5 0"); /* rounder, dropped-jaw "oh" */
+}
+.starting-ufo--spotted .starting-ufo__brow { opacity: 1; } /* raised startled brows */
+
+/* PHASE: flee — bolts back off-screen (up and to the left), spinning slightly,
+   fading as it goes. */
+.starting-ufo--flee {
+  animation: starting-ufo-flee 0.85s cubic-bezier(0.5, 0, 0.9, 0.4) forwards;
+}
+@keyframes starting-ufo-flee {
+  0%   { transform: translate(0, -34px) scale(2.9); opacity: 1; }
+  100% { transform: translate(-90vw, -46vh) scale(0.08) rotate(-24deg); opacity: 0; }
 }
 
-/* PHASE: vanish — a quick pop: puff up a touch then shrink to nothing + fade,
-   as if it blinked out of existence. */
-.starting-ufo--vanish {
-  animation: starting-ufo-vanish 0.7s cubic-bezier(0.5, 0, 0.75, 0) forwards;
+/* Red alarm-siren wash on detection — a full-screen red vignette that pulses
+   fast (siren rhythm) for the 'spotted' beat, as if an alert tripped when the
+   crosshair locked on. Edge-weighted so the centre stays readable. */
+.starting-ufo-alarm {
+  position: fixed;
+  inset: 0;
+  z-index: 3; /* above the sky/reticle, below the UFO (z-index 4) and copy */
+  pointer-events: none;
+  background: radial-gradient(120% 100% at 50% 50%, transparent 40%, rgba(226, 40, 40, 0.42) 100%);
+  animation: starting-ufo-siren 0.42s steps(1, end) infinite;
 }
-@keyframes starting-ufo-vanish {
-  0%   { transform: scale(0.64) translateY(-3px); opacity: 1; }
-  22%  { transform: scale(0.78) translateY(-3px); opacity: 1; } /* tiny puff */
-  100% { transform: scale(0.02) translateY(-3px); opacity: 0; } /* pop out */
+@keyframes starting-ufo-siren {
+  0%,
+  100% { opacity: 0.95; }
+  50% { opacity: 0.28; } /* hard on/off flash — reads as a siren, not a fade */
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .starting-ufo { display: none; } /* the whole gag is motion — hide it */
+  .starting-ufo,
+  .starting-ufo-alarm { display: none; } /* the whole gag is motion — hide it */
 }

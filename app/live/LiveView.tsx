@@ -2163,6 +2163,14 @@ function TransitionScreen({
   )
 }
 
+// Shared control between the (imperative canvas) StartingSky and the (React)
+// StartingUfo: when the UFO is being "locked onto" by the crosshair, the sky
+// briefly FREEZES its drift/twinkle — as if the whole view snapped to attention
+// on the intruder. A tiny module-level mutable flag is the simplest bridge
+// between the two independent render loops (both mount together on the starting
+// screen; only one instance of each exists at a time).
+const startingSkyControl = { frozen: false }
+
 // Living night sky for the starting screen (ported from the approved prototype
 // docs/starting-proto-a-living-sky.html). A full-bleed canvas starfield with
 // depth layers, a faint Milky Way haze band, slow drift, gentle twinkle, and
@@ -2286,8 +2294,11 @@ function StartingSky() {
         ctx.fill()
       }
 
+      // Freeze drift + twinkle while the crosshair is locking onto the UFO — the
+      // whole field snaps still, as if the view caught its breath on the intruder.
+      const frozen = startingSkyControl.frozen
       for (const s of stars) {
-        if (!reduce) {
+        if (!reduce && !frozen) {
           s.x += s.vx * (dt / 16)
           if (s.x < -4) s.x = W + 4
           s.tw += s.tws * (dt / 1000) * Math.PI
@@ -2414,15 +2425,19 @@ function StartingLead() {
   )
 }
 
-// A little easter-egg at the crosshair: every ~30s a tiny UFO zooms IN toward
-// the reticle as if coming to peer through it, hovers and "watches" for a beat,
-// then — startled at being spotted — its alien eyes snap wide open and it
-// vanishes with a pop. Purely decorative; disabled under prefers-reduced-motion.
+// The crosshair easter-egg, every ~30s: a UFO flies IN from off-screen; the
+// telescope crosshair locks onto it (the whole starfield freezes for the beat);
+// it then zooms HUGE — right up against the eyepiece — its alien eyes snap wide
+// in surprise at being spotted, and it bolts back off-screen. Decorative;
+// disabled under prefers-reduced-motion.
 //
-// Phases (driven by chained timeouts, CSS does the actual motion/scale):
-//   hidden → zoom (approach + scale up) → peer (hover/bob, watching)
-//          → spotted (eyes open, tiny jolt) → vanish (pop + fade) → hidden
-type UfoPhase = 'hidden' | 'zoom' | 'peer' | 'spotted' | 'vanish'
+// Phases (chained timeouts; CSS does the motion/scale):
+//   hidden → flyIn (enters from a corner, small)
+//          → lock  (crosshair catches it → stars freeze; it settles at center)
+//          → zoom  (fills the eyepiece, pressed against the glass)
+//          → spotted (eyes snap wide + recoil jolt)
+//          → flee  (bolts off-screen)  → hidden
+type UfoPhase = 'hidden' | 'flyIn' | 'lock' | 'zoom' | 'spotted' | 'flee'
 const UFO_CYCLE_MS = 30_000
 
 function StartingUfo() {
@@ -2434,15 +2449,20 @@ function StartingUfo() {
     const at = (ms: number, fn: () => void) => timers.push(setTimeout(fn, ms))
 
     function runOnce() {
-      // clear any leftover per-run timers before a new sequence
-      setPhase('zoom')
-      at(1400, () => setPhase('peer')) // arrive + hover/watch
-      at(3200, () => setPhase('spotted')) // caught! eyes open + jolt
-      at(4000, () => setPhase('vanish')) // pop away
-      at(4700, () => setPhase('hidden')) // gone; wait for the next cycle
+      setPhase('flyIn') // 0.0s: enters from off-screen, small/distant
+      at(1200, () => {
+        setPhase('lock') // 1.2s: crosshair catches it — FREEZE the sky
+        startingSkyControl.frozen = true
+      })
+      at(2100, () => setPhase('zoom')) // 2.1s: zoom huge, up against the eyepiece
+      at(3400, () => setPhase('spotted')) // 3.4s: eyes snap wide, recoil
+      at(4300, () => {
+        setPhase('flee') // 4.3s: bolts away
+        startingSkyControl.frozen = false // sky resumes drifting
+      })
+      at(5100, () => setPhase('hidden')) // 5.1s: gone until the next cycle
     }
 
-    // First appearance a few seconds in, then every UFO_CYCLE_MS.
     const first = setTimeout(runOnce, 5000)
     const cycle = setInterval(runOnce, UFO_CYCLE_MS)
     timers.push(first)
@@ -2450,23 +2470,35 @@ function StartingUfo() {
       clearTimeout(first)
       clearInterval(cycle)
       timers.forEach(clearTimeout)
+      startingSkyControl.frozen = false // never leave the sky stuck frozen
     }
   }, [])
 
   if (phase === 'hidden') return null
 
   return (
-    <div className={`starting-ufo starting-ufo--${phase}`} aria-hidden="true">
-      <svg viewBox="0 0 120 68" width="120" height="68">
+    <>
+      {/* Red alarm-siren wash — flashes over the whole screen the instant the
+          UFO is detected (the 'spotted' beat), like a security alert going off. */}
+      {phase === 'spotted' && <div className="starting-ufo-alarm" aria-hidden="true" />}
+      <div className={`starting-ufo starting-ufo--${phase}`} aria-hidden="true">
+      <svg viewBox="0 0 120 68">
         {/* dome */}
         <ellipse cx="60" cy="32" rx="25" ry="21" fill="#2a3550" />
         <ellipse cx="60" cy="30" rx="21" ry="16" fill="#3d4d72" />
         <ellipse cx="55" cy="24" rx="6" ry="4" fill="#5b6d95" opacity=".6" />
         {/* alien face */}
         <ellipse cx="60" cy="32" rx="7.5" ry="8.5" fill="#7ee0c4" />
-        {/* eyes: small while watching, snap WIDE on 'spotted' (the surprise) */}
-        <ellipse className="starting-ufo__eye" cx="56.5" cy="31" rx="1.7" ry="1.7" fill="#0a0a0f" />
-        <ellipse className="starting-ufo__eye" cx="63.5" cy="31" rx="1.7" ry="1.7" fill="#0a0a0f" />
+        {/* startled brows — hidden until 'spotted' (raised = surprise) */}
+        <path className="starting-ufo__brow" d="M52.8 25.8 q2.2 -1.4 4.4 -0.4" stroke="#0a0a0f" strokeWidth="0.8" fill="none" strokeLinecap="round" opacity="0" />
+        <path className="starting-ufo__brow" d="M62.8 25.4 q2.2 -1 4.4 0.4" stroke="#0a0a0f" strokeWidth="0.8" fill="none" strokeLinecap="round" opacity="0" />
+        {/* eye whites — flash in on surprise, behind the pupils. Spaced wider
+            (cx 54.5 / 65.5) so the enlarged eyes don't collide when zoomed. */}
+        <ellipse className="starting-ufo__eyewhite" cx="54.5" cy="31" rx="2.8" ry="3.1" fill="#eafff7" opacity="0" />
+        <ellipse className="starting-ufo__eyewhite" cx="65.5" cy="31" rx="2.8" ry="3.1" fill="#eafff7" opacity="0" />
+        {/* pupils: small while watching, snap WIDE on 'spotted' (the surprise) */}
+        <ellipse className="starting-ufo__eye" cx="54.5" cy="31" rx="1.7" ry="1.7" fill="#0a0a0f" />
+        <ellipse className="starting-ufo__eye" cx="65.5" cy="31" rx="1.7" ry="1.7" fill="#0a0a0f" />
         {/* mouth: neutral curve, drops to a startled 'o' on spotted via CSS */}
         <path
           className="starting-ufo__mouth"
@@ -2487,7 +2519,8 @@ function StartingUfo() {
         <circle cx="75" cy="53" r="3.2" fill="#7ee0c4" />
         <circle cx="90" cy="50" r="3.2" fill="#f4c775" />
       </svg>
-    </div>
+      </div>
+    </>
   )
 }
 
