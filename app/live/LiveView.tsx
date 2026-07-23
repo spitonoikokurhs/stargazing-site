@@ -146,8 +146,8 @@ type DebugFields = {
   // Forward-compat slots for relay fields not yet sent — allow-listed as
   // unknown so the payload validates and the overlay can render them when they
   // start arriving, without a code change here.
-  astrometrySolveSuspect?: boolean | null
-  solveTiming?: number | null
+  astrometrySuspect?: boolean | null
+  solveTiming?: string | null
   solveTimingReason?: string | null
   newObservation?: boolean | null
   coordSourceDeltaDeg?: number | null
@@ -155,6 +155,8 @@ type DebugFields = {
   mountRaDegrees?: number | null
   mountDecDegrees?: number | null
   mountTelemetryOk?: boolean | null
+  mountSlewing?: boolean | null
+  mountTelemetryAgeSeconds?: number | null
 }
 
 type StatusLive = {
@@ -1930,6 +1932,20 @@ function DebugOverlay({ debug, browsingHistory }: { debug: DebugFields | null; b
                 <DebugRow k="Mount RA" v={fmtDeg(debug?.mountRaDegrees)} tone="idle" />
                 <DebugRow k="Mount Dec" v={fmtDeg(debug?.mountDecDegrees)} tone="idle" />
                 <DebugRow
+                  k="Slewing"
+                  v={debug?.mountSlewing === undefined || debug?.mountSlewing === null ? undefined : debug.mountSlewing ? 'YES' : 'no'}
+                  tone={debug?.mountSlewing ? 'warn' : 'ok'}
+                />
+                <DebugRow
+                  k="Telemetry age"
+                  v={typeof debug?.mountTelemetryAgeSeconds === 'number' ? `${debug.mountTelemetryAgeSeconds.toFixed(1)}s` : null}
+                  tone={
+                    typeof debug?.mountTelemetryAgeSeconds === 'number' && debug.mountTelemetryAgeSeconds <= 12
+                      ? 'ok'
+                      : 'warn'
+                  }
+                />
+                <DebugRow
                   k="Sources disagree"
                   v={debug?.coordSourcesDisagree === undefined || debug?.coordSourcesDisagree === null ? undefined : debug.coordSourcesDisagree ? 'YES' : 'no'}
                   tone={debug?.coordSourcesDisagree ? 'warn' : 'ok'}
@@ -1944,12 +1960,12 @@ function DebugOverlay({ debug, browsingHistory }: { debug: DebugFields | null; b
               <div className="debug-kv">
                 <DebugRow
                   k="Solve suspect"
-                  v={debug?.astrometrySolveSuspect === undefined || debug?.astrometrySolveSuspect === null ? undefined : debug.astrometrySolveSuspect ? 'YES' : 'no'}
-                  tone={debug?.astrometrySolveSuspect ? 'warn' : 'ok'}
+                  v={debug?.astrometrySuspect === undefined || debug?.astrometrySuspect === null ? undefined : debug.astrometrySuspect ? 'YES' : 'no'}
+                  tone={debug?.astrometrySuspect ? 'warn' : 'ok'}
                 />
                 <DebugRow
                   k="Solve timing"
-                  v={typeof debug?.solveTiming === 'number' ? `${debug.solveTiming}ms` : null}
+                  v={debug?.solveTiming ?? null}
                   tone="idle"
                 />
                 <DebugRow k="Timing reason" v={debug?.solveTimingReason ?? undefined} tone="idle" />

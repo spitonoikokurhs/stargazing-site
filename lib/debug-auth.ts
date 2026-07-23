@@ -16,12 +16,11 @@ import type { NextRequest } from 'next/server'
 // So this surface requires its OWN dedicated, read-only token and FAILS CLOSED
 // if it isn't set — it never falls back to a write-capable credential.
 //
-// DEBUG_VIEW_TOKEN is preferred; VIEWER_STATS_TOKEN is accepted as an alias
-// because it is already a dedicated, read-only, separately-revocable operator
-// credential (same class of secret). INGEST_SECRET is deliberately NOT in this
-// chain.
+// DEBUG_VIEW_TOKEN is the only accepted credential. Keeping it separate makes
+// this surface independently revocable and genuinely fail-closed when the
+// variable is absent.
 export function debugSecret(): string | undefined {
-  return process.env.DEBUG_VIEW_TOKEN || process.env.VIEWER_STATS_TOKEN || undefined
+  return process.env.DEBUG_VIEW_TOKEN || undefined
 }
 
 // Constant-time compare of a presented Bearer token against the configured

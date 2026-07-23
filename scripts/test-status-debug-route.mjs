@@ -62,41 +62,50 @@ function partA() {
       totalAccumulatedTime: 120,
       raDegrees: 10.5,
       decDegrees: 41.2,
-      astrometrySolveSuspect: true,
-      solveTiming: 1234,
-      solveTimingReason: 'slow-plate',
+      astrometrySuspect: true,
+      solveTiming: 'changed_while_accum_high',
+      solveTimingReason: 'timestamp_changed_before_accum_reset',
       newObservation: false,
       coordSourceDeltaDeg: 0.42,
       coordSourcesDisagree: true,
       mountRaDegrees: 10.6,
       mountDecDegrees: 41.1,
       mountTelemetryOk: true,
+      mountSlewing: false,
+      mountTelemetryAgeSeconds: 1.2,
     },
   })
 
   // 1. parseLatestFrame must KEEP the relay fields (the redis.ts strip point).
   const frame = parseLatestFrame(rawPayload)
-  assert('A1. parseLatestFrame keeps astrometrySolveSuspect', frame?.telemetry?.astrometrySolveSuspect === true)
-  assert('A1. parseLatestFrame keeps solveTiming', frame?.telemetry?.solveTiming === 1234)
-  assert('A1. parseLatestFrame keeps solveTimingReason', frame?.telemetry?.solveTimingReason === 'slow-plate')
+  assert('A1. parseLatestFrame keeps astrometrySuspect', frame?.telemetry?.astrometrySuspect === true)
+  assert('A1. parseLatestFrame keeps solveTiming', frame?.telemetry?.solveTiming === 'changed_while_accum_high')
+  assert(
+    'A1. parseLatestFrame keeps solveTimingReason',
+    frame?.telemetry?.solveTimingReason === 'timestamp_changed_before_accum_reset',
+  )
   assert('A1. parseLatestFrame keeps coordSourceDeltaDeg', frame?.telemetry?.coordSourceDeltaDeg === 0.42)
   assert('A1. parseLatestFrame keeps coordSourcesDisagree', frame?.telemetry?.coordSourcesDisagree === true)
   assert('A1. parseLatestFrame keeps newObservation', frame?.telemetry?.newObservation === false)
   assert('A1. parseLatestFrame keeps mountRaDegrees', frame?.telemetry?.mountRaDegrees === 10.6)
   assert('A1. parseLatestFrame keeps mountTelemetryOk', frame?.telemetry?.mountTelemetryOk === true)
+  assert('A1. parseLatestFrame keeps mountSlewing', frame?.telemetry?.mountSlewing === false)
+  assert('A1. parseLatestFrame keeps mountTelemetryAgeSeconds', frame?.telemetry?.mountTelemetryAgeSeconds === 1.2)
 
   // 2. buildDebugFields must FORWARD them into the debug payload (the route
   //    strip point) under the exact keys the overlay reads.
   const debug = buildDebugFields(frame)
-  assert('A2. buildDebugFields forwards astrometrySolveSuspect', debug.astrometrySolveSuspect === true)
-  assert('A2. buildDebugFields forwards solveTiming', debug.solveTiming === 1234)
-  assert('A2. buildDebugFields forwards solveTimingReason', debug.solveTimingReason === 'slow-plate')
+  assert('A2. buildDebugFields forwards astrometrySuspect', debug.astrometrySuspect === true)
+  assert('A2. buildDebugFields forwards solveTiming', debug.solveTiming === 'changed_while_accum_high')
+  assert('A2. buildDebugFields forwards solveTimingReason', debug.solveTimingReason === 'timestamp_changed_before_accum_reset')
   assert('A2. buildDebugFields forwards coordSourceDeltaDeg', debug.coordSourceDeltaDeg === 0.42)
   assert('A2. buildDebugFields forwards coordSourcesDisagree', debug.coordSourcesDisagree === true)
   assert('A2. buildDebugFields forwards newObservation', debug.newObservation === false)
   assert('A2. buildDebugFields forwards mountRaDegrees', debug.mountRaDegrees === 10.6)
   assert('A2. buildDebugFields forwards mountTelemetryOk', debug.mountTelemetryOk === true)
   // raw match/confidence surfaced (the guest card hides these)
+  assert('A2. buildDebugFields forwards mountSlewing', debug.mountSlewing === false)
+  assert('A2. buildDebugFields forwards mountTelemetryAgeSeconds', debug.mountTelemetryAgeSeconds === 1.2)
   assert('A2. buildDebugFields surfaces raw match+confidence', debug.match && 'confidence' in debug.match)
 
   // 3. ABSENT relay fields are OMITTED, not sent as null — so the overlay shows
@@ -127,11 +136,11 @@ function partA() {
       observationId: 'o',
       sessionId: 's',
       objectName: 'X',
-      telemetry: { astrometryState: 'solved', raDegrees: 10.5, decDegrees: 41.2, solveTiming: 'not-a-number', astrometrySolveSuspect: 'yes' },
+      telemetry: { astrometryState: 'solved', raDegrees: 10.5, decDegrees: 41.2, solveTiming: 1234, astrometrySuspect: 'yes' },
     }),
   )
   assert('A4. wrong-typed solveTiming dropped by parser', badTyped?.telemetry?.solveTiming === undefined)
-  assert('A4. wrong-typed astrometrySolveSuspect dropped by parser', badTyped?.telemetry?.astrometrySolveSuspect === undefined)
+  assert('A4. wrong-typed astrometrySuspect dropped by parser', badTyped?.telemetry?.astrometrySuspect === undefined)
 }
 
 // ---- Part B: real GET handler, auth/param branches (return before any client) ----

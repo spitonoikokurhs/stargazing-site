@@ -15,14 +15,14 @@ export const dynamic = 'force-dynamic'
 //        SameSite=Strict, 12h)
 //     -> 302 redirect to /live-debug  (NO token in the destination URL)
 //
-// The operator visits this URL ONCE (from a bookmark/QR), and thereafter uses
-// the clean /live-debug URL. The token therefore never sits in browser
-// history, screenshots, referrers, or server logs for the page itself — only
-// this single bootstrap request's query string ever carries it, and the
-// redirect immediately replaces the address bar with the tokenless URL.
+// The operator visits this URL once and thereafter uses the clean /live-debug
+// URL. The bootstrap URL can still appear in browser history or request logs;
+// this is why it accepts only the dedicated, read-only DEBUG_VIEW_TOKEN. The
+// redirect removes the token from the visible destination URL and no-referrer
+// prevents it from leaking on subsequent navigation.
 //
-// SECURITY: this accepts ONLY the dedicated read-only DEBUG_VIEW_TOKEN (or its
-// VIEWER_STATS_TOKEN alias) — NEVER the write-capable INGEST_SECRET (see
+// SECURITY: this accepts ONLY the dedicated read-only DEBUG_VIEW_TOKEN - NEVER
+// VIEWER_STATS_TOKEN or the write-capable INGEST_SECRET (see
 // debugSecret). If no debug secret is configured it FAILS CLOSED: no cookie,
 // straight to the locked page. The cookie is a signed value with an embedded,
 // server-verified expiry (see mintDebugCookie / verifyDebugCookie) — it holds

@@ -63,7 +63,7 @@ Confirm:
   the relay isn't sending, `{"live":false,"debugNoFeed":true,...}`. Either way it
   is NOT the guest `finished` farewell — the bypass is the whole point.
 - `jq '.debug | keys' /tmp/debug.json` shows the diagnostic fields. When the
-  relay is sending them, `astrometrySolveSuspect`, `solveTiming`,
+  relay is sending them, `astrometrySuspect`, `solveTiming`,
   `coordSourcesDisagree`, mount coords, etc. appear here; if they DON'T appear
   while the relay is definitely emitting them, the field-name wiring is off (see
   docs/live-debug-relay-fields-TODO.md).

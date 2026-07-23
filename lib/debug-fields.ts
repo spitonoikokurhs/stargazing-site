@@ -19,8 +19,7 @@ import type { LatestFrame, LatestFrameTelemetry } from '@/lib/redis'
 // telemetry when present, and left OUT of the payload when absent so the overlay
 // renders "not sent" (an older relay / Tier-1 frame). A field only reaches here
 // if all three upstream strip points carry it under the SAME key — see the
-// ingest allowlist's note on the mount names still pending relay-dev
-// confirmation (docs/live-debug-relay-fields-TODO.md).
+// confirmed relay contract in docs/live-debug-relay-fields-TODO.md.
 export function buildDebugFields(frame: LatestFrame): Record<string, unknown> {
   const t = frame.telemetry
   const ageSeconds = Math.max(0, Math.round((Date.now() - new Date(frame.ingestedAt).getTime()) / 1000))
@@ -47,7 +46,7 @@ export function buildDebugFields(frame: LatestFrame): Record<string, unknown> {
   // type.
   if (t) {
     const passthroughKeys: (keyof LatestFrameTelemetry)[] = [
-      'astrometrySolveSuspect',
+      'astrometrySuspect',
       'solveTiming',
       'solveTimingReason',
       'newObservation',
@@ -56,6 +55,8 @@ export function buildDebugFields(frame: LatestFrame): Record<string, unknown> {
       'mountRaDegrees',
       'mountDecDegrees',
       'mountTelemetryOk',
+      'mountSlewing',
+      'mountTelemetryAgeSeconds',
     ]
     for (const key of passthroughKeys) {
       if (t[key] !== undefined) debug[key] = t[key]

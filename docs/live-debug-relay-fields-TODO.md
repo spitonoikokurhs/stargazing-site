@@ -15,28 +15,23 @@ These six are wired under these exact keys:
 
 | key                     | type    |
 |-------------------------|---------|
-| `astrometrySolveSuspect`| boolean |
-| `solveTiming`           | number  |
+| `astrometrySuspect`     | boolean or null |
+| `solveTiming`           | string classification |
 | `solveTimingReason`     | string  |
 | `newObservation`        | boolean |
 | `coordSourceDeltaDeg`   | number  |
 | `coordSourcesDisagree`  | boolean |
 
-## PENDING relay-dev confirmation — mount coordinates
+## CONFIRMED against relay @ 8e8eb9a — mount coordinates
 
-Currently wired under **assumed** names:
+Confirmed against `feat/stale-solve-detector @ 8e8eb9a`:
 
-| assumed key        | type    |
+| confirmed key      | type    |
 |--------------------|---------|
 | `mountRaDegrees`   | number  |
 | `mountDecDegrees`  | number  |
 | `mountTelemetryOk` | boolean |
+| `mountSlewing`     | boolean or null |
+| `mountTelemetryAgeSeconds` | number or null |
 
-**Action:** confirm against `feat/stale-solve-detector @ 8e8eb9a` what the relay
-actually emits in the `metadata` object for mount coordinates. If the names
-differ (e.g. `mountRa`/`mountDec`, or a nested `mount: {ra, dec, ok}` object),
-update all four strip points above to match. Until confirmed, these three read
-"not sent" in the overlay even when the relay is sending mount data.
-
-Also confirm `solveTiming` units (ms vs. s) for the overlay label — it currently
-renders `${solveTiming}ms`.
+`solveTiming` is a string classification, not a duration; the overlay renders it without a unit suffix.

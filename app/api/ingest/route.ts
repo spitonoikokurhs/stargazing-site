@@ -817,12 +817,8 @@ export async function POST(req: NextRequest) {
       // and parseLatestFrame are the three strip points). Each is copied
       // as-is; parseLatestFrame does the per-field type validation.
       //
-      // FIELD NAMES: the six scalar/bool solve fields below match the relay's
-      // emitted names (feat/stale-solve-detector). The MOUNT coordinate names
-      // (mountRaDegrees/mountDecDegrees/mountTelemetryOk) are PENDING relay-dev
-      // confirmation — see docs/live-debug-relay-fields-TODO.md. If the relay
-      // uses different keys, correct them HERE and in the two other strip points
-      // (they read "not sent" in the overlay until they match exactly).
+      // FIELD NAMES: confirmed against feat/stale-solve-detector @ 8e8eb9a.
+      // Keep this allowlist aligned with the Redis parser and debug overlay.
       const m = metadata !== null && typeof metadata === 'object' && !Array.isArray(metadata)
         ? (metadata as Record<string, unknown>)
         : null
@@ -834,16 +830,18 @@ export async function POST(req: NextRequest) {
             raDegrees: m.raDegrees,
             decDegrees: m.decDegrees,
             // --- operator-debug passthrough (relay stale-solve detector) ---
-            astrometrySolveSuspect: m.astrometrySolveSuspect,
+            astrometrySuspect: m.astrometrySuspect,
             solveTiming: m.solveTiming,
             solveTimingReason: m.solveTimingReason,
             newObservation: m.newObservation,
             coordSourceDeltaDeg: m.coordSourceDeltaDeg,
             coordSourcesDisagree: m.coordSourcesDisagree,
-            // --- mount coords (names PENDING relay-dev confirmation) ---
+            // --- mount coords (names CONFIRMED against relay @ 8e8eb9a) ---
             mountRaDegrees: m.mountRaDegrees,
             mountDecDegrees: m.mountDecDegrees,
             mountTelemetryOk: m.mountTelemetryOk,
+            mountSlewing: m.mountSlewing,
+            mountTelemetryAgeSeconds: m.mountTelemetryAgeSeconds,
           }
         : undefined
       const payload = JSON.stringify({
