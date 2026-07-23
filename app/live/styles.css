@@ -374,168 +374,6 @@
   gap: 8px;
 }
 
-/* StartingScreen's pre-show circular frame (see LiveView.tsx): this is not a
-   fake telescope image. It is a quiet waiting eyepiece that shares the exact
-   viewer/rim geometry the first real observation will later occupy. */
-.viewer--starting .sky-square {
-  overflow: hidden;
-  background:
-    radial-gradient(circle at 50% 52%, rgba(199, 168, 105, 0.045), transparent 28%),
-    radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.018), transparent 36%),
-    #000;
-}
-
-.starting-eyepiece {
-  position: absolute;
-  inset: 2.05%;
-  border-radius: 50%;
-  overflow: hidden;
-  background:
-    radial-gradient(circle at 50% 52%, rgba(199, 168, 105, 0.11), transparent 18%),
-    #000;
-  box-shadow: inset 0 0 54px rgba(0, 0, 0, 0.9);
-}
-
-.starting-eyepiece::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  background:
-    radial-gradient(circle at 50% 54%, rgba(199, 168, 105, 0.16), transparent 17%),
-    radial-gradient(circle at 50% 50%, transparent 0 56%, rgba(0, 0, 0, 0.34) 72%, rgba(0, 0, 0, 0.9) 100%);
-  opacity: 0.55;
-  animation: starting-eyepiece-breathe 6s ease-in-out infinite;
-}
-
-.starting-eyepiece::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  pointer-events: none;
-  background:
-    linear-gradient(122deg, transparent 0 38%, rgba(255, 255, 255, 0.032) 43%, transparent 52%),
-    radial-gradient(circle at 50% 50%, transparent 0 58%, rgba(0, 0, 0, 0.24) 72%, rgba(0, 0, 0, 0.78) 100%);
-}
-
-.starting-star {
-  position: absolute;
-  left: var(--star-x);
-  top: var(--star-y);
-  width: var(--star-size);
-  height: var(--star-size);
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(237, 234, 227, var(--star-alpha)) 0 1.5px, rgba(237, 234, 227, 0.22) 1.7px, transparent 3px);
-  color: rgba(237, 234, 227, var(--star-alpha));
-  filter:
-    drop-shadow(0 0 4px rgba(237, 234, 227, 0.3))
-    drop-shadow(0 0 10px rgba(199, 168, 105, 0.08));
-  opacity: 0.72;
-  transform: translate(-50%, -50%);
-  animation: starting-stars-twinkle var(--star-speed) ease-in-out infinite;
-  animation-delay: var(--star-delay);
-}
-
-.starting-star::before,
-.starting-star::after {
-  content: "";
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  border-radius: 999px;
-  transform: translate(-50%, -50%);
-}
-
-.starting-star::before {
-  width: 100%;
-  height: 1px;
-  background: linear-gradient(90deg, transparent 0%, currentColor 47%, currentColor 53%, transparent 100%);
-}
-
-.starting-star::after {
-  width: 1px;
-  height: 100%;
-  background: linear-gradient(180deg, transparent 0%, currentColor 47%, currentColor 53%, transparent 100%);
-}
-
-.starting-star--one {
-  --star-x: 31%;
-  --star-y: 28%;
-  --star-size: 13px;
-  --star-alpha: 0.82;
-  --star-speed: 4.8s;
-  --star-delay: -0.6s;
-}
-
-.starting-star--two {
-  --star-x: 67%;
-  --star-y: 23%;
-  --star-size: 11px;
-  --star-alpha: 0.68;
-  --star-speed: 5.6s;
-  --star-delay: -2.1s;
-}
-
-.starting-star--three {
-  --star-x: 77%;
-  --star-y: 61%;
-  --star-size: 10px;
-  --star-alpha: 0.54;
-  --star-speed: 4.2s;
-  --star-delay: -1.3s;
-}
-
-.starting-star--four {
-  --star-x: 22%;
-  --star-y: 69%;
-  --star-size: 9px;
-  --star-alpha: 0.44;
-  --star-speed: 6.2s;
-  --star-delay: -3s;
-}
-
-.starting-star--five {
-  --star-x: 46%;
-  --star-y: 78%;
-  --star-size: 8px;
-  --star-alpha: 0.36;
-  --star-speed: 5.2s;
-  --star-delay: -1.8s;
-}
-
-@keyframes starting-eyepiece-breathe {
-  0%, 100% {
-    opacity: 0.38;
-    transform: scale(1);
-  }
-
-  50% {
-    opacity: 0.68;
-    transform: scale(1.018);
-  }
-}
-
-@keyframes starting-stars-twinkle {
-  0%, 100% {
-    opacity: 0.36;
-  }
-
-  45% {
-    opacity: 0.72;
-  }
-
-  68% {
-    opacity: 0.46;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .starting-eyepiece::before,
-  .starting-star {
-    animation: none;
-  }
-}
 
 /* Circular FOV inset holding the REAL image (object-fit:cover). Border-radius
    50% + overflow:hidden gives the circular mask; the inset box-shadow
@@ -1077,8 +915,7 @@
 /* TransitionScreen and StartingScreen both need transparent content areas —
    .content normally inherits --object-type-bg-subtle (a subtle card tint), but
    these screens should show the dark .live-root background, not a card. */
-.content--transition,
-.content--starting {
+.content--transition {
   background: transparent;
 }
 
@@ -3706,8 +3543,8 @@
    Starting screen — living sky (redesign; ported from
    docs/starting-proto-a-living-sky.html + the venue line from prototype C).
    Full-bleed animated starfield instead of the old empty circular eyepiece.
-   Replaces the .viewer--starting / .starting-eyepiece / .starting-star
-   treatment above (those rules are now unused).
+   (The old .viewer--starting / .starting-eyepiece / .starting-star rules were
+   removed — this treatment fully replaces them.)
    ========================================================================== */
 .starting-root {
   position: fixed;
