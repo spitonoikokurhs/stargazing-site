@@ -3539,6 +3539,8 @@
 .farewell-eclipse-back-home .back-home--link:focus-visible {
   color: #fff;
   background: rgba(10, 10, 15, 0.58);
+}
+
 /* ==========================================================================
    Starting screen — living sky (redesign; ported from
    docs/starting-proto-a-living-sky.html + the venue line from prototype C).
