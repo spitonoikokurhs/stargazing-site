@@ -18,20 +18,116 @@ import {
 } from '@/lib/redis'
 import { athensToday, eventFor, nextEvent } from '@/lib/schedule'
 import { extraEventFor, isExtraEventSlug } from '@/lib/extra-events'
-import { matchCoordinates } from '@/lib/catalog'
+import { matchCoordinates, nearestCatalogObject } from '@/lib/catalog'
+import { debugSecret, isDebugAuthorized, resolveDebugGate } from '@/lib/debug-auth'
 
 // Node runtime for the single Prisma read on the offline path (cancellation
 // status). The live path is Redis-only. Neither path writes to Postgres —
 // session closing lives in /api/cron/close-sessions (lib/sessions.ts).
 export const runtime = 'nodejs'
 
+// Belt-and-suspenders against a cached response: this endpoint is polled every
+// 10s for CURRENT state, and — critically for the ?debug=1 path — a response
+// built for an authenticated operator (which bypasses the finished flag) must
+// NEVER be replayed to a guest from any cache. force-dynamic + revalidate 0
+// keep Next from ever statically caching, and every response also carries
+// explicit no-store headers (see json() / debugJson() below).
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 const LIVE_WINDOW_MS = 5 * 60 * 1000 // a source is "fresh" if heard from within 5 min
 const HYSTERESIS_MS = 45 * 1000 // only switch away from the active source if the other leads by >45s
 const ACTIVE_SOURCE_TTL_S = 600 // 10-min TTL on the chosen-source key
 
-// Every response is uncacheable — /live polls this every 10s for current state.
-function json(body: unknown) {
-  return NextResponse.json(body, { headers: { 'Cache-Control': 'no-store' } })
+// Every response is uncacheable — /live polls this every 10s for current
+// state. Hardened beyond a bare `no-store` because the ?debug=1 path can return
+// live data that a guest must never receive from an intermediary cache: the
+// full directive set plus Vary: Authorization make "do not store, do not reuse
+// across auth states" explicit to every proxy/CDN, not just the browser.
+const NO_STORE_HEADERS: Record<string, string> = {
+  'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+  Pragma: 'no-cache',
+  Expires: '0',
+  Vary: 'Authorization',
+}
+function json(body: unknown, status = 200) {
+  return NextResponse.json(body, { status, headers: NO_STORE_HEADERS })
+}
+
+// Debug responses get an additional `private` directive — belt-and-suspenders
+// so a shared cache treats them as single-user even if the directives above
+// were somehow relaxed. Used for the ?debug=1 live/no-feed responses and the
+// 401 an unauthenticated debug request receives.
+const DEBUG_NO_STORE_HEADERS: Record<string, string> = {
+  ...NO_STORE_HEADERS,
+  'Cache-Control': `private, ${NO_STORE_HEADERS['Cache-Control']}`,
+}
+function debugJson(body: unknown, status = 200) {
+  return NextResponse.json(body, { status, headers: DEBUG_NO_STORE_HEADERS })
+}
+
+// The extra, raw-input fields the debug overlay renders on top of the normal
+// live payload (see app/live/LiveView.tsx's DebugOverlay). Deliberately built
+// from the SAME frame + telemetry the guest response already has, PLUS a
+// read-time nearestCatalogObject lookup — nothing here is stored or written.
+//
+// Only ever spread into a response when the caller is debug-authorized (see
+// the GET handler), so none of this can ever reach a guest. Fields the relay
+// does not yet send (mount coordinates, astrometrySolveSuspect, solveTiming,
+// coordSourceDeltaDeg, coordSourcesDisagree, newObservation) are simply ABSENT
+// from LatestFrameTelemetry today — the overlay renders "—/not sent" for each,
+// so wiring them later is purely additive here and needs no overlay change.
+function buildDebugFields(frame: LatestFrame): Record<string, unknown> {
+  const t = frame.telemetry
+  const ageSeconds = Math.max(0, Math.round((Date.now() - new Date(frame.ingestedAt).getTime()) / 1000))
+
+  const debug: Record<string, unknown> = {
+    frameId: frame.frameId,
+    sessionId: frame.sessionId,
+    observationId: frame.observationId,
+    capturedAt: frame.capturedAt,
+    ingestedAt: frame.ingestedAt,
+    frameAgeSeconds: ageSeconds,
+    state: t?.state ?? null,
+    astrometryState: t?.astrometryState ?? null,
+    totalAccumulatedTime: t?.totalAccumulatedTime ?? null,
+    raDegrees: typeof t?.raDegrees === 'number' ? t.raDegrees : null,
+    decDegrees: typeof t?.decDegrees === 'number' ? t.decDegrees : null,
+  }
+
+  // Full match result — the raw confidence + contested-field fact the guest
+  // card deliberately hides behind its display policy. Computed the same way
+  // resolveObjectMatch does, but WITHOUT the "only when named" gate, so the
+  // operator sees the decision even when the guest UI withholds the name.
+  if (t?.astrometryState === 'solved' && typeof t.raDegrees === 'number' && typeof t.decDegrees === 'number') {
+    const result = matchCoordinates(t.raDegrees, t.decDegrees)
+    debug.match = result.match
+      ? {
+          objectId: result.match.id,
+          name: result.match.primaryName,
+          type: result.match.type,
+          confidence: result.confidence,
+          separationDeg: Number(result.separationDeg.toFixed(4)),
+          hasInRangeRunnerUp: result.hasInRangeRunnerUp,
+        }
+      : { objectId: null, confidence: result.confidence, hasInRangeRunnerUp: result.hasInRangeRunnerUp }
+
+    // Nearest catalog object under TODAY's radii — the tuning signal (a
+    // fractionOfRadius just over 1.0 is a near-miss a slightly wider radius
+    // would capture). Same read-time enrichment /api/debug/match-decisions
+    // does for fallback rows.
+    const nearest = nearestCatalogObject(t.raDegrees, t.decDegrees)
+    if (nearest) {
+      debug.nearest = {
+        objectId: nearest.objectId,
+        separationDeg: Number(nearest.separationDeg.toFixed(4)),
+        displayRadiusDeg: Number(nearest.displayRadiusDeg.toFixed(4)),
+        fractionOfRadius: Number(nearest.fractionOfRadius.toFixed(3)),
+      }
+    }
+  }
+
+  return debug
 }
 
 // A guest's random, per-tab viewer id (see VIEWER_ID_STORAGE_KEY in
@@ -421,7 +517,36 @@ export async function GET(req: NextRequest) {
     //    schedule). An unknown/absent slug falls through to the normal hotel
     //    path unchanged.
     const viewerId = readViewerId(req)
+
+    // Debug gate (private operator lens — /live-debug, see app/live-debug/
+    // route.ts). Resolved BEFORE any other branch so the one genuinely
+    // dangerous outcome — an unauthenticated ?debug=1 request silently
+    // receiving normal guest behaviour and being mistaken for a working debug
+    // view — can never happen: a debug request that isn't authorized is a hard
+    // 401, never a quiet fall-through. Only when authorized does the finished
+    // flag get skipped and the extra raw fields get included (both strictly
+    // below, gated on debugAuthorized). A request WITHOUT ?debug=1 is the
+    // ordinary guest path, byte-for-byte unchanged — this whole block is inert
+    // for it.
+    const debugRequested = req.nextUrl.searchParams.get('debug') === '1'
+    const secret = debugSecret()
+    const debugAuthorized = debugRequested && secret !== undefined && isDebugAuthorized(req, secret)
+    if (debugRequested && !debugAuthorized) {
+      if (secret === undefined) {
+        console.error('/api/status?debug=1: no secret configured (VIEWER_STATS_TOKEN or INGEST_SECRET)')
+      } else {
+        console.warn(`/api/status?debug=1: auth failure at ${new Date().toISOString()}`)
+      }
+      return debugJson({ error: 'unauthorized' }, 401)
+    }
+
     const eventSlug = req.nextUrl.searchParams.get('event')
+    // Debug mode is deliberately NOT wired to the single-source special-event
+    // path in v1 — it targets the operator's hotel-night use case (finish the
+    // night, keep debugging the real hotel feed). A ?debug=1&event=<slug>
+    // request has already passed the auth gate above, so it's safe; it simply
+    // falls through to normal special-event behaviour (finished flag still
+    // honoured there). Documented so a future wiring is a deliberate choice.
     if (eventSlug && isExtraEventSlug(eventSlug) && isValidSource(eventSlug)) {
       return await extraEventStatus(eventSlug, viewerId)
     }
@@ -459,7 +584,19 @@ export async function GET(req: NextRequest) {
     //    - next reuses the exact same nextEvent() lookup the offline path
     //      already uses below, so "Next session: Monday, 21:30" on the
     //      finished screen is never a second source of truth.
-    if (finishedRaw != null) {
+    // A debug-authorized caller SKIPS this short-circuit entirely — the whole
+    // point of /live-debug is to keep seeing the real feed after "finish
+    // night," when a guest correctly gets the farewell here. Guests (every
+    // request without an authorized ?debug=1) hit the check exactly as before;
+    // its ordering, tracking, and response are untouched. The verdict is
+    // computed via the SAME pure resolveDebugGate the unit tests exercise, so
+    // the shipped ordering and the tested ordering can never drift.
+    const gate = resolveDebugGate({
+      finishedFlag: finishedRaw != null,
+      debugRequested,
+      debugAuthorized,
+    })
+    if (gate === 'guest-finished') {
       // Still tracked: a guest sitting on the farewell screen is still "on
       // the live page during the event" — see the P2 fix note on tracking
       // during all states, not only live:true.
@@ -525,7 +662,10 @@ export async function GET(req: NextRequest) {
       // this response, which is unchanged from before viewer tracking existed
       // (viewers stays the same `null` placeholder guests have always seen;
       // real numbers are readable only via the auth-gated /api/viewer-stats).
-      await trackViewer('hotel', null, hotelViewerEventKey(), viewerId)
+      // A debug-authorized caller is the operator, NOT a guest, so it's
+      // deliberately excluded from viewer counts — a post-event debugging
+      // session must not inflate the night's numbers.
+      if (!debugAuthorized) await trackViewer('hotel', null, hotelViewerEventKey(), viewerId)
 
       // Telemetry is best-effort passthrough — see resolveObjectMatch for the
       // solved+coordinates gating.
@@ -533,7 +673,8 @@ export async function GET(req: NextRequest) {
       const objectMatch = resolveObjectMatch(telemetry)
       const history = await fetchHistory(f.sessionId, chosen)
 
-      return json({
+      const respond = debugAuthorized ? debugJson : json
+      return respond({
         live: true,
         source: chosen,
         frame: {
@@ -561,6 +702,51 @@ export async function GET(req: NextRequest) {
             }
           : {}),
         ...(objectMatch ? { objectMatch } : {}),
+        // Extra raw inputs for the operator overlay — ONLY ever present when
+        // debug-authorized (see buildDebugFields / the GET guard). Guests never
+        // receive this key.
+        ...(debugAuthorized ? { debug: { finishedBypassed: finishedRaw != null, ...buildDebugFields(f) } } : {}),
+      })
+    }
+
+    // 4b. DEBUG NO-FEED. A debug-authorized caller with no fresh source gets an
+    //     HONEST diagnostic state rather than the guest offline copy: "the
+    //     relay isn't sending frames," plus the age of the most recent frame
+    //     still in Redis (if any) so the operator can tell a genuinely-dead
+    //     relay from one that just paused. Frames carry a ~10-min Redis TTL
+    //     refreshed by ingest, so a lastFrameAgeSeconds climbing past ~600
+    //     means the last frame is about to (or already did) expire — surfaced
+    //     as ttlSeconds too. Deliberately BEFORE the guest offline block so the
+    //     operator never sees "no upcoming sessions" poetry when they mean to
+    //     be debugging. Guests (no ?debug=1) never reach this.
+    if (debugAuthorized) {
+      const mostRecent = [frames.pegasus, frames.seestar]
+        .filter((f): f is LatestFrame => f !== null)
+        .sort((a, b) => new Date(b.ingestedAt).getTime() - new Date(a.ingestedAt).getTime())[0]
+      const lastFrameAgeSeconds = mostRecent
+        ? Math.max(0, Math.round((now - new Date(mostRecent.ingestedAt).getTime()) / 1000))
+        : null
+      return debugJson({
+        live: false,
+        debugNoFeed: true,
+        debug: {
+          finishedBypassed: finishedRaw != null,
+          message: mostRecent
+            ? 'No fresh feed — last frame is older than the 5-min live window.'
+            : 'No live feed — relay is not sending frames (no frame in Redis).',
+          lastFrameSource: mostRecent
+            ? mostRecent === frames.pegasus
+              ? 'pegasus'
+              : 'seestar'
+            : null,
+          lastFrameAgeSeconds,
+          // The ~10-min ingest TTL: once the last frame ages past this it's
+          // gone from Redis entirely (lastFrameAgeSeconds would then be null on
+          // the next poll). Lets the operator distinguish "paused, frame still
+          // cached" from "fully expired."
+          frameTtlSeconds: 600,
+          ...(mostRecent ? { ...buildDebugFields(mostRecent) } : {}),
+        },
       })
     }
 

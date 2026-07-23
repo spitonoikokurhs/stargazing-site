@@ -1,0 +1,216 @@
+/* Private operator debug view (app/live-debug). Two things live here:
+   1. The .debug-unauth locked-out notice.
+   2. The .debug-overlay panel LiveView renders over the live view in
+      debugMode.
+   Both reuse /live's design tokens (--bg/--text/--muted/--line/--panel/etc.
+   from app/live/styles.css, imported alongside this file) so the debug surface
+   reads as part of the same page, not a bolted-on admin console. The overlay
+   adds its OWN semantic status colours (ok/warn/bad/idle) — deliberately
+   SEPARATE from the --gold brand accent — because a debug panel scanned at
+   night outdoors needs green/amber/red to mean trust, not decoration. */
+
+:root {
+  --debug-ok: #5bbf7a; /* green — trusted / solved / fresh */
+  --debug-warn: #d9a441; /* amber — suspect / contested / borderline */
+  --debug-bad: #e25c58; /* red — bad / unavailable / expired (reuses --red hue) */
+  --debug-idle: #8a8880; /* gray — not sent / not judged */
+  --debug-panel: rgba(10, 12, 18, 0.86);
+  --debug-line: rgba(237, 234, 227, 0.14);
+}
+
+/* ---- Locked-out notice ---- */
+.debug-unauth {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: var(--bg);
+  color: var(--text);
+  font-family: Inter, Lato, ui-sans-serif, system-ui, -apple-system, sans-serif;
+}
+.debug-unauth__card {
+  max-width: 30rem;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 28px 30px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--panel);
+}
+.debug-unauth__title {
+  margin: 0;
+  font-size: 1.4rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+.debug-unauth__body {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.55;
+  font-size: 0.98rem;
+}
+.debug-unauth__body code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.86em;
+  color: var(--text);
+  background: var(--panel2);
+  padding: 1px 6px;
+  border-radius: 5px;
+}
+.debug-unauth__home {
+  margin-top: 4px;
+  color: var(--gold);
+  text-decoration: none;
+  font-size: 0.95rem;
+}
+.debug-unauth__home:hover,
+.debug-unauth__home:focus-visible {
+  text-decoration: underline;
+}
+
+/* ---- Debug overlay banner (always visible, top of the live view) ---- */
+.debug-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 8px 12px 0;
+  padding: 8px 14px;
+  border: 1px solid var(--debug-warn);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--debug-warn) 12%, var(--debug-panel));
+  color: var(--text);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.82rem;
+  letter-spacing: 0.02em;
+}
+.debug-banner__tag {
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--debug-warn);
+}
+.debug-banner__note {
+  color: var(--muted);
+}
+
+/* ---- Debug data panel ---- */
+.debug-overlay {
+  margin: 10px 12px 0;
+  border: 1px solid var(--debug-line);
+  border-radius: 12px;
+  background: var(--debug-panel);
+  overflow: hidden;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+.debug-overlay__toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 14px;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.debug-overlay__toggle:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: -2px;
+}
+.debug-overlay__chevron {
+  color: var(--muted);
+  transition: transform 0.15s ease;
+}
+.debug-overlay__chevron--open {
+  transform: rotate(90deg);
+}
+.debug-overlay__body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 4px 14px 16px;
+  border-top: 1px solid var(--debug-line);
+}
+
+.debug-block__title {
+  margin: 8px 0 6px;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--muted);
+}
+
+/* Big current-target label at the very top of the panel */
+.debug-headline {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding-top: 8px;
+}
+.debug-headline__label {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--text);
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+}
+.debug-headline__confidence {
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* Key/value rows */
+.debug-kv {
+  display: grid;
+  grid-template-columns: minmax(9rem, auto) 1fr;
+  gap: 3px 12px;
+  font-size: 0.84rem;
+  line-height: 1.35;
+}
+.debug-kv__k {
+  color: var(--muted);
+  white-space: nowrap;
+}
+.debug-kv__v {
+  color: var(--text);
+  word-break: break-word;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Semantic value colours */
+.debug-v--ok {
+  color: var(--debug-ok);
+}
+.debug-v--warn {
+  color: var(--debug-warn);
+}
+.debug-v--bad {
+  color: var(--debug-bad);
+}
+.debug-v--idle {
+  color: var(--debug-idle);
+}
+
+/* Slot for a relay field the current payload didn't send — rendered dim so the
+   panel's shape is stable whether or not the new fields have shipped yet. */
+.debug-v--absent {
+  color: var(--debug-idle);
+  font-style: italic;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .debug-overlay__chevron {
+    transition: none;
+  }
+}
