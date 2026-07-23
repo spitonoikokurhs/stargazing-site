@@ -264,6 +264,23 @@ export type LatestFrameTelemetry = {
   totalAccumulatedTime?: number
   raDegrees?: number | null
   decDegrees?: number | null
+  // --- Operator-debug passthrough (relay stale-solve / coord-source detector).
+  // Surfaced ONLY on /live-debug (see buildDebugFields in
+  // app/api/status/route.ts); the guest live card ignores them. Forwarded from
+  // ingest (see that route's allowlist) and validated field-by-field in
+  // parseLatestFrame. All optional — a frame without them (Tier-1, older relay)
+  // simply omits them, and the overlay renders "not sent."
+  astrometrySolveSuspect?: boolean
+  solveTiming?: number
+  solveTimingReason?: string
+  newObservation?: boolean
+  coordSourceDeltaDeg?: number
+  coordSourcesDisagree?: boolean
+  // Mount coords — field names PENDING relay-dev confirmation (see
+  // docs/live-debug-relay-fields-TODO.md).
+  mountRaDegrees?: number
+  mountDecDegrees?: number
+  mountTelemetryOk?: boolean
 }
 
 // The shape of the live:latest:<source> payload — the exact object /api/ingest
@@ -324,6 +341,21 @@ export function parseLatestFrame(raw: unknown): LatestFrame | null {
     }
     if (typeof t.raDegrees === 'number' && Number.isFinite(t.raDegrees)) parsed.raDegrees = t.raDegrees
     if (typeof t.decDegrees === 'number' && Number.isFinite(t.decDegrees)) parsed.decDegrees = t.decDegrees
+    // Operator-debug passthrough — validated per-field, same best-effort
+    // discipline: a wrong type on any one field just drops that field, never
+    // the whole telemetry object. Surfaced only on /live-debug.
+    if (typeof t.astrometrySolveSuspect === 'boolean') parsed.astrometrySolveSuspect = t.astrometrySolveSuspect
+    if (typeof t.solveTiming === 'number' && Number.isFinite(t.solveTiming)) parsed.solveTiming = t.solveTiming
+    if (isStr(t.solveTimingReason)) parsed.solveTimingReason = t.solveTimingReason
+    if (typeof t.newObservation === 'boolean') parsed.newObservation = t.newObservation
+    if (typeof t.coordSourceDeltaDeg === 'number' && Number.isFinite(t.coordSourceDeltaDeg))
+      parsed.coordSourceDeltaDeg = t.coordSourceDeltaDeg
+    if (typeof t.coordSourcesDisagree === 'boolean') parsed.coordSourcesDisagree = t.coordSourcesDisagree
+    if (typeof t.mountRaDegrees === 'number' && Number.isFinite(t.mountRaDegrees))
+      parsed.mountRaDegrees = t.mountRaDegrees
+    if (typeof t.mountDecDegrees === 'number' && Number.isFinite(t.mountDecDegrees))
+      parsed.mountDecDegrees = t.mountDecDegrees
+    if (typeof t.mountTelemetryOk === 'boolean') parsed.mountTelemetryOk = t.mountTelemetryOk
     if (Object.keys(parsed).length > 0) telemetry = parsed
   }
 

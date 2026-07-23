@@ -18,8 +18,9 @@ import {
 } from '@/lib/redis'
 import { athensToday, eventFor, nextEvent } from '@/lib/schedule'
 import { extraEventFor, isExtraEventSlug } from '@/lib/extra-events'
-import { matchCoordinates, nearestCatalogObject } from '@/lib/catalog'
-import { debugSecret, isDebugAuthorized, resolveDebugGate } from '@/lib/debug-auth'
+import { matchCoordinates } from '@/lib/catalog'
+import { debugSecret, isDebugAuthorized, resolveDebugGate, parseDebugParam } from '@/lib/debug-auth'
+import { buildDebugFields } from '@/lib/debug-fields'
 
 // Node runtime for the single Prisma read on the offline path (cancellation
 // status). The live path is Redis-only. Neither path writes to Postgres —
@@ -42,13 +43,16 @@ const ACTIVE_SOURCE_TTL_S = 600 // 10-min TTL on the chosen-source key
 // Every response is uncacheable — /live polls this every 10s for current
 // state. Hardened beyond a bare `no-store` because the ?debug=1 path can return
 // live data that a guest must never receive from an intermediary cache: the
-// full directive set plus Vary: Authorization make "do not store, do not reuse
-// across auth states" explicit to every proxy/CDN, not just the browser.
+// full directive set plus Vary make "do not store, do not reuse across auth
+// states" explicit to every proxy/CDN, not just the browser. Vary lists BOTH
+// Authorization (Bearer path) and Cookie (the signed sg_debug cookie path), so
+// a cache keyed on either credential can never serve one caller's response to
+// another with different credentials.
 const NO_STORE_HEADERS: Record<string, string> = {
   'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
   Pragma: 'no-cache',
   Expires: '0',
-  Vary: 'Authorization',
+  Vary: 'Authorization, Cookie',
 }
 function json(body: unknown, status = 200) {
   return NextResponse.json(body, { status, headers: NO_STORE_HEADERS })
@@ -64,70 +68,6 @@ const DEBUG_NO_STORE_HEADERS: Record<string, string> = {
 }
 function debugJson(body: unknown, status = 200) {
   return NextResponse.json(body, { status, headers: DEBUG_NO_STORE_HEADERS })
-}
-
-// The extra, raw-input fields the debug overlay renders on top of the normal
-// live payload (see app/live/LiveView.tsx's DebugOverlay). Deliberately built
-// from the SAME frame + telemetry the guest response already has, PLUS a
-// read-time nearestCatalogObject lookup — nothing here is stored or written.
-//
-// Only ever spread into a response when the caller is debug-authorized (see
-// the GET handler), so none of this can ever reach a guest. Fields the relay
-// does not yet send (mount coordinates, astrometrySolveSuspect, solveTiming,
-// coordSourceDeltaDeg, coordSourcesDisagree, newObservation) are simply ABSENT
-// from LatestFrameTelemetry today — the overlay renders "—/not sent" for each,
-// so wiring them later is purely additive here and needs no overlay change.
-function buildDebugFields(frame: LatestFrame): Record<string, unknown> {
-  const t = frame.telemetry
-  const ageSeconds = Math.max(0, Math.round((Date.now() - new Date(frame.ingestedAt).getTime()) / 1000))
-
-  const debug: Record<string, unknown> = {
-    frameId: frame.frameId,
-    sessionId: frame.sessionId,
-    observationId: frame.observationId,
-    capturedAt: frame.capturedAt,
-    ingestedAt: frame.ingestedAt,
-    frameAgeSeconds: ageSeconds,
-    state: t?.state ?? null,
-    astrometryState: t?.astrometryState ?? null,
-    totalAccumulatedTime: t?.totalAccumulatedTime ?? null,
-    raDegrees: typeof t?.raDegrees === 'number' ? t.raDegrees : null,
-    decDegrees: typeof t?.decDegrees === 'number' ? t.decDegrees : null,
-  }
-
-  // Full match result — the raw confidence + contested-field fact the guest
-  // card deliberately hides behind its display policy. Computed the same way
-  // resolveObjectMatch does, but WITHOUT the "only when named" gate, so the
-  // operator sees the decision even when the guest UI withholds the name.
-  if (t?.astrometryState === 'solved' && typeof t.raDegrees === 'number' && typeof t.decDegrees === 'number') {
-    const result = matchCoordinates(t.raDegrees, t.decDegrees)
-    debug.match = result.match
-      ? {
-          objectId: result.match.id,
-          name: result.match.primaryName,
-          type: result.match.type,
-          confidence: result.confidence,
-          separationDeg: Number(result.separationDeg.toFixed(4)),
-          hasInRangeRunnerUp: result.hasInRangeRunnerUp,
-        }
-      : { objectId: null, confidence: result.confidence, hasInRangeRunnerUp: result.hasInRangeRunnerUp }
-
-    // Nearest catalog object under TODAY's radii — the tuning signal (a
-    // fractionOfRadius just over 1.0 is a near-miss a slightly wider radius
-    // would capture). Same read-time enrichment /api/debug/match-decisions
-    // does for fallback rows.
-    const nearest = nearestCatalogObject(t.raDegrees, t.decDegrees)
-    if (nearest) {
-      debug.nearest = {
-        objectId: nearest.objectId,
-        separationDeg: Number(nearest.separationDeg.toFixed(4)),
-        displayRadiusDeg: Number(nearest.displayRadiusDeg.toFixed(4)),
-        fractionOfRadius: Number(nearest.fractionOfRadius.toFixed(3)),
-      }
-    }
-  }
-
-  return debug
 }
 
 // A guest's random, per-tab viewer id (see VIEWER_ID_STORAGE_KEY in
@@ -519,21 +459,32 @@ export async function GET(req: NextRequest) {
     const viewerId = readViewerId(req)
 
     // Debug gate (private operator lens — /live-debug, see app/live-debug/
-    // route.ts). Resolved BEFORE any other branch so the one genuinely
-    // dangerous outcome — an unauthenticated ?debug=1 request silently
-    // receiving normal guest behaviour and being mistaken for a working debug
-    // view — can never happen: a debug request that isn't authorized is a hard
-    // 401, never a quiet fall-through. Only when authorized does the finished
-    // flag get skipped and the extra raw fields get included (both strictly
-    // below, gated on debugAuthorized). A request WITHOUT ?debug=1 is the
+    // auth/route.ts). Resolved BEFORE any other branch so the one genuinely
+    // dangerous outcome — an unauthenticated debug request silently receiving
+    // normal guest behaviour and being mistaken for a working debug view —
+    // can never happen: a debug request that isn't authorized is a hard 401,
+    // never a quiet fall-through. Only when authorized does the finished flag
+    // get skipped and the extra raw fields get included (both strictly below,
+    // gated on debugAuthorized). A request with NO ?debug at all is the
     // ordinary guest path, byte-for-byte unchanged — this whole block is inert
     // for it.
-    const debugRequested = req.nextUrl.searchParams.get('debug') === '1'
+    //
+    // The debug param is parsed STRICTLY (parseDebugParam over getAll): exactly
+    // one `debug=1` is valid; `debug=true`, `debug=0`, or a duplicated/mixed
+    // `debug=0&debug=1` is a 400 client error — NOT silently degraded to the
+    // guest path, which would let an operator believe they're in debug while
+    // actually seeing the guest view (the same "invisible mistake" the
+    // no-fall-through rule guards against).
+    const debugParam = parseDebugParam(req.nextUrl.searchParams.getAll('debug'))
+    if (debugParam === 'malformed') {
+      return debugJson({ error: "invalid debug param — use exactly ?debug=1" }, 400)
+    }
+    const debugRequested = debugParam === 'valid'
     const secret = debugSecret()
     const debugAuthorized = debugRequested && secret !== undefined && isDebugAuthorized(req, secret)
     if (debugRequested && !debugAuthorized) {
       if (secret === undefined) {
-        console.error('/api/status?debug=1: no secret configured (VIEWER_STATS_TOKEN or INGEST_SECRET)')
+        console.error('/api/status?debug=1: no debug secret configured (set DEBUG_VIEW_TOKEN)')
       } else {
         console.warn(`/api/status?debug=1: auth failure at ${new Date().toISOString()}`)
       }
@@ -541,12 +492,15 @@ export async function GET(req: NextRequest) {
     }
 
     const eventSlug = req.nextUrl.searchParams.get('event')
-    // Debug mode is deliberately NOT wired to the single-source special-event
-    // path in v1 — it targets the operator's hotel-night use case (finish the
-    // night, keep debugging the real hotel feed). A ?debug=1&event=<slug>
-    // request has already passed the auth gate above, so it's safe; it simply
-    // falls through to normal special-event behaviour (finished flag still
-    // honoured there). Documented so a future wiring is a deliberate choice.
+    // v1 contract: debug mode is scoped to the hotel-night use case ONLY, not
+    // the single-source special-event path. Rather than let ?debug=1&event=…
+    // authenticate and then fall into ordinary special-event behaviour (which
+    // would still track viewers and honour that event's finished flag —
+    // contradicting the debug contract), reject the combination outright with a
+    // 400. A future version can wire debug into special events deliberately.
+    if (debugRequested && eventSlug !== null) {
+      return debugJson({ error: 'debug mode is not supported with ?event= in v1' }, 400)
+    }
     if (eventSlug && isExtraEventSlug(eventSlug) && isValidSource(eventSlug)) {
       return await extraEventStatus(eventSlug, viewerId)
     }

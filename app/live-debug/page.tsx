@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import { cookies } from 'next/headers'
 import { Cormorant_Garamond, Inter } from 'next/font/google'
 import LiveView from '../live/LiveView'
-import { debugSecret, debugCookieValue, DEBUG_COOKIE_NAME } from '@/lib/debug-auth'
+import { debugSecret, verifyDebugCookie, DEBUG_COOKIE_NAME } from '@/lib/debug-auth'
 import { DebugUnauthorized } from './DebugUnauthorized'
 import '../live/styles.css'
 import './debug.css'
@@ -52,7 +52,11 @@ export const dynamic = 'force-dynamic'
 export default function LiveDebugPage() {
   const secret = debugSecret()
   const cookie = cookies().get(DEBUG_COOKIE_NAME)?.value
-  const authorized = secret !== undefined && cookie !== undefined && cookie === debugCookieValue(secret)
+  // Verify signature AND embedded expiry (see verifyDebugCookie) — a stale or
+  // forged cookie fails here, so an expired cookie shows DebugUnauthorized, not
+  // the feed. This page gate is the UX layer; /api/status?debug=1 re-checks the
+  // same cookie server-side and is the actual security boundary.
+  const authorized = secret !== undefined && verifyDebugCookie(cookie, secret, Date.now())
 
   if (!authorized) {
     return (

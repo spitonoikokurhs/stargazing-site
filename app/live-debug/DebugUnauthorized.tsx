@@ -17,7 +17,7 @@ export function DebugUnauthorized({ configured }: { configured: boolean }) {
         ) : (
           <p className="debug-unauth__body">
             Debug access isn’t configured on this deployment. Set a{' '}
-            <code>VIEWER_STATS_TOKEN</code> to enable it.
+            <code>DEBUG_VIEW_TOKEN</code> to enable it.
           </p>
         )}
         <a className="debug-unauth__home" href="/">

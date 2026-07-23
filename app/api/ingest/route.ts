@@ -808,16 +808,44 @@ export async function POST(req: NextRequest) {
       // arbitrary/untrusted device JSON up to 64KB; the live-status contract
       // stays a narrow, known shape. Absent when Tier-1-only frames (no
       // metadata) or a non-object metadata value.
-      const telemetry =
-        metadata !== null && typeof metadata === 'object' && !Array.isArray(metadata)
-          ? {
-              state: (metadata as Record<string, unknown>).state,
-              astrometryState: (metadata as Record<string, unknown>).astrometryState,
-              totalAccumulatedTime: (metadata as Record<string, unknown>).totalAccumulatedTime,
-              raDegrees: (metadata as Record<string, unknown>).raDegrees,
-              decDegrees: (metadata as Record<string, unknown>).decDegrees,
-            }
-          : undefined
+      //
+      // The guest live card uses only the first five fields. The rest are
+      // OPERATOR-DEBUG passthrough (surfaced solely on /live-debug — see
+      // buildDebugFields in app/api/status/route.ts): the relay's stale-solve /
+      // coord-source detector fields. They must be forwarded here or they never
+      // reach the debug overlay (this allowlist, lib/redis.ts's telemetry type,
+      // and parseLatestFrame are the three strip points). Each is copied
+      // as-is; parseLatestFrame does the per-field type validation.
+      //
+      // FIELD NAMES: the six scalar/bool solve fields below match the relay's
+      // emitted names (feat/stale-solve-detector). The MOUNT coordinate names
+      // (mountRaDegrees/mountDecDegrees/mountTelemetryOk) are PENDING relay-dev
+      // confirmation — see docs/live-debug-relay-fields-TODO.md. If the relay
+      // uses different keys, correct them HERE and in the two other strip points
+      // (they read "not sent" in the overlay until they match exactly).
+      const m = metadata !== null && typeof metadata === 'object' && !Array.isArray(metadata)
+        ? (metadata as Record<string, unknown>)
+        : null
+      const telemetry = m
+        ? {
+            state: m.state,
+            astrometryState: m.astrometryState,
+            totalAccumulatedTime: m.totalAccumulatedTime,
+            raDegrees: m.raDegrees,
+            decDegrees: m.decDegrees,
+            // --- operator-debug passthrough (relay stale-solve detector) ---
+            astrometrySolveSuspect: m.astrometrySolveSuspect,
+            solveTiming: m.solveTiming,
+            solveTimingReason: m.solveTimingReason,
+            newObservation: m.newObservation,
+            coordSourceDeltaDeg: m.coordSourceDeltaDeg,
+            coordSourcesDisagree: m.coordSourcesDisagree,
+            // --- mount coords (names PENDING relay-dev confirmation) ---
+            mountRaDegrees: m.mountRaDegrees,
+            mountDecDegrees: m.mountDecDegrees,
+            mountTelemetryOk: m.mountTelemetryOk,
+          }
+        : undefined
       const payload = JSON.stringify({
         frameId: result.frameId,
         blobUrl: blob.url,
