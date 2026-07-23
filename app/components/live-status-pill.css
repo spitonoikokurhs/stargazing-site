@@ -14,7 +14,11 @@
   display: inline-flex;
   align-items: center;
   gap: 9px;
-  padding: 9px 15px;
+  /* Vertical padding matches .btn (11px) so the pill is the SAME HEIGHT as the
+     Contact/Email nav buttons — otherwise, when the nav wraps to multiple rows
+     on a narrow (Android) viewport and the pill lands beside a .btn, the height
+     mismatch made the row look misaligned. */
+  padding: 11px 15px;
   border: 1px solid var(--border);
   border-radius: 999px; /* fully rounded — reads as a status indicator, not a rectangular button */
   background: linear-gradient(180deg, #121a24, #0b1016);
@@ -77,7 +81,10 @@
 
 .live-pill__label {
   white-space: nowrap;
-  font-size: 0.9rem;
+  /* 1rem to match the nav links/.btn text size, so the pill's line-box (and
+     thus its total height) equals the .btn buttons it sits beside when the
+     header wraps on narrow viewports. */
+  font-size: 1rem;
 }
 
 /* --- Hero variant: larger, more presence for the homepage --- */

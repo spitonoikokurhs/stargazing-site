@@ -194,6 +194,28 @@ export function FarewellAegeanUfo({
   const burstRefs = useRef<(HTMLDivElement | null)[]>([null, null, null])
   const [goodnightIndex, setGoodnightIndex] = useState(0)
 
+  // Static-tier (prefers-reduced-motion) tap easter egg. The animated engine
+  // below never mounts for the static tier, so it has its own tiny, motion-free
+  // version: the SAME TAP_TIER_3 taps reveal a reward line via a gentle
+  // opacity fade (no spin/flip/zoom — safe under reduced-motion). Without this
+  // the static UFO swallowed taps entirely (guests tapped and nothing happened).
+  const [staticRevealed, setStaticRevealed] = useState(false)
+  const staticTapsRef = useRef(0)
+  const staticResetRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  function onStaticUfoTap() {
+    if (staticRevealed) return
+    staticTapsRef.current += 1
+    if (staticResetRef.current) clearTimeout(staticResetRef.current)
+    staticResetRef.current = setTimeout(() => {
+      staticTapsRef.current = 0
+    }, STREAK_RESET_IDLE_MS)
+    if (staticTapsRef.current >= TAP_TIER_3) {
+      if (staticResetRef.current) clearTimeout(staticResetRef.current)
+      setStaticRevealed(true)
+    }
+  }
+  useEffect(() => () => { if (staticResetRef.current) clearTimeout(staticResetRef.current) }, [])
+
   // Rotating goodnight line — simple interval, independent of the animation
   // engine below (pure text, no DOM-node churn either way).
   useEffect(() => {
@@ -473,7 +495,8 @@ export function FarewellAegeanUfo({
 
     // --- Tap-tier escalation ---
     let count = 0
-    let busy = false
+    let busy = false // spin-animation in flight — suppresses RE-TRIGGERING a spin, never drops a tap
+    let finaleRunning = false // the long finale sequence is playing — ignore taps until it resets
     let resetTimer: ReturnType<typeof setTimeout> | null = null
 
     function fireBursts() {
@@ -496,7 +519,15 @@ export function FarewellAegeanUfo({
     }
 
     function onUfoClick() {
-      if (busy && count < TAP_TIER_3) return
+      // While the FINALE sequence is playing, ignore further taps (it's a long
+      // choreographed payoff that must not re-fire on top of itself).
+      if (finaleRunning) return
+      // EVERY tap counts and refreshes the idle-reset — the tap NEVER gets
+      // swallowed. (Previously a `busy` gate dropped any tap landing within the
+      // ~500-700ms spin animation of the previous tap, so fast/excited tapping
+      // couldn't accumulate to the finale before the idle timer reset it — the
+      // "easter egg never triggers" bug.) `busy` now only suppresses RE-TRIGGERING
+      // the spin animation mid-flight (below), not the counting itself.
       count++
       // Full tier can afford the escalating doubling (2, 4, 8...) for a big
       // dramatic ramp-up. On the reduced tier (already-detected low-power/
@@ -511,6 +542,7 @@ export function FarewellAegeanUfo({
       }, STREAK_RESET_IDLE_MS)
 
       if (count >= TAP_TIER_3) {
+        finaleRunning = true
         busy = true
         ufo.classList.remove('spin', 'spinfast')
         void (ufo as unknown as HTMLElement).offsetWidth
@@ -550,6 +582,7 @@ export function FarewellAegeanUfo({
             cardText.classList.remove('farewell-card-text--hidden')
             ufoSlot.classList.remove('farewell-ufo-slot--finale')
             busy = false
+            finaleRunning = false
             count = 0
             setStars(2)
           }, 12500)
@@ -563,6 +596,7 @@ export function FarewellAegeanUfo({
           setTimeout(() => {
             cardText.classList.remove('farewell-card-text--hidden')
             busy = false
+            finaleRunning = false
             count = 0
             setStars(2)
           }, 4500)
@@ -570,6 +604,12 @@ export function FarewellAegeanUfo({
         return
       }
 
+      // Below TAP_TIER_3: play the greet/excited spin reaction — but ONLY if a
+      // previous spin isn't still in flight (`busy`). A tap that lands mid-spin
+      // has already been counted above; it just doesn't restart the animation,
+      // so rapid tapping accumulates smoothly toward the finale instead of
+      // thrashing (or being dropped, the old bug).
+      if (busy) return
       busy = true
       if (count >= TAP_TIER_2) {
         ufo.classList.remove('spin', 'spinfast')
@@ -614,15 +654,36 @@ export function FarewellAegeanUfo({
         <div className="farewell-stars" />
         <div className="farewell-card">
           <div className="farewell-ufo-slot">
+            {/* Tappable even in reduced-motion: the SVG is a real button with a
+                label and click handler, so the easter egg is reachable without
+                any animation. */}
             <svg
               className="farewell-ufo-unit farewell-ufo-unit--static"
               viewBox="0 0 130 78"
               xmlns="http://www.w3.org/2000/svg"
-              aria-hidden="true"
+              role="button"
+              tabIndex={0}
+              aria-label="Tap the UFO"
+              style={{ cursor: staticRevealed ? 'default' : 'pointer' }}
+              onClick={onStaticUfoTap}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault()
+                  onStaticUfoTap()
+                }
+              }}
             >
               <UfoMarkup />
             </svg>
           </div>
+          {/* Motion-free reward reveal — a gentle opacity fade once TAP_TIER_3
+              taps land (see onStaticUfoTap). No spin/flip/zoom. */}
+          {staticRevealed && (
+            <div className="farewell-reward farewell-reward--static show" role="status">
+              <span className="farewell-reward-big">You really looked up tonight.</span>
+              <span className="farewell-reward-small">Thank you for stargazing with us ✨</span>
+            </div>
+          )}
           <p className="farewell-goodnight-static">{GOODNIGHT_LINES[goodnightIndex]}</p>
           <div className="farewell-heading">Tonight’s session has ended</div>
           {nextSessionLead ? <div className="farewell-sub">{nextSessionLead}</div> : null}

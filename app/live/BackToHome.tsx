@@ -27,7 +27,7 @@ export function BackToHome({ variant }: { variant: 'arrow' | 'link' }) {
       <a
         href="/"
         className="back-home back-home--arrow"
-        aria-label="Back to stargazing.events home"
+        aria-label="Back to the homepage"
       >
         <span className="back-home__arrow" aria-hidden="true">
           ←
@@ -37,13 +37,15 @@ export function BackToHome({ variant }: { variant: 'arrow' | 'link' }) {
   }
 
   return (
-    // aria-label mirrors the arrow variant so a screen reader announces the
-    // INTENT ("back … home"), not just the bare domain the visible label shows.
-    <a href="/" className="back-home back-home--link" aria-label="Back to stargazing.events home">
+    // Neutral, domain-agnostic wording — the site is served on more than one
+    // host (e.g. stargazing.events AND stargazing.world), so a hardcoded domain
+    // label read wrong on the other one. "Back to site" works everywhere and
+    // avoids an SSR/hydration hostname mismatch. aria mirrors the arrow variant.
+    <a href="/" className="back-home back-home--link" aria-label="Back to the homepage">
       <span className="back-home__arrow" aria-hidden="true">
         ←
       </span>
-      <span className="back-home__label">stargazing.events</span>
+      <span className="back-home__label">Back to site</span>
     </a>
   )
 }

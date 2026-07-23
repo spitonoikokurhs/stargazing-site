@@ -3185,6 +3185,34 @@
   animation: farewell-reward 4.5s ease-in-out;
 }
 
+/* Static-tier (reduced-motion) reward: sits INLINE in the card flow (the card
+   text isn't cleared here, unlike the animated finale), fully visible, and
+   fades in gently rather than animating. Overrides the absolute positioning +
+   the keyframe animation from the base rule. */
+.farewell-reward--static {
+  position: static;
+  top: auto;
+  opacity: 1;
+  margin: 10px 0 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  transition: opacity 0.6s ease;
+}
+.farewell-reward--static.show {
+  animation: none; /* no motion under reduced-motion — plain fade via transition */
+}
+@media (prefers-reduced-motion: no-preference) {
+  /* If somehow shown to a motion-OK user, a soft fade-in is still nice. */
+  .farewell-reward--static {
+    animation: farewell-reward-static-in 0.6s ease both;
+  }
+}
+@keyframes farewell-reward-static-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: none; }
+}
+
 /* Full-tier finale only: the reward appears alongside the flag and must stay
    up for its whole extended hold (see the ~9s hold in the tap handler's
    TAP_TIER_3 branch) instead of the shorter reduced-tier-only 4.5s life —
