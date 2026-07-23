@@ -374,168 +374,6 @@
   gap: 8px;
 }
 
-/* StartingScreen's pre-show circular frame (see LiveView.tsx): this is not a
-   fake telescope image. It is a quiet waiting eyepiece that shares the exact
-   viewer/rim geometry the first real observation will later occupy. */
-.viewer--starting .sky-square {
-  overflow: hidden;
-  background:
-    radial-gradient(circle at 50% 52%, rgba(199, 168, 105, 0.045), transparent 28%),
-    radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.018), transparent 36%),
-    #000;
-}
-
-.starting-eyepiece {
-  position: absolute;
-  inset: 2.05%;
-  border-radius: 50%;
-  overflow: hidden;
-  background:
-    radial-gradient(circle at 50% 52%, rgba(199, 168, 105, 0.11), transparent 18%),
-    #000;
-  box-shadow: inset 0 0 54px rgba(0, 0, 0, 0.9);
-}
-
-.starting-eyepiece::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  background:
-    radial-gradient(circle at 50% 54%, rgba(199, 168, 105, 0.16), transparent 17%),
-    radial-gradient(circle at 50% 50%, transparent 0 56%, rgba(0, 0, 0, 0.34) 72%, rgba(0, 0, 0, 0.9) 100%);
-  opacity: 0.55;
-  animation: starting-eyepiece-breathe 6s ease-in-out infinite;
-}
-
-.starting-eyepiece::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  pointer-events: none;
-  background:
-    linear-gradient(122deg, transparent 0 38%, rgba(255, 255, 255, 0.032) 43%, transparent 52%),
-    radial-gradient(circle at 50% 50%, transparent 0 58%, rgba(0, 0, 0, 0.24) 72%, rgba(0, 0, 0, 0.78) 100%);
-}
-
-.starting-star {
-  position: absolute;
-  left: var(--star-x);
-  top: var(--star-y);
-  width: var(--star-size);
-  height: var(--star-size);
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(237, 234, 227, var(--star-alpha)) 0 1.5px, rgba(237, 234, 227, 0.22) 1.7px, transparent 3px);
-  color: rgba(237, 234, 227, var(--star-alpha));
-  filter:
-    drop-shadow(0 0 4px rgba(237, 234, 227, 0.3))
-    drop-shadow(0 0 10px rgba(199, 168, 105, 0.08));
-  opacity: 0.72;
-  transform: translate(-50%, -50%);
-  animation: starting-stars-twinkle var(--star-speed) ease-in-out infinite;
-  animation-delay: var(--star-delay);
-}
-
-.starting-star::before,
-.starting-star::after {
-  content: "";
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  border-radius: 999px;
-  transform: translate(-50%, -50%);
-}
-
-.starting-star::before {
-  width: 100%;
-  height: 1px;
-  background: linear-gradient(90deg, transparent 0%, currentColor 47%, currentColor 53%, transparent 100%);
-}
-
-.starting-star::after {
-  width: 1px;
-  height: 100%;
-  background: linear-gradient(180deg, transparent 0%, currentColor 47%, currentColor 53%, transparent 100%);
-}
-
-.starting-star--one {
-  --star-x: 31%;
-  --star-y: 28%;
-  --star-size: 13px;
-  --star-alpha: 0.82;
-  --star-speed: 4.8s;
-  --star-delay: -0.6s;
-}
-
-.starting-star--two {
-  --star-x: 67%;
-  --star-y: 23%;
-  --star-size: 11px;
-  --star-alpha: 0.68;
-  --star-speed: 5.6s;
-  --star-delay: -2.1s;
-}
-
-.starting-star--three {
-  --star-x: 77%;
-  --star-y: 61%;
-  --star-size: 10px;
-  --star-alpha: 0.54;
-  --star-speed: 4.2s;
-  --star-delay: -1.3s;
-}
-
-.starting-star--four {
-  --star-x: 22%;
-  --star-y: 69%;
-  --star-size: 9px;
-  --star-alpha: 0.44;
-  --star-speed: 6.2s;
-  --star-delay: -3s;
-}
-
-.starting-star--five {
-  --star-x: 46%;
-  --star-y: 78%;
-  --star-size: 8px;
-  --star-alpha: 0.36;
-  --star-speed: 5.2s;
-  --star-delay: -1.8s;
-}
-
-@keyframes starting-eyepiece-breathe {
-  0%, 100% {
-    opacity: 0.38;
-    transform: scale(1);
-  }
-
-  50% {
-    opacity: 0.68;
-    transform: scale(1.018);
-  }
-}
-
-@keyframes starting-stars-twinkle {
-  0%, 100% {
-    opacity: 0.36;
-  }
-
-  45% {
-    opacity: 0.72;
-  }
-
-  68% {
-    opacity: 0.46;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .starting-eyepiece::before,
-  .starting-star {
-    animation: none;
-  }
-}
 
 /* Circular FOV inset holding the REAL image (object-fit:cover). Border-radius
    50% + overflow:hidden gives the circular mask; the inset box-shadow
@@ -1077,8 +915,7 @@
 /* TransitionScreen and StartingScreen both need transparent content areas —
    .content normally inherits --object-type-bg-subtle (a subtle card tint), but
    these screens should show the dark .live-root background, not a card. */
-.content--transition,
-.content--starting {
+.content--transition {
   background: transparent;
 }
 
@@ -3702,4 +3539,349 @@
 .farewell-eclipse-back-home .back-home--link:focus-visible {
   color: #fff;
   background: rgba(10, 10, 15, 0.58);
+/* ==========================================================================
+   Starting screen — living sky (redesign; ported from
+   docs/starting-proto-a-living-sky.html + the venue line from prototype C).
+   Full-bleed animated starfield instead of the old empty circular eyepiece.
+   (The old .viewer--starting / .starting-eyepiece / .starting-star rules were
+   removed — this treatment fully replaces them.)
+   ========================================================================== */
+.starting-root {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+/* The canvas fills the viewport and sits behind everything else. */
+.starting-sky-canvas {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+}
+
+/* Soft vignette + a faint warm center glow, over the canvas, under the chrome —
+   gives depth without a circular mask. */
+.starting-root::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background:
+    radial-gradient(120% 90% at 50% 42%, transparent 55%, rgba(0, 0, 0, 0.5) 100%),
+    radial-gradient(60% 45% at 50% 46%, rgba(199, 168, 105, 0.045), transparent 60%);
+}
+
+/* Topbar sits on top, centered as before. */
+.starting-topbar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 3;
+  padding-top: max(10px, env(safe-area-inset-top));
+}
+
+/* Acquiring reticle — brass target easing in + gently breathing. Centered
+   slightly above the middle so the copy has room below. */
+.starting-reticle {
+  position: absolute;
+  top: 44%;
+  left: 50%;
+  /* ~3x the old size — nearly fills the screen, so the UFO can zoom up to fill
+     the whole crosshair. */
+  width: min(92vmin, 880px);
+  height: min(92vmin, 880px);
+  transform: translate(-50%, -50%);
+  z-index: 2;
+  pointer-events: none;
+  opacity: 1;
+  animation: starting-reticle-in 2.4s cubic-bezier(0.2, 0.7, 0.2, 1) 0.3s backwards;
+}
+.starting-reticle svg { width: 100%; height: 100%; overflow: visible; }
+/* Stroke widths cut to ~1/3 now the reticle is ~3x larger, so the lines stay
+   elegant/thin at the bigger size rather than reading as heavy bars. */
+.sr-ring {
+  fill: none;
+  stroke: rgba(199, 168, 105, 0.3);
+  stroke-width: 0.14;
+  transform-origin: 50% 50%;
+  animation: starting-reticle-breathe 6s ease-in-out infinite;
+}
+.sr-ring--outer {
+  stroke: rgba(199, 168, 105, 0.16);
+  stroke-dasharray: 1 2;
+  animation: starting-reticle-spin 60s linear infinite;
+}
+.sr-ring--inner { opacity: 0.6; }
+.sr-cross { stroke: rgba(199, 168, 105, 0.28); stroke-width: 0.13; }
+@keyframes starting-reticle-in {
+  from { opacity: 0; transform: translate(-50%, -50%) scale(1.16); }
+  to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+@keyframes starting-reticle-breathe { 0%, 100% { opacity: 0.75; } 50% { opacity: 1; } }
+@keyframes starting-reticle-spin { to { transform: rotate(360deg); } }
+
+/* Lock-on pulse — when the crosshair catches the UFO, the whole reticle flashes
+   brighter brass and gives one quick "tighten" (scale down + back), selling
+   "target acquired". Auto-clears (is-locked removed after ~0.9s). */
+.starting-reticle.is-locked {
+  animation: starting-reticle-lock 0.9s cubic-bezier(0.3, 0.8, 0.3, 1);
+}
+.starting-reticle.is-locked .sr-ring,
+.starting-reticle.is-locked .sr-cross {
+  animation: starting-reticle-lock-glow 0.9s ease-out;
+}
+@keyframes starting-reticle-lock {
+  0%   { transform: translate(-50%, -50%) scale(1); }
+  30%  { transform: translate(-50%, -50%) scale(0.965); } /* snap tighter */
+  100% { transform: translate(-50%, -50%) scale(1); }
+}
+@keyframes starting-reticle-lock-glow {
+  0%   { stroke: rgba(199, 168, 105, 0.3); filter: none; }
+  25%  { stroke: rgba(240, 214, 150, 0.95); filter: drop-shadow(0 0 3px rgba(199, 168, 105, 0.7)); }
+  100% { stroke: rgba(199, 168, 105, 0.3); filter: none; }
+}
+
+/* Tightened copy block: ONE poetic lead line + the quiet venue line only,
+   anchored in the lower third, centered over the sky. (The old instruction line
+   and the separate loader were dropped — redundant with the reticle + lead.) */
+.starting-copy {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 13vh;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 0 24px;
+  gap: 10px;
+  animation: starting-copy-in 1.4s ease 0.6s backwards;
+}
+@keyframes starting-copy-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+
+/* The single poetic lead line — Cormorant italic, the emotional beat of the
+   screen. Bright enough to read cleanly over the starfield; gentle crossfade. */
+.starting-lead {
+  margin: 0;
+  font-family: var(--font-display), "Cormorant Garamond", Georgia, serif;
+  font-style: italic;
+  font-weight: 500;
+  font-size: clamp(1.5rem, 5.6vw, 2.3rem);
+  line-height: 1.15;
+  color: rgba(237, 234, 227, 0.94);
+  text-shadow: 0 1px 14px rgba(0, 0, 0, 0.6);
+  text-wrap: balance;
+  opacity: 0;
+  transition: opacity 0.6s ease;
+}
+.starting-lead.is-visible { opacity: 1; }
+
+/* The venue-grounding line — quiet, small, SENTENCE case (not the old shouty
+   uppercase), sits just under the lead. */
+.starting-copy .starting-session-context {
+  margin: 0;
+  max-width: min(90vw, 460px);
+  font-size: clamp(0.8rem, 3vw, 0.92rem);
+  color: rgba(168, 166, 160, 0.72);
+  letter-spacing: 0.02em;
+  line-height: 1.4;
+  text-transform: none; /* override the legacy uppercase rule */
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.5);
+}
+
+/* Hotel logo — a small, quiet brand mark IN the copy stack, sitting just below
+   the poetic lead line and above the venue line (lead · logo · venue). */
+.starting-copy .starting-hotel-logo {
+  height: 34px;
+  width: auto;
+  margin: 2px 0;
+  opacity: 0.9;
+  filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.55));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .starting-reticle,
+  .sr-ring,
+  .sr-ring--outer,
+  .starting-copy {
+    animation: none !important;
+  }
+  .starting-reticle { transform: translate(-50%, -50%) !important; opacity: 1 !important; }
+  .starting-copy { opacity: 1 !important; transform: none !important; }
+  .starting-lead { opacity: 1 !important; transition: none !important; }
+}
+
+/* Starting-screen UFO easter-egg (see StartingUfo in LiveView.tsx). Anchored at
+   the crosshair centre; each phase class runs one beat of the choreography:
+   flyIn → lock → zoom (huge, against the eyepiece) → spotted (eyes wide) → flee.
+   The base box is large (240px) so the big zoom fills the view crisply; each
+   keyframe sets its own transform (position + scale). */
+.starting-ufo {
+  position: absolute;
+  top: 44%;
+  left: 50%;
+  z-index: 4; /* above the reticle + sky; the star of the moment */
+  width: 240px;
+  height: 136px;
+  margin: -68px 0 0 -120px; /* centre the 240x136 box on the crosshair point */
+  pointer-events: none;
+  will-change: transform, opacity;
+  transform-origin: 50% 44%;
+}
+.starting-ufo svg { display: block; width: 100%; height: 100%; overflow: visible; }
+
+/* Shared eye/mouth defaults so transitions have something to animate FROM. */
+.starting-ufo__eye {
+  transform-box: fill-box;
+  transform-origin: center;
+  transition: transform 0.16s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.starting-ufo__eyewhite,
+.starting-ufo__brow {
+  transition: opacity 0.14s ease;
+}
+
+/* PHASE: flyIn — enters small from an off-screen corner (which corner varies per
+   appearance, see the .starting-ufo--fromXX classes) toward the crosshair. The
+   entry corner is passed in via --ufo-from-x / --ufo-from-y custom properties so
+   one keyframe covers all four directions. */
+.starting-ufo {
+  --ufo-from-x: 78vw;
+  --ufo-from-y: -34vh;
+  --ufo-from-rot: -14deg;
+}
+.starting-ufo--fromTR { --ufo-from-x: 78vw;  --ufo-from-y: -34vh; --ufo-from-rot: -14deg; }
+.starting-ufo--fromTL { --ufo-from-x: -78vw; --ufo-from-y: -34vh; --ufo-from-rot: 14deg; }
+.starting-ufo--fromBR { --ufo-from-x: 78vw;  --ufo-from-y: 40vh;  --ufo-from-rot: 12deg; }
+.starting-ufo--fromBL { --ufo-from-x: -78vw; --ufo-from-y: 40vh;  --ufo-from-rot: -12deg; }
+.starting-ufo--flyIn {
+  animation: starting-ufo-flyin 1.2s cubic-bezier(0.3, 0.6, 0.4, 1) forwards;
+}
+@keyframes starting-ufo-flyin {
+  0%   { transform: translate(var(--ufo-from-x), var(--ufo-from-y)) scale(0.12) rotate(var(--ufo-from-rot)); opacity: 0; }
+  25%  { opacity: 1; }
+  100% { transform: translate(0, 0) scale(0.34) rotate(0deg); opacity: 1; }
+}
+
+/* PHASE: lock — the crosshair catches it; it settles dead-centre with a tiny
+   "held" wobble while the starfield freezes (see startingSkyControl). */
+.starting-ufo--lock {
+  animation: starting-ufo-lock 0.9s ease-out forwards;
+}
+@keyframes starting-ufo-lock {
+  0%   { transform: translate(0,0) scale(0.34); }
+  55%  { transform: translate(0,0) scale(0.40); }   /* tiny catch/overshoot */
+  100% { transform: translate(0,0) scale(0.36); }
+}
+
+/* PHASE: zoom — rushes right up to the eyepiece, filling the (now ~3x larger)
+   crosshair. Big beat: from the small fly-in size up to ~3.5 scale so the
+   saucer spans nearly the whole reticle. */
+.starting-ufo--zoom {
+  animation: starting-ufo-zoom 1.3s cubic-bezier(0.5, 0, 0.2, 1) forwards;
+}
+@keyframes starting-ufo-zoom {
+  0%   { transform: translate(0,0) scale(0.36); }
+  100% { transform: translate(0, 6px) scale(3.5); }  /* fills the big crosshair */
+}
+
+/* PHASE: spotted — realises it's been SEEN: a hard recoil back + shrink, while
+   the alien eyes snap huge. The distinct "surprise" beat. */
+.starting-ufo--spotted {
+  animation: starting-ufo-spotted 0.9s cubic-bezier(0.34, 1.4, 0.5, 1) forwards;
+}
+@keyframes starting-ufo-spotted {
+  0%   { transform: translate(0, 6px) scale(3.5) rotate(0deg); }
+  16%  { transform: translate(0, -14px) scale(3.85) rotate(2deg); } /* flinch bigger */
+  40%  { transform: translate(0, -26px) scale(3.05) rotate(-4deg); } /* jerk back */
+  100% { transform: translate(0, -34px) scale(2.9) rotate(-2deg); }
+}
+/* Eyes fly WIDE open (much more dramatic than before) + whites flash; mouth
+   drops to a startled round "oh!". The panicked wide-eyed face PERSISTS through
+   the flee too — it's fleeing BECAUSE it's startled, so the eyes stay dilated
+   until it's gone (not calmly shrinking back mid-escape). */
+.starting-ufo--spotted .starting-ufo__eye,
+.starting-ufo--flee .starting-ufo__eye {
+  transform: scale(2.6, 3.4); /* big surprised eyes (kept narrow enough not to
+                                 collide with the wider-spaced eye centres) */
+}
+.starting-ufo--spotted .starting-ufo__eyewhite,
+.starting-ufo--flee .starting-ufo__eyewhite { opacity: 1; }
+.starting-ufo--spotted .starting-ufo__mouth,
+.starting-ufo--flee .starting-ufo__mouth {
+  d: path("M57.5 35.5 q2.5 3.4 5 0"); /* rounder, dropped-jaw "oh" */
+}
+.starting-ufo--spotted .starting-ufo__brow,
+.starting-ufo--flee .starting-ufo__brow { opacity: 1; } /* raised startled brows */
+
+/* PHASE: flee — the alien TELEPORTS out instead of drifting away. It first does
+   a fast panicked 360° flip (at full size), then beams out: shrinks back toward
+   a point while squashing to a bright horizontal flash-line, then blinks to
+   nothing — the classic sci-fi teleport. Kept ~1.32s total (the 20%-longer
+   duration). The bright flash colour comes from .starting-ufo__flash below. */
+.starting-ufo--flee {
+  animation: starting-ufo-teleport 1.32s cubic-bezier(0.5, 0, 0.3, 1) forwards;
+}
+@keyframes starting-ufo-teleport {
+  0%   { transform: translate(0, -34px) scale(2.9) rotate(0deg); opacity: 1; }
+  /* --- beat 1: the 360° flip, still big --- */
+  38%  { transform: translate(0, -30px) scale(2.9) rotate(360deg); opacity: 1; }
+  /* --- beat 2: collapse back to small + squash into the teleport flash line --- */
+  70%  { transform: translate(0, -20px) scale(0.5, 0.5) rotate(360deg); opacity: 1; }
+  86%  { transform: translate(0, -16px) scale(1.15, 0.04) rotate(360deg); opacity: 1; } /* squash to a bright line */
+  100% { transform: translate(0, -16px) scale(0.02, 0.02) rotate(360deg); opacity: 0; } /* blink out */
+}
+
+/* The teleport flash: a bright beam-line that flares as the alien squashes down,
+   sold as the energy of beaming out. Rendered as a sibling overlay (see the
+   .starting-ufo-flash element), timed to the squash beat of the teleport. */
+.starting-ufo-flash {
+  position: absolute;
+  top: 44%;
+  left: 50%;
+  width: 240px;
+  height: 6px;
+  margin: -3px 0 0 -120px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, transparent, #eafff7 30%, #bfffe9 50%, #eafff7 70%, transparent);
+  box-shadow: 0 0 18px 4px rgba(190, 255, 233, 0.85);
+  transform: translateY(-16px) scaleX(0.2);
+  opacity: 0;
+  z-index: 4;
+  pointer-events: none;
+  animation: starting-ufo-flash 1.32s ease-out forwards;
+}
+@keyframes starting-ufo-flash {
+  0%, 66% { opacity: 0; transform: translateY(-16px) scaleX(0.2); }
+  82%     { opacity: 1; transform: translateY(-16px) scaleX(1); }   /* flare wide as it squashes */
+  100%    { opacity: 0; transform: translateY(-16px) scaleX(0.05); } /* snap shut */
+}
+
+/* Red alarm-siren wash on detection — a full-screen red vignette that pulses
+   fast (siren rhythm) for the 'spotted' beat, as if an alert tripped when the
+   crosshair locked on. Edge-weighted so the centre stays readable. */
+.starting-ufo-alarm {
+  position: fixed;
+  inset: 0;
+  z-index: 3; /* above the sky/reticle, below the UFO (z-index 4) and copy */
+  pointer-events: none;
+  background: radial-gradient(120% 100% at 50% 50%, transparent 40%, rgba(226, 40, 40, 0.42) 100%);
+  animation: starting-ufo-siren 0.42s steps(1, end) infinite;
+}
+@keyframes starting-ufo-siren {
+  0%,
+  100% { opacity: 0.95; }
+  50% { opacity: 0.28; } /* hard on/off flash — reads as a siren, not a fade */
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .starting-ufo,
+  .starting-ufo-alarm { display: none; } /* the whole gag is motion — hide it */
 }
