@@ -3566,3 +3566,140 @@
     transition: none;
   }
 }
+
+/* Back-to-home affordance (see BackToHome.tsx). Styled from /live's own tokens
+   (--text, --muted, --soft, --gold, --line) so it belongs to the page, not a
+   bolted-on widget. Two variants: a discreet corner arrow for the immersive
+   live view, a prominent text link for the offline/farewell states. */
+
+.back-home {
+  text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* --- variant="arrow": discreet, top-left of the live viewer, mirroring the
+   fullscreen button at top-right but quieter (it must never compete with the
+   live stream). --- */
+.back-home--arrow {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(10, 10, 15, 0.45);
+  backdrop-filter: blur(4px);
+  color: var(--muted);
+  font-size: 17px;
+  line-height: 1;
+  opacity: 0.62; /* quiet by default — present but subordinate to the live view */
+  transition: opacity 0.2s ease, color 0.2s ease, background 0.2s ease;
+}
+.back-home--arrow:hover,
+.back-home--arrow:focus-visible {
+  opacity: 1;
+  color: var(--text);
+  background: rgba(10, 10, 15, 0.62);
+  outline: none;
+}
+.back-home--arrow:focus-visible {
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--gold) 60%, transparent);
+}
+
+/* --- variant="link": prominent "← stargazing.events" text link for the
+   offline / status / farewell states. Understated-premium — brass on hover,
+   letter-spaced like the rest of /live's chrome, but clearly a link. --- */
+.back-home--link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: clamp(13px, 3.2vw, 15px);
+  letter-spacing: 0.06em;
+  padding: 8px 4px; /* generous tap target without a boxy button look */
+  transition: color 0.2s ease;
+}
+.back-home--link:hover,
+.back-home--link:focus-visible {
+  color: var(--gold);
+  outline: none;
+}
+.back-home--link:focus-visible {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.back-home--link .back-home__arrow {
+  font-size: 1.05em;
+  transition: transform 0.2s ease;
+}
+.back-home--link:hover .back-home__arrow {
+  transform: translateX(-2px); /* subtle "back" nudge on hover */
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .back-home,
+  .back-home__arrow {
+    transition: none !important;
+  }
+  .back-home--link:hover .back-home__arrow {
+    transform: none;
+  }
+}
+
+/* Placement wrappers for the back-to-home link in the status + farewell states
+   (the component itself is styled by the .back-home rules above; these only
+   position the prominent-link variant within each screen). */
+
+/* Offline / StatusScreen + SpecialEventFarewell: sits below the flavor line,
+   with breathing room, centered under the status column. */
+.status-back-home {
+  margin-top: 26px;
+  display: flex;
+  justify-content: center;
+  position: relative;
+  z-index: 2; /* above the .shooting-stars background layer */
+}
+
+/* UFO farewell: inside .farewell-card-text, below the flavor line. Positioned
+   above the interactive stage so the link is reliably tappable (the UFO
+   tap-target and background layers must not eat the click). */
+.farewell-back-home {
+  margin-top: 22px;
+  display: flex;
+  justify-content: center;
+  position: relative;
+  z-index: 4;
+  pointer-events: auto;
+}
+
+/* Eclipse farewell: overlaid on top of the scene iframe (which is
+   position:fixed, zIndex 50). Anchored TOP-LEFT rather than bottom-center: the
+   eclipse scene has its own venue footer at the bottom, and a bottom-center
+   overlay also collides with the site's cookie-consent banner on a first
+   visit. Top-left keeps the prominent link clear of both while staying above
+   the iframe (zIndex 51 > 50) so taps reach the parent-rendered link. A subtle
+   scrim disc keeps it legible over the bright daytime-sky phase of the scene. */
+.farewell-eclipse-back-home {
+  position: fixed;
+  top: 14px;
+  left: 14px;
+  z-index: 51;
+  display: flex;
+  pointer-events: auto;
+}
+.farewell-eclipse-back-home .back-home--link {
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: rgba(10, 10, 15, 0.42);
+  backdrop-filter: blur(4px);
+  color: #edeae3; /* fixed light color: the scene runs day->totality, so don't rely on --gold contrast over bright sky */
+}
+.farewell-eclipse-back-home .back-home--link:hover,
+.farewell-eclipse-back-home .back-home--link:focus-visible {
+  color: #fff;
+  background: rgba(10, 10, 15, 0.58);
+}

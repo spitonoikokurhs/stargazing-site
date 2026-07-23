@@ -2,6 +2,7 @@
 
 import { useMemo } from 'react'
 import { buildEclipseSceneHtml } from './farewell-eclipse-scene'
+import { BackToHome } from './BackToHome'
 
 // Escapes a value for safe interpolation into HTML text/attribute context.
 // The footer values (venue name, schedule sentence, logo URL) come from our
@@ -75,25 +76,36 @@ export function FarewellEclipse({
   )
 
   return (
-    <iframe
-      title="Total solar eclipse over the Asklepieion of Kos"
-      srcDoc={srcDoc}
-      // Fixed full-viewport frame: the scene is designed to own the whole
-      // screen (like the UFO farewell), and being a separate document it has no
-      // effect on the host page's scroll/layout. sandbox allows only what the
-      // scene needs — its own inline scripts — with no same-origin access,
-      // popups, navigation, or form submission.
-      sandbox="allow-scripts"
-      style={{
-        position: 'fixed',
-        inset: 0,
-        width: '100%',
-        height: '100%',
-        border: 'none',
-        display: 'block',
-        background: '#05060c',
-        zIndex: 50,
-      }}
-    />
+    <>
+      <iframe
+        title="Total solar eclipse over the Asklepieion of Kos"
+        srcDoc={srcDoc}
+        // Fixed full-viewport frame: the scene is designed to own the whole
+        // screen (like the UFO farewell), and being a separate document it has no
+        // effect on the host page's scroll/layout. sandbox allows only what the
+        // scene needs — its own inline scripts — with no same-origin access,
+        // popups, navigation, or form submission.
+        sandbox="allow-scripts"
+        style={{
+          position: 'fixed',
+          inset: 0,
+          width: '100%',
+          height: '100%',
+          border: 'none',
+          display: 'block',
+          background: '#05060c',
+          zIndex: 50,
+        }}
+      />
+      {/* Back-to-home link, rendered by the PARENT and overlaid on top of the
+          iframe (zIndex 51 > the iframe's 50). It cannot live INSIDE the srcDoc:
+          the iframe is sandboxed without allow-top-navigation, so a link within
+          it could never navigate the guest's tab to the homepage. Same calm
+          end-of-event affordance as the UFO farewell, positioned bottom-center
+          clear of the scene's own footer. */}
+      <div className="farewell-eclipse-back-home">
+        <BackToHome variant="link" />
+      </div>
+    </>
   )
 }

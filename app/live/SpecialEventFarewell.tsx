@@ -6,6 +6,8 @@
 // a genuine placeholder: same calm aesthetic as MysteryGate (same
 // .status-root/.shooting-stars background, same serif display font), plain
 // sign-off copy, no animation, no next-session line.
+import { BackToHome } from './BackToHome'
+
 const SIGN_OFF_LINE = 'Clear skies until we meet again.'
 
 export function SpecialEventFarewell() {
@@ -18,6 +20,12 @@ export function SpecialEventFarewell() {
       </div>
       <div className="status-steady">
         <p className="status-heading">{SIGN_OFF_LINE}</p>
+      </div>
+      {/* Back-to-home link — same calm end-of-event affordance as the hotel
+          farewell scenes; a guest at a finished special event should have a
+          clear path into the rest of the site. */}
+      <div className="status-back-home">
+        <BackToHome variant="link" />
       </div>
     </div>
   )
