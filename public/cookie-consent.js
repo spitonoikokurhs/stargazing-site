@@ -177,6 +177,32 @@
     );
   }
 
+  // Path-based immersive check for the CONSENT BANNER specifically. Distinct
+  // from isImmersivePage() (which is DOM-based) on purpose: the immersive
+  // markers (.live-root / .farewell-stage) are client-rendered by React AFTER
+  // hydration and, on the farewell, only after a /api/status poll returns
+  // finished — but this banner is created on DOMContentLoaded, BEFORE any of
+  // that mounts. A DOM query at banner-time would therefore miss the immersive
+  // page on a fresh QR arrival and flash the banner over the farewell during
+  // the gap (the exact bug this fixes). The URL path is known immediately, so
+  // gating on it eliminates the timing gap entirely — and it also covers the
+  // eclipse farewell, which renders inside an <iframe srcDoc> and so never puts
+  // .farewell-stage in the main document for the old CSS :has() hide to match.
+  //
+  // Every /live* route is the immersive guest experience (/live,
+  // /live/special-event, and the operator /live-debug once branches converge) —
+  // dark, full-screen, night-adapted. Suppressing the banner here is the SAME
+  // concession isImmersivePage() already makes for the privacy-settings button,
+  // extended to the banner. Consent stays fully intact: analytics remain denied
+  // (Consent Mode default) until a guest accepts, and the banner still appears
+  // on every non-immersive page, so a guest who later navigates to the homepage
+  // is prompted normally. A QR-only guest who never leaves /live simply
+  // generates no consented tracking — the correct compliant default.
+  function isImmersivePath() {
+    var path = window.location.pathname || "";
+    return path === "/live" || path.indexOf("/live/") === 0 || path.indexOf("/live-debug") === 0;
+  }
+
   function addPrivacySettingsButton() {
     if (document.getElementById("privacy-settings-button")) {
       return;
@@ -305,6 +331,14 @@
     }
 
     if (savedChoice === "rejected") {
+      return;
+    }
+
+    // Suppress the one-time consent banner on the immersive /live* experience
+    // (see isImmersivePath) so it can never cover the farewell/UFO scene on a
+    // first-visit phone. Not a compliance change: nothing is tracked without
+    // consent, and the banner still appears on every non-immersive page.
+    if (isImmersivePath()) {
       return;
     }
 

@@ -104,33 +104,24 @@
   color: #e8ecf1;
 }
 
-/* /live and the offline/status screen are an immersive full-screen dark
-   experience — the persistent privacy-settings button is suppressed there
-   entirely (see isImmersivePage() in cookie-consent.js), not just restyled,
-   so there is no button-specific rule to keep here. The one-time consent
-   banner is unaffected and still needs pinning below so it can't become
-   scrollable trailing content on <body> (same root cause as the
-   pull-to-refresh-looks-like-scrolling bug — see .live-root/.status-root's
-   overflow:hidden comments for why <body> itself is deliberately left
-   scrollable for native pull-to-refresh). The full consent banner is
-   already dark-themed by default (see .cookie-consent-banner above), so no
-   color change is needed here — but it must be pinned the same way so it
-   can't become scrollable trailing content either. */
-body:has(.live-root) .cookie-consent-banner,
-body:has(.status-root) .cookie-consent-banner {
-  position: fixed;
-}
+/* The consent banner is now suppressed on the whole immersive /live*
+   experience (/live, the status/offline screen, AND both farewell scenes)
+   in JS at creation time — see isImmersivePath() in cookie-consent.js — so
+   it never enters the DOM on those pages at all. That deliberately REPLACES
+   the two CSS rules that used to live here:
 
-/* The finished/farewell screen (FarewellAegeanUfo) is a full-screen takeover
-   with its own dark scene and its own copy about the session ending — the
-   cookie banner has no visual room here and breaks the illusion of a clean
-   closing screen. Fully hidden, not just repositioned like the rule above:
-   consent can still be granted/rejected the next time a guest lands on a
-   non-immersive page, so this is a display concession, not a compliance
-   change (see .live-root/.status-root's cases above, which still show it). */
-body:has(.farewell-stage) .cookie-consent-banner {
-  display: none;
-}
+     - body:has(.farewell-stage) ... { display: none }  (hide on farewell)
+     - body:has(.live-root|.status-root) ... { position: fixed }  (pin on live)
+
+   Both depended on :has() matching a client-rendered marker (.farewell-stage
+   / .live-root), which (a) has a timing gap — the banner is created on
+   DOMContentLoaded, before React mounts those markers, so it flashed over the
+   farewell on a fresh QR arrival; (b) silently no-ops on any browser without
+   :has(); and (c) never matched the ECLIPSE farewell at all, which renders in
+   an <iframe srcDoc> and so never puts .farewell-stage in the main document.
+   The path-based JS gate has none of those failure modes. Nothing to style
+   here anymore — if the banner isn't created on immersive pages, there's no
+   element to hide or pin. */
 
 @media (max-width: 760px) {
   .cookie-consent-banner {
