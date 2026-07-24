@@ -19,7 +19,7 @@ import type { LatestFrame, LatestFrameTelemetry } from '@/lib/redis'
 // telemetry when present, and left OUT of the payload when absent so the overlay
 // renders "not sent" (an older relay / Tier-1 frame). A field only reaches here
 // if all three upstream strip points carry it under the SAME key — see the
-// confirmed relay contract in docs/live-debug-relay-fields-TODO.md.
+// confirmed relay contract in docs/live-debug-relay-fields.md.
 export function buildDebugFields(frame: LatestFrame): Record<string, unknown> {
   const t = frame.telemetry
   const ageSeconds = Math.max(0, Math.round((Date.now() - new Date(frame.ingestedAt).getTime()) / 1000))

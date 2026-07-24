@@ -277,7 +277,7 @@ export type LatestFrameTelemetry = {
   coordSourceDeltaDeg?: number
   coordSourcesDisagree?: boolean
   // Mount coords — field names CONFIRMED against relay @ 8e8eb9a (see
-  // docs/live-debug-relay-fields-TODO.md).
+  // docs/live-debug-relay-fields.md).
   mountRaDegrees?: number | null
   mountDecDegrees?: number | null
   mountTelemetryOk?: boolean

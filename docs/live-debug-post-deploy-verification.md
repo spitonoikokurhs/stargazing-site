@@ -66,7 +66,7 @@ Confirm:
   relay is sending them, `astrometrySuspect`, `solveTiming`,
   `coordSourcesDisagree`, mount coords, etc. appear here; if they DON'T appear
   while the relay is definitely emitting them, the field-name wiring is off (see
-  docs/live-debug-relay-fields-TODO.md).
+  docs/live-debug-relay-fields.md).
 - Headers: `cache-control: private, no-store, …` and `vary: Authorization, Cookie`.
 
 ## Step 3 — Unauthenticated debug -> 401 (never a guest fall-through)
