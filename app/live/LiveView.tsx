@@ -104,6 +104,61 @@ type HistoryEntry = {
 // Raw /api/status response shapes we care about. Anything not matching one of
 // these (network error, timeout, non-2xx, bad JSON) is POLL_FAILED — never
 // treated as offline. See lib/live-status.ts for the full contract notes.
+// The raw operator-diagnostic fields /api/status?debug=1 spreads under `debug`
+// (see buildDebugFields in app/api/status/route.ts). Present ONLY on debug-
+// authorized responses; the guest payload never carries this key. Loosely
+// typed and read defensively by DebugOverlay — every field is optional so a
+// future relay addition (mount coords, solveTiming, …) needs no change here,
+// and a partial/older payload degrades to "—" per field rather than breaking
+// the overlay. `nearest`/`match` mirror lib/catalog.ts's shapes.
+type DebugFields = {
+  finishedBypassed?: boolean
+  frameId?: string
+  sessionId?: string
+  observationId?: string
+  capturedAt?: string
+  ingestedAt?: string
+  frameAgeSeconds?: number | null
+  state?: string | null
+  astrometryState?: string | null
+  totalAccumulatedTime?: number | null
+  raDegrees?: number | null
+  decDegrees?: number | null
+  match?: {
+    objectId: string | null
+    name?: string
+    type?: string
+    confidence?: string
+    separationDeg?: number
+    hasInRangeRunnerUp?: boolean
+  }
+  nearest?: {
+    objectId: string
+    separationDeg: number
+    displayRadiusDeg: number
+    fractionOfRadius: number
+  }
+  // No-feed diagnostic extras (step 4b) — present only on StatusDebugNoFeed.
+  message?: string
+  lastFrameSource?: string | null
+  lastFrameAgeSeconds?: number | null
+  frameTtlSeconds?: number
+  // Forward-compat slots for relay fields not yet sent — allow-listed as
+  // unknown so the payload validates and the overlay can render them when they
+  // start arriving, without a code change here.
+  astrometrySuspect?: boolean | null
+  solveTiming?: string | null
+  solveTimingReason?: string | null
+  newObservation?: boolean | null
+  coordSourceDeltaDeg?: number | null
+  coordSourcesDisagree?: boolean | null
+  mountRaDegrees?: number | null
+  mountDecDegrees?: number | null
+  mountTelemetryOk?: boolean | null
+  mountSlewing?: boolean | null
+  mountTelemetryAgeSeconds?: number | null
+}
+
 type StatusLive = {
   live: true
   // Hotel devices OR any special-event slug (config/extra-events.json) — kept
@@ -152,12 +207,22 @@ type StatusLive = {
     visualHint?: string
     drawer?: { heading: string; body: string }[]
   }
+  // Operator diagnostics — present ONLY on /api/status?debug=1 responses (see
+  // DebugFields). Guests never receive it; a normal /live poll has no `debug`
+  // key at all. Not validated by isLiveStatus (it's additive and read
+  // defensively), so its presence/absence never affects live-status validation.
+  debug?: DebugFields
 }
 type StatusOffline = {
   live: false
   degraded?: false
   finished?: false
   specialEventFinished?: false
+  // Optional `false` discriminant so `body.debugNoFeed === true` narrows the
+  // StatusDebugNoFeed variant cleanly out of the offline/starting branches
+  // (same pattern as degraded?/finished? above). A guest offline response
+  // simply omits it.
+  debugNoFeed?: false
   tonight: OfflinePayload['tonight']
   next: OfflinePayload['next']
 }
@@ -208,8 +273,23 @@ type StatusStarting = {
   degraded?: false
   finished?: false
   specialEventFinished?: false
+  debugNoFeed?: false
   tonight: OfflinePayload['tonight']
   next: OfflinePayload['next']
+}
+// The debug-only "no fresh feed" shape returned by /api/status?debug=1 when the
+// operator is authorized but no source is live (see app/api/status/route.ts's
+// step 4b). NEVER sent to a guest (it requires an authorized ?debug=1). Carries
+// the honest diagnostic payload instead of the guest offline copy; the client
+// treats the state itself as offline (so the reducer stays coherent) while the
+// debug overlay renders the no-feed message from `debug`.
+type StatusDebugNoFeed = {
+  live: false
+  debugNoFeed: true
+  degraded?: false
+  finished?: false
+  specialEventFinished?: false
+  debug?: DebugFields
 }
 type StatusResponse =
   | StatusLive
@@ -218,6 +298,7 @@ type StatusResponse =
   | StatusFinished
   | StatusSpecialEventFinished
   | StatusStarting
+  | StatusDebugNoFeed
 
 function isObject(v: unknown): v is Record<string, unknown> {
   return typeof v === 'object' && v !== null
@@ -366,6 +447,10 @@ function isStatusResponse(v: unknown): v is StatusResponse {
   if (v.live === false && v.specialEventFinished === true) return true
   if (v.live === false && v.degraded === true) return true
   if (v.live === false && v.starting === true) return isStartingStatus(v)
+  // Debug-only no-feed shape (see StatusDebugNoFeed) — recognized so the poll
+  // loop can route it explicitly instead of it failing validation. Only ever
+  // arrives on the authorized ?debug=1 path; a guest poll never produces it.
+  if (v.live === false && v.debugNoFeed === true) return true
   return isLiveStatus(v) || isOfflineStatus(v) || isFinishedStatus(v) || isSpecialEventFinishedStatus(v)
 }
 
@@ -1116,8 +1201,21 @@ function getOrCreateViewerId(): string | null {
 // '/api/status?event=<slug>' instead so the exact same component/state
 // machine/rendering serves a special event (see app/api/status/route.ts's
 // extraEventStatus) without any other behavioral change here.
-export default function LiveView({ statusUrl = '/api/status' }: { statusUrl?: string } = {}) {
+export default function LiveView({
+  statusUrl = '/api/status',
+  debugMode = false,
+}: { statusUrl?: string; debugMode?: boolean } = {}) {
   const [state, dispatch] = useReducer(liveStatusReducer, initialLiveStatusState)
+
+  // Operator-diagnostics channel — populated ONLY in debugMode, entirely
+  // separate from the reducer/lastLiveFrame so the guest live path and its
+  // state machine are byte-for-byte unaffected (the reducer stays
+  // presentation-agnostic about raw telemetry, by design — see LiveFrame in
+  // lib/live-status.ts). Holds the last poll's raw `debug` payload for the
+  // overlay, and a flag for the debug-only no-feed screen. Both stay null when
+  // debugMode is false, and nothing here ever renders on /live.
+  const [debugFields, setDebugFields] = useState<DebugFields | null>(null)
+  const [debugNoFeed, setDebugNoFeed] = useState(false)
 
   // Mutable refs for values the polling loop needs without re-subscribing
   // effects on every state change (the loop reads "current" state via refs,
@@ -1189,6 +1287,20 @@ export default function LiveView({ statusUrl = '/api/status' }: { statusUrl?: st
         clearTimeout(fetchTimeout)
         if (cancelled) return
 
+        // Debug channel (debugMode only) — capture the raw `debug` payload and
+        // the no-feed flag from THIS poll, independent of the reducer dispatch
+        // below. Kept here (before the terminal lock) so it updates on every
+        // valid poll while debugging. On /live (debugMode false) this is inert
+        // and neither piece of state ever changes from its initial null/false.
+        if (debugMode) {
+          const dbg =
+            'debug' in body && body.debug && typeof body.debug === 'object'
+              ? (body.debug as DebugFields)
+              : null
+          setDebugFields(dbg)
+          setDebugNoFeed(body.live === false && 'debugNoFeed' in body && body.debugNoFeed === true)
+        }
+
         // TERMINAL LOCK: Once the client has seen finished or special-event-
         // finished, the page stays on the farewell screen for the rest of the
         // session, regardless of what the server reports. This is belt-and-
@@ -1235,6 +1347,18 @@ export default function LiveView({ statusUrl = '/api/status' }: { statusUrl?: st
           // history strip must not linger as if it were still authoritative.
           setHistory([])
           dispatch({ type: 'POLL_DEGRADED' })
+        } else if (body.live === false && 'debugNoFeed' in body && body.debugNoFeed === true) {
+          // Debug-only no-feed (authorized ?debug=1, no fresh source): treat
+          // the STATE as offline so the reducer stays coherent, but with null
+          // tonight/next — the debug overlay (driven by the separate
+          // debugFields/debugNoFeed channel captured above) renders the honest
+          // "relay not sending frames" message instead of the guest offline
+          // copy. Only reachable in debugMode; a guest poll never yields this.
+          // Checked BEFORE the starting/offline branches so those keep their
+          // clean StatusStarting/StatusOffline narrowing (this shape has no
+          // tonight/next).
+          setHistory([])
+          dispatch({ type: 'POLL_OFFLINE', payload: { tonight: null, next: null } })
         } else if (body.live === false && 'starting' in body && body.starting === true) {
           // Event is scheduled and active but no frame has arrived yet.
           // Distinct from offline/reconnecting (frames existed, then stopped).
@@ -1558,7 +1682,15 @@ export default function LiveView({ statusUrl = '/api/status' }: { statusUrl?: st
     return () => clearInterval(id)
   }, [state.uiState, lastLiveLoadedAt])
 
-  return <LiveViewPresentation state={state} history={history} />
+  return (
+    <LiveViewPresentation
+      state={state}
+      history={history}
+      debugMode={debugMode}
+      debugFields={debugFields}
+      debugNoFeed={debugNoFeed}
+    />
+  )
 }
 
 function secondsAgo(ms: number): number {
@@ -1645,7 +1777,282 @@ function offlineCopy(state: LiveStatusState): { heading: string; sub?: string; l
   return { heading: 'No upcoming sessions scheduled', loader: false }
 }
 
-function LiveViewPresentation({ state, history }: { state: LiveStatusState; history: HistoryEntry[] }) {
+// ---- Operator debug overlay (debugMode / /live-debug only) ----
+// Everything below this comment is rendered EXCLUSIVELY on the /live-debug
+// route and is never reachable from guest /live. Read-only presentation of the
+// raw diagnostic fields /api/status?debug=1 returns.
+
+type DebugTone = 'ok' | 'warn' | 'bad' | 'idle' | 'absent'
+
+// One key/value row. `tone` picks the semantic colour (green ok / amber warn /
+// red bad / gray idle / dim-italic absent). A value of undefined/null renders
+// as a dim em-dash with the 'absent' tone, so an unsent field reads as "not
+// sent," never as a real value.
+function DebugRow({ k, v, tone = 'idle' }: { k: string; v: React.ReactNode; tone?: DebugTone }) {
+  const empty = v === undefined || v === null || v === ''
+  const cls = empty ? 'debug-v--absent' : `debug-v--${tone}`
+  return (
+    <>
+      <span className="debug-kv__k">{k}</span>
+      <span className={`debug-kv__v ${cls}`}>{empty ? '— not sent' : v}</span>
+    </>
+  )
+}
+
+function fmtDeg(v: number | null | undefined): string | null {
+  return typeof v === 'number' ? `${v.toFixed(4)}°` : null
+}
+function fmtAge(v: number | null | undefined): string | null {
+  return typeof v === 'number' ? `${v}s ago` : null
+}
+
+// Confidence → tone: high is trusted, medium is borderline, low/none is bad.
+function confidenceTone(confidence: string | undefined): DebugTone {
+  if (confidence === 'high') return 'ok'
+  if (confidence === 'medium') return 'warn'
+  if (confidence === 'low' || confidence === 'none') return 'bad'
+  return 'idle'
+}
+function astrometryTone(state: string | null | undefined): DebugTone {
+  if (state === 'solved') return 'ok'
+  if (state === 'failed' || state === 'unavailable') return 'bad'
+  if (state === 'present_unknown') return 'warn'
+  return 'idle'
+}
+
+// The debug panel rendered over the live view. Collapsible (legibility over
+// density — the operator reads this on a phone, outdoors, at night), starts
+// EXPANDED so the data is there without a tap. Reads `debug` defensively:
+// every field is optional, and a missing one shows "— not sent" rather than
+// breaking, so this same panel works before AND after the relay ships the new
+// fields.
+function DebugOverlay({ debug, browsingHistory }: { debug: DebugFields | null; browsingHistory: boolean }) {
+  const [open, setOpen] = useState(true)
+  const m = debug?.match
+  const n = debug?.nearest
+
+  const headlineLabel = m?.name ?? (m && m.objectId === null ? 'NO MATCH' : '—')
+  const headlineTone = confidenceTone(m?.confidence)
+
+  return (
+    <>
+      <div className="debug-banner" role="note">
+        <span className="debug-banner__tag">Debug view</span>
+        <span className="debug-banner__note">
+          {debug?.finishedBypassed ? 'guests see farewell · ' : ''}
+          {browsingHistory ? 'browsing history — data below is the live decision' : 'live decision'}
+        </span>
+      </div>
+
+      <div className="debug-overlay">
+        <button
+          type="button"
+          className="debug-overlay__toggle"
+          aria-expanded={open}
+          onClick={() => setOpen((o) => !o)}
+        >
+          <span>Telescope debug</span>
+          <span className={`debug-overlay__chevron${open ? ' debug-overlay__chevron--open' : ''}`} aria-hidden="true">
+            ›
+          </span>
+        </button>
+
+        {open && (
+          <div className="debug-overlay__body">
+            <div className="debug-headline">
+              <span className="debug-headline__label">{headlineLabel}</span>
+              {m?.confidence && (
+                <span className={`debug-headline__confidence debug-v--${headlineTone}`}>{m.confidence}</span>
+              )}
+            </div>
+
+            {/* SmartEye / astrometry solve */}
+            <div className="debug-block">
+              <p className="debug-block__title">Solve</p>
+              <div className="debug-kv">
+                <DebugRow k="Astrometry" v={debug?.astrometryState} tone={astrometryTone(debug?.astrometryState)} />
+                <DebugRow k="RA" v={fmtDeg(debug?.raDegrees)} tone="ok" />
+                <DebugRow k="Dec" v={fmtDeg(debug?.decDegrees)} tone="ok" />
+                <DebugRow k="Device state" v={debug?.state} tone="idle" />
+              </div>
+            </div>
+
+            {/* Match result — the raw confidence + contested fact the guest card hides */}
+            <div className="debug-block">
+              <p className="debug-block__title">Match</p>
+              <div className="debug-kv">
+                <DebugRow k="Object" v={m?.objectId ?? (m ? 'none' : undefined)} tone={m?.objectId ? 'ok' : 'bad'} />
+                <DebugRow k="Type" v={m?.type} tone="idle" />
+                <DebugRow k="Confidence" v={m?.confidence} tone={confidenceTone(m?.confidence)} />
+                <DebugRow
+                  k="Separation"
+                  v={typeof m?.separationDeg === 'number' ? `${m.separationDeg.toFixed(4)}°` : null}
+                  tone="idle"
+                />
+                <DebugRow
+                  k="In-range rival"
+                  v={m ? (m.hasInRangeRunnerUp ? 'YES — contested' : 'no') : undefined}
+                  tone={m?.hasInRangeRunnerUp ? 'warn' : 'ok'}
+                />
+              </div>
+            </div>
+
+            {/* Nearest under today's radii — the tuning signal */}
+            <div className="debug-block">
+              <p className="debug-block__title">Nearest (tuning)</p>
+              <div className="debug-kv">
+                <DebugRow k="Object" v={n?.objectId} tone="idle" />
+                <DebugRow
+                  k="Separation"
+                  v={typeof n?.separationDeg === 'number' ? `${n.separationDeg.toFixed(4)}°` : null}
+                  tone="idle"
+                />
+                <DebugRow
+                  k="Radius"
+                  v={typeof n?.displayRadiusDeg === 'number' ? `${n.displayRadiusDeg.toFixed(4)}°` : null}
+                  tone="idle"
+                />
+                <DebugRow
+                  k="Fraction of radius"
+                  v={typeof n?.fractionOfRadius === 'number' ? n.fractionOfRadius.toFixed(3) : null}
+                  tone={typeof n?.fractionOfRadius === 'number' && n.fractionOfRadius <= 1 ? 'ok' : 'warn'}
+                />
+              </div>
+            </div>
+
+            {/* Mount — relay does not send these yet; slots render "not sent" */}
+            <div className="debug-block">
+              <p className="debug-block__title">Mount</p>
+              <div className="debug-kv">
+                <DebugRow
+                  k="Telemetry"
+                  v={debug?.mountTelemetryOk === undefined || debug?.mountTelemetryOk === null ? undefined : debug.mountTelemetryOk ? 'ok' : 'stale'}
+                  tone={debug?.mountTelemetryOk ? 'ok' : 'bad'}
+                />
+                <DebugRow k="Mount RA" v={fmtDeg(debug?.mountRaDegrees)} tone="idle" />
+                <DebugRow k="Mount Dec" v={fmtDeg(debug?.mountDecDegrees)} tone="idle" />
+                <DebugRow
+                  k="Slewing"
+                  v={debug?.mountSlewing === undefined || debug?.mountSlewing === null ? undefined : debug.mountSlewing ? 'YES' : 'no'}
+                  tone={debug?.mountSlewing ? 'warn' : 'ok'}
+                />
+                <DebugRow
+                  k="Telemetry age"
+                  v={typeof debug?.mountTelemetryAgeSeconds === 'number' ? `${debug.mountTelemetryAgeSeconds.toFixed(1)}s` : null}
+                  tone={
+                    typeof debug?.mountTelemetryAgeSeconds === 'number' && debug.mountTelemetryAgeSeconds <= 12
+                      ? 'ok'
+                      : 'warn'
+                  }
+                />
+                <DebugRow
+                  k="Sources disagree"
+                  v={debug?.coordSourcesDisagree === undefined || debug?.coordSourcesDisagree === null ? undefined : debug.coordSourcesDisagree ? 'YES' : 'no'}
+                  tone={debug?.coordSourcesDisagree ? 'warn' : 'ok'}
+                />
+                <DebugRow k="Δ sources" v={fmtDeg(debug?.coordSourceDeltaDeg)} tone="idle" />
+              </div>
+            </div>
+
+            {/* Incoming relay fields — render when present, "not sent" until then */}
+            <div className="debug-block">
+              <p className="debug-block__title">Solve quality (relay — incoming)</p>
+              <div className="debug-kv">
+                <DebugRow
+                  k="Solve suspect"
+                  v={debug?.astrometrySuspect === undefined || debug?.astrometrySuspect === null ? undefined : debug.astrometrySuspect ? 'YES' : 'no'}
+                  tone={debug?.astrometrySuspect ? 'warn' : 'ok'}
+                />
+                <DebugRow
+                  k="Solve timing"
+                  v={debug?.solveTiming ?? null}
+                  tone="idle"
+                />
+                <DebugRow k="Timing reason" v={debug?.solveTimingReason ?? undefined} tone="idle" />
+                <DebugRow
+                  k="New observation"
+                  v={debug?.newObservation === undefined || debug?.newObservation === null ? undefined : debug.newObservation ? 'YES' : 'no'}
+                  tone="idle"
+                />
+              </div>
+            </div>
+
+            {/* Frame timing + identity */}
+            <div className="debug-block">
+              <p className="debug-block__title">Frame</p>
+              <div className="debug-kv">
+                <DebugRow k="Age" v={fmtAge(debug?.frameAgeSeconds)} tone="ok" />
+                <DebugRow
+                  k="Accumulated"
+                  v={typeof debug?.totalAccumulatedTime === 'number' ? `${debug.totalAccumulatedTime}s` : null}
+                  tone="idle"
+                />
+                <DebugRow k="Captured" v={debug?.capturedAt} tone="idle" />
+                <DebugRow k="Ingested" v={debug?.ingestedAt} tone="idle" />
+                <DebugRow k="Frame id" v={debug?.frameId} tone="idle" />
+                <DebugRow k="Session id" v={debug?.sessionId} tone="idle" />
+                <DebugRow k="Observation id" v={debug?.observationId} tone="idle" />
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </>
+  )
+}
+
+// Debug-only no-feed screen (see LiveViewPresentation). Honest diagnostic — the
+// relay isn't sending frames — with the age of whatever frame is still cached,
+// so the operator can tell a paused relay from a dead one. Never rendered on
+// guest /live.
+function DebugNoFeed({ debug }: { debug: DebugFields | null }) {
+  const age = debug?.lastFrameAgeSeconds
+  const ttl = debug?.frameTtlSeconds ?? 600
+  return (
+    <main className="debug-unauth">
+      <div className="debug-unauth__card">
+        <h1 className="debug-unauth__title">No live feed</h1>
+        <p className="debug-unauth__body">
+          {debug?.message ?? 'The relay is not currently sending frames.'}
+        </p>
+        <div className="debug-overlay" style={{ margin: 0 }}>
+          <div className="debug-overlay__body" style={{ borderTop: 0 }}>
+            <div className="debug-kv">
+              <DebugRow
+                k="Last frame"
+                v={typeof age === 'number' ? `${age}s ago` : undefined}
+                tone={typeof age === 'number' && age < ttl ? 'warn' : 'bad'}
+              />
+              <DebugRow k="Source" v={debug?.lastFrameSource ?? undefined} tone="idle" />
+              <DebugRow
+                k="Redis TTL"
+                v={`~${ttl}s (frame expires after this)`}
+                tone="idle"
+              />
+            </div>
+          </div>
+        </div>
+        <a className="debug-unauth__home" href="/live-debug">
+          ↻ Keep polling
+        </a>
+      </div>
+    </main>
+  )
+}
+
+function LiveViewPresentation({
+  state,
+  history,
+  debugMode = false,
+  debugFields = null,
+  debugNoFeed = false,
+}: {
+  state: LiveStatusState
+  history: HistoryEntry[]
+  debugMode?: boolean
+  debugFields?: DebugFields | null
+  debugNoFeed?: boolean
+}) {
   const { uiState, lastLiveFrame } = state
 
   // Which farewell scene (UFO vs. eclipse) THIS client shows, resolved once on
@@ -1821,6 +2228,14 @@ function LiveViewPresentation({ state, history }: { state: LiveStatusState; hist
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [history])
 
+  // Debug-only no-feed screen — intercepts BEFORE every guest offline/checking
+  // screen so the operator sees the honest "relay not sending frames" +
+  // last-frame-age diagnostic instead of the guest offline poetry. Gated on
+  // debugMode, so /live never reaches it (debugNoFeed is always false there).
+  if (debugMode && debugNoFeed) {
+    return <DebugNoFeed debug={debugFields} />
+  }
+
   if (uiState === 'checking') {
     return <StatusScreen heading="Checking…" loader />
   }
@@ -1946,6 +2361,8 @@ function LiveViewPresentation({ state, history }: { state: LiveStatusState; hist
         selectedHistoryRun={selectedHistoryRun}
         historyPreloadError={historyPreloadError}
         onSelectHistoryRun={handleSelectHistoryRun}
+        debugMode={debugMode}
+        debugFields={debugFields}
       />
     )
   }
@@ -1993,6 +2410,8 @@ function LiveViewPresentation({ state, history }: { state: LiveStatusState; hist
       selectedHistoryRun={null}
       historyPreloadError={historyPreloadError}
       onSelectHistoryRun={handleSelectHistoryRun}
+      debugMode={debugMode}
+      debugFields={debugFields}
     />
   )
 }
@@ -2749,6 +3168,8 @@ function LiveFrameView({
   selectedHistoryRun,
   historyPreloadError,
   onSelectHistoryRun,
+  debugMode = false,
+  debugFields = null,
 }: {
   uiState: LiveStatusState['uiState']
   lastLiveFrame: NonNullable<LiveStatusState['lastLiveFrame']>
@@ -2756,6 +3177,8 @@ function LiveFrameView({
   selectedHistoryRun: HistoryEntry | null
   historyPreloadError: string | null
   onSelectHistoryRun: (run: HistoryEntry | null) => void
+  debugMode?: boolean
+  debugFields?: DebugFields | null
 }) {
   // 'off': normal circular view. 'native': the real Fullscreen API is active
   // (Android/desktop — unaffected by this change). 'css-fallback': a fixed
@@ -3077,6 +3500,14 @@ function LiveFrameView({
             </button>
           </div>
         </header>
+
+        {/* Operator debug overlay — ONLY rendered in debugMode (the /live-debug
+            route), never on guest /live. Sits between the status topbar and the
+            image so the raw decision inputs are the first thing the operator
+            sees, above the guest-facing card. selectedHistoryRun ? shows the
+            historically-browsed run isn't the live decision; debugFields always
+            reflects the latest LIVE poll regardless of what's being viewed. */}
+        {debugMode && <DebugOverlay debug={debugFields} browsingHistory={selectedHistoryRun !== null} />}
 
         <section className="viewer" aria-label="Live telescope image" ref={viewerRef}>
           <div className="sky-square">
