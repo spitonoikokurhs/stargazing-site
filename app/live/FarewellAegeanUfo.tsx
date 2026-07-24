@@ -185,6 +185,11 @@ export function FarewellAegeanUfo({
   const reflLayerRef = useRef<HTMLDivElement>(null)
   const bgLayerRef = useRef<HTMLDivElement>(null)
   const ufoRef = useRef<SVGSVGElement>(null)
+  // The click/keyboard target is the wrapping native <button> (see the render),
+  // not the SVG — so keyboard activation (Enter/Space, which a native button
+  // turns into a click) reaches onUfoClick too. ufoRef stays on the SVG for the
+  // animation's classList (spin/spinfast) manipulation.
+  const ufoButtonRef = useRef<HTMLButtonElement>(null)
   const bubbleRef = useRef<HTMLDivElement>(null)
   const fleetRef = useRef<HTMLDivElement>(null)
   const rewardRef = useRef<HTMLDivElement>(null)
@@ -238,6 +243,7 @@ export function FarewellAegeanUfo({
       !reflLayerRef.current ||
       !bgLayerRef.current ||
       !ufoRef.current ||
+      !ufoButtonRef.current ||
       !bubbleRef.current ||
       !fleetRef.current ||
       !rewardRef.current ||
@@ -257,6 +263,7 @@ export function FarewellAegeanUfo({
     const reflLayer = reflLayerRef.current!
     const bgLayer = bgLayerRef.current!
     const ufo = ufoRef.current!
+    const ufoButton = ufoButtonRef.current!
     const bubble = bubbleRef.current!
     const fleet = fleetRef.current!
     const reward = rewardRef.current!
@@ -630,13 +637,15 @@ export function FarewellAegeanUfo({
         }, 700)
       }
     }
-    ufo.addEventListener('click', onUfoClick)
+    // Listener on the BUTTON, not the SVG — a native button turns Enter/Space
+    // into a click, so keyboard users trigger onUfoClick exactly like a tap.
+    ufoButton.addEventListener('click', onUfoClick)
 
     return () => {
       cancelAnimationFrame(rafId)
       if (resetTimer) clearTimeout(resetTimer)
       if (comet.timer) clearTimeout(comet.timer)
-      ufo.removeEventListener('click', onUfoClick)
+      ufoButton.removeEventListener('click', onUfoClick)
       for (const p of pool) {
         if (p.timer) clearTimeout(p.timer)
         p.el.remove()
@@ -654,27 +663,28 @@ export function FarewellAegeanUfo({
         <div className="farewell-stars" />
         <div className="farewell-card">
           <div className="farewell-ufo-slot">
-            {/* Tappable even in reduced-motion: the SVG is a real button with a
-                label and click handler, so the easter egg is reachable without
-                any animation. */}
-            <svg
-              className="farewell-ufo-unit farewell-ufo-unit--static"
-              viewBox="0 0 130 78"
-              xmlns="http://www.w3.org/2000/svg"
-              role="button"
-              tabIndex={0}
+            {/* A REAL native <button> (not an svg with role="button"): native
+                buttons get Enter/Space activation, focus, and reliable
+                VoiceOver/TalkBack semantics for free — more robust than an ARIA
+                role on an SVG. The SVG inside is purely decorative
+                (aria-hidden). Reachable and operable without any animation, so
+                the easter egg works in reduced-motion. */}
+            <button
+              type="button"
+              className="farewell-ufo-button"
               aria-label="Tap the UFO"
-              style={{ cursor: staticRevealed ? 'default' : 'pointer' }}
+              disabled={staticRevealed}
               onClick={onStaticUfoTap}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault()
-                  onStaticUfoTap()
-                }
-              }}
             >
-              <UfoMarkup />
-            </svg>
+              <svg
+                className="farewell-ufo-unit farewell-ufo-unit--static"
+                viewBox="0 0 130 78"
+                xmlns="http://www.w3.org/2000/svg"
+                aria-hidden="true"
+              >
+                <UfoMarkup />
+              </svg>
+            </button>
           </div>
           {/* Motion-free reward reveal — a gentle opacity fade once TAP_TIER_3
               taps land (see onStaticUfoTap). No spin/flip/zoom. */}
@@ -758,16 +768,21 @@ export function FarewellAegeanUfo({
           <div className="farewell-burst" ref={(el) => { burstRefs.current[1] = el }} />
           <div className="farewell-burst" ref={(el) => { burstRefs.current[2] = el }} />
           <div className="farewell-bubble" ref={bubbleRef} />
-          <svg
-            className="farewell-ufo-unit"
-            ref={ufoRef}
-            viewBox="0 0 130 78"
-            xmlns="http://www.w3.org/2000/svg"
-            role="button"
-            aria-label="Tap the UFO"
-          >
-            <UfoMarkup />
-          </svg>
+          {/* Same native-<button> treatment as the static tier, so both tiers
+              are identically keyboard-reachable and screen-reader-labelled. The
+              button is the click/focus target; the SVG (kept on ufoRef for the
+              spin animation) is decorative. */}
+          <button type="button" className="farewell-ufo-button" ref={ufoButtonRef} aria-label="Tap the UFO">
+            <svg
+              className="farewell-ufo-unit"
+              ref={ufoRef}
+              viewBox="0 0 130 78"
+              xmlns="http://www.w3.org/2000/svg"
+              aria-hidden="true"
+            >
+              <UfoMarkup />
+            </svg>
+          </button>
         </div>
 
         <div className="farewell-card-text" ref={cardTextRef}>

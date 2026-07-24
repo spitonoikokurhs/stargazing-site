@@ -2500,6 +2500,27 @@
   pointer-events: none;
 }
 
+/* The UFO's interactive element is now a native <button> wrapping the SVG (see
+   FarewellAegeanUfo.tsx) — for reliable keyboard + screen-reader support. The
+   button carries NO visual chrome of its own (transparent, no border/padding)
+   so the scene looks identical; display:contents makes it a pure semantic/focus
+   wrapper that generates no box, so the SVG inside keeps resolving its absolute
+   position against .farewell-ufo-slot exactly as before. */
+.farewell-ufo-button {
+  display: contents;
+  background: none;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.farewell-ufo-button:disabled {
+  cursor: default;
+}
+
 .farewell-ufo-unit {
   position: absolute;
   left: 0;
@@ -2512,19 +2533,20 @@
   transform-origin: 50% 55%;
   animation: farewell-teleport 7s cubic-bezier(0.5, 0.1, 0.3, 1) infinite;
   filter: drop-shadow(0 0 12px rgba(126, 224, 196, 0.3));
-  /* The only reaction to a tap should be the spin/bubble animation the click
-     handler triggers — not the browser's default tap-highlight flash or a
-     focus ring (this is a decorative easter egg, not a real interactive
-     control that needs a visible focus state). */
   -webkit-tap-highlight-color: transparent;
   -webkit-touch-callout: none;
   user-select: none;
-  outline: none;
 }
 
-.farewell-ufo-unit:focus,
-.farewell-ufo-unit:focus-visible {
-  outline: none;
+/* Restored, visible keyboard focus (previously suppressed): a real interactive
+   control MUST show where focus is. Because the button is display:contents
+   (no box to outline), the ring is drawn on the SVG when the button has
+   keyboard focus. Mouse/touch taps don't trigger :focus-visible, so the scene
+   is unchanged for pointer users. */
+.farewell-ufo-button:focus-visible .farewell-ufo-unit {
+  outline: 2px solid #7ee0c4;
+  outline-offset: 4px;
+  border-radius: 8px;
 }
 
 .farewell-ufo-unit--static {
@@ -3189,6 +3211,17 @@
    text isn't cleared here, unlike the animated finale), fully visible, and
    fades in gently rather than animating. Overrides the absolute positioning +
    the keyframe animation from the base rule. */
+/* Static tier = prefers-reduced-motion ONLY (see FarewellAegeanUfo's static
+   render). The reward is conditionally mounted only after the tap streak, so it
+   enters the DOM already at its final opacity:1 — it simply APPEARS, with no
+   motion, which is exactly right for these users. This block is deliberately
+   honest about that: no transition and no keyframe animation (an earlier
+   version declared `transition: opacity` and a no-preference fade-in, but a
+   transition can't animate an element that mounts already at its target value,
+   and a no-preference rule can never apply to a reduced-motion-only tier — both
+   were dead code that read as "it fades" when it never did). The `.show` class
+   the markup adds carries no animation here on purpose; it's shared with the
+   animated tiers, which DO animate it (see .farewell-reward.show above). */
 .farewell-reward--static {
   position: static;
   top: auto;
@@ -3197,20 +3230,9 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
-  transition: opacity 0.6s ease;
 }
 .farewell-reward--static.show {
-  animation: none; /* no motion under reduced-motion — plain fade via transition */
-}
-@media (prefers-reduced-motion: no-preference) {
-  /* If somehow shown to a motion-OK user, a soft fade-in is still nice. */
-  .farewell-reward--static {
-    animation: farewell-reward-static-in 0.6s ease both;
-  }
-}
-@keyframes farewell-reward-static-in {
-  from { opacity: 0; transform: translateY(4px); }
-  to { opacity: 1; transform: none; }
+  animation: none;
 }
 
 /* Full-tier finale only: the reward appears alongside the flag and must stay
