@@ -1,7 +1,6 @@
 import type { Metadata } from 'next'
 import Script from 'next/script'
-import { Analytics } from '@vercel/analytics/react'
-import { SpeedInsights } from '@vercel/speed-insights/next'
+import { ConsentedAnalytics } from './ConsentedAnalytics'
 import './globals.css'
 import './cookie-consent.css'
 
@@ -35,8 +34,10 @@ export default function RootLayout({
       </head>
       <body>
         {children}
-        <Analytics />
-        <SpeedInsights />
+        {/* Vercel Analytics + Speed Insights, gated behind stored analytics
+            consent (see ConsentedAnalytics / lib/consent.ts). Previously mounted
+            unconditionally here, which reported on every route before consent. */}
+        <ConsentedAnalytics />
         <Script src="/cookie-consent.js" strategy="afterInteractive" />
       </body>
     </html>

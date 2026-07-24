@@ -10,6 +10,7 @@ import {
 } from '@/lib/live-status'
 import { formatNextSessionLines, NO_NEXT_SESSION_LINE } from '@/lib/live-farewell'
 import { eventFor, nextEvent } from '@/lib/schedule'
+import { hasAnalyticsConsent } from '@/lib/consent'
 import { FarewellAegeanUfo } from './FarewellAegeanUfo'
 import { FarewellEclipse } from './FarewellEclipse'
 import { resolveFarewellScene, forcedSceneFromQuery, type FarewellScene } from './farewell-scene-choice'
@@ -1184,6 +1185,16 @@ const VIEWER_ID_STORAGE_KEY = 'stargazing:viewerId'
 
 function getOrCreateViewerId(): string | null {
   if (typeof window === 'undefined') return null
+  // Consent gate (ePrivacy Art. 5(3)): the viewer id is NON-essential analytics
+  // storage, so it must not be created or written without prior consent. Without
+  // consent this returns null — no id is stored, and the poll loop sends no
+  // viewerId param, so trackViewer (server-side) skips this guest entirely (it
+  // already no-ops on a null id). This is what makes suppressing the banner on
+  // /live compliant: nothing is collected there until a guest has accepted
+  // (a choice that persists site-wide, so accepting on the homepage carries
+  // over). If consent is later granted mid-session, the next mount picks up the
+  // id; we deliberately do NOT retroactively backfill this poll.
+  if (!hasAnalyticsConsent()) return null
   try {
     const existing = window.sessionStorage.getItem(VIEWER_ID_STORAGE_KEY)
     if (existing) return existing

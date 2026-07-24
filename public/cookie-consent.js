@@ -70,6 +70,15 @@
 
     saveChoice("accepted");
     loadGoogleAnalytics();
+    // Let consent-gated React components (Vercel Analytics + Speed Insights,
+    // see app/ConsentedAnalytics.tsx) start immediately without a page reload.
+    // Must match CONSENT_GRANTED_EVENT in lib/consent.ts.
+    try {
+      window.dispatchEvent(new Event("stargazing-consent-granted"));
+    } catch (error) {
+      // Older engines without the Event constructor: the components still pick
+      // consent up on their next mount/navigation, so this is best-effort.
+    }
     removeBanner();
   }
 
