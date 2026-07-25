@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { BackToHome } from './BackToHome'
+import { initialTapState, tap as tapDecision, idleReset, type FarewellTapState } from '@/lib/farewell-taps'
 
 // Ported from docs/ufo-escalatev1.html (the standalone prototype), preserving
 // the design/animation/tap-tier logic as-is per explicit instruction. The
@@ -501,7 +502,12 @@ export function FarewellAegeanUfo({
     setStars(2) // calm baseline sky
 
     // --- Tap-tier escalation ---
-    let count = 0
+    // Count + terminal-finale state live in the pure state machine
+    // (lib/farewell-taps.ts) so the "every tap counts" and "finale is terminal
+    // forever" rules are unit-tested directly (scripts/test-farewell-taps.mjs),
+    // not mirrored. tapState.finaleCompleted is the permanent terminal latch;
+    // busy/finaleRunning below are animation-only gates layered on top.
+    let tapState: FarewellTapState = initialTapState()
     let busy = false // spin-animation in flight — suppresses RE-TRIGGERING a spin, never drops a tap
     let finaleRunning = false // the long finale sequence is playing — ignore taps until it resets
     let resetTimer: ReturnType<typeof setTimeout> | null = null
@@ -527,28 +533,32 @@ export function FarewellAegeanUfo({
 
     function onUfoClick() {
       // While the FINALE sequence is playing, ignore further taps (it's a long
-      // choreographed payoff that must not re-fire on top of itself).
+      // choreographed payoff that must not re-fire on top of itself). This is an
+      // animation gate distinct from the terminal latch below.
       if (finaleRunning) return
-      // EVERY tap counts and refreshes the idle-reset — the tap NEVER gets
-      // swallowed. (Previously a `busy` gate dropped any tap landing within the
-      // ~500-700ms spin animation of the previous tap, so fast/excited tapping
-      // couldn't accumulate to the finale before the idle timer reset it — the
-      // "easter egg never triggers" bug.) `busy` now only suppresses RE-TRIGGERING
-      // the spin animation mid-flight (below), not the counting itself.
-      count++
+
+      // The pure state machine decides everything: it counts the tap, or — if
+      // the finale has ALREADY fired — returns 'ignored' (terminal, no replay).
+      // EVERY tap counts until the finale (no tap swallowed by an in-flight
+      // spin); `busy` only suppresses RE-TRIGGERING the spin animation, never
+      // the counting.
+      const result = tapDecision(tapState)
+      tapState = result.state
+      if (result.action === 'ignored') return // post-finale: terminal, inert
+
       // Full tier can afford the escalating doubling (2, 4, 8...) for a big
       // dramatic ramp-up. On the reduced tier (already-detected low-power/
       // low-frame-rate devices), grow much more conservatively — +2 stars
       // per tap instead of doubling — so a fast tap streak can't spike the
       // DOM-churn cost on a device that's already struggling.
-      setStars(tier === 'full' ? Math.pow(2, count) : 2 + count * 2)
+      setStars(tier === 'full' ? Math.pow(2, tapState.count) : 2 + tapState.count * 2)
       if (resetTimer) clearTimeout(resetTimer)
       resetTimer = setTimeout(() => {
-        count = 0
+        tapState = idleReset(tapState) // cannot clear the terminal latch
         setStars(2)
       }, STREAK_RESET_IDLE_MS)
 
-      if (count >= TAP_TIER_3) {
+      if (result.action === 'finale') {
         finaleRunning = true
         busy = true
         ufo.classList.remove('spin', 'spinfast')
@@ -590,7 +600,10 @@ export function FarewellAegeanUfo({
             ufoSlot.classList.remove('farewell-ufo-slot--finale')
             busy = false
             finaleRunning = false
-            count = 0
+            // Streak count reset for tidiness; the terminal latch
+            // (finaleCompleted) survives idleReset, so no tap can replay the
+            // finale even though finaleRunning is back to false.
+            tapState = idleReset(tapState)
             setStars(2)
           }, 12500)
         } else {
@@ -604,7 +617,7 @@ export function FarewellAegeanUfo({
             cardText.classList.remove('farewell-card-text--hidden')
             busy = false
             finaleRunning = false
-            count = 0
+            tapState = idleReset(tapState) // terminal latch survives
             setStars(2)
           }, 4500)
         }
@@ -618,7 +631,7 @@ export function FarewellAegeanUfo({
       // thrashing (or being dropped, the old bug).
       if (busy) return
       busy = true
-      if (count >= TAP_TIER_2) {
+      if (tapState.count >= TAP_TIER_2) {
         ufo.classList.remove('spin', 'spinfast')
         void (ufo as unknown as HTMLElement).offsetWidth
         ufo.classList.add('spinfast')
