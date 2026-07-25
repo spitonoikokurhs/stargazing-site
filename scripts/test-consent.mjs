@@ -1,16 +1,12 @@
-// Behavioral tests for the analytics-consent gate (lib/consent.ts) — the
-// load-bearing claim behind suppressing the cookie banner on /live*: nothing
-// non-essential is collected without consent. Covers the exact contract the
-// review asked for:
-//   - no stored consent  -> hasAnalyticsConsent() false  (=> no viewer id is
-//     created, no Vercel Analytics / Speed Insights mount)
-//   - stored "accepted"  -> hasAnalyticsConsent() true    (analytics runs)
-//   - "rejected" / absent / bad storage -> false (safe default)
+// Behavioral tests for the analytics-consent gate — the load-bearing claim
+// behind suppressing the cookie banner on /live*: nothing non-essential is
+// collected without consent, AND withdrawal is as effective as granting.
 //
-// Pure-function test in the repo's existing style (no framework, no jsdom): we
-// stub a minimal window.localStorage so lib/consent.ts's real code runs. We
-// also exercise the viewer-id GATE against the same helper to prove the
-// "no consent -> no id, no storage write" behaviour end-to-end.
+// These test the ACTUAL shipped functions from lib/consent.ts (getOrCreateViewerId
+// / getConsentedViewerId / clearStoredViewerId / hasAnalyticsConsent) — not a
+// mirror of them. LiveView imports the same functions, so passing here means the
+// live path behaves this way. We stub window.localStorage + window.sessionStorage
+// so the real code runs; no framework, no jsdom (repo style).
 //
 // Run with: node --import tsx scripts/test-consent.mjs
 
@@ -20,10 +16,8 @@ function assert(label, cond, detail) {
   else { failures++; console.log(`FAIL  ${label}${detail ? '  — ' + detail : ''}`) }
 }
 
-// --- Minimal in-memory localStorage stub on a fake window (set BEFORE import so
-//     lib/consent.ts sees window at module-eval time via typeof checks). ---
-function makeStorage(initial) {
-  const map = new Map(Object.entries(initial || {}))
+function makeStorage() {
+  const map = new Map()
   return {
     getItem: (k) => (map.has(k) ? map.get(k) : null),
     setItem: (k, v) => map.set(k, String(v)),
@@ -32,85 +26,87 @@ function makeStorage(initial) {
   }
 }
 
-globalThis.window = { localStorage: makeStorage({}) }
+// Fake window with both storages + a crypto.randomUUID, set BEFORE import so
+// lib/consent.ts's typeof-window checks see it.
+let local = makeStorage()
+let session = makeStorage()
+globalThis.window = { localStorage: local, sessionStorage: session }
+if (!globalThis.crypto) globalThis.crypto = {}
+let uuidN = 0
+globalThis.crypto.randomUUID = () => `uuid-${++uuidN}`
 
-const { hasAnalyticsConsent, CONSENT_STORAGE_KEY, CONSENT_ACCEPTED_VALUE } = await import('../lib/consent.ts')
+const {
+  hasAnalyticsConsent,
+  getOrCreateViewerId,
+  getConsentedViewerId,
+  clearStoredViewerId,
+  CONSENT_STORAGE_KEY,
+  CONSENT_ACCEPTED_VALUE,
+  VIEWER_ID_STORAGE_KEY,
+} = await import('../lib/consent.ts')
 
-function setConsent(value) {
-  if (value === null) globalThis.window.localStorage.removeItem(CONSENT_STORAGE_KEY)
-  else globalThis.window.localStorage.setItem(CONSENT_STORAGE_KEY, value)
-}
-
-// A faithful mirror of getOrCreateViewerId's consent GATE (the real function is
-// module-private in LiveView.tsx). It proves the load-bearing behaviour: the
-// consent check happens BEFORE any sessionStorage write, so no id is stored
-// without consent. Uses a stubbed sessionStorage so we can assert no write.
-function makeViewerIdGate() {
-  const session = makeStorage({})
-  const VIEWER_ID_STORAGE_KEY = 'stargazing:viewerId'
-  function getOrCreateViewerId() {
-    if (!hasAnalyticsConsent()) return null // <-- the gate under test
-    const existing = session.getItem(VIEWER_ID_STORAGE_KEY)
-    if (existing) return existing
-    const fresh = 'viewer-' + session._map.size // deterministic stand-in for crypto.randomUUID()
-    session.setItem(VIEWER_ID_STORAGE_KEY, fresh)
-    return fresh
-  }
-  return { getOrCreateViewerId, session, VIEWER_ID_STORAGE_KEY }
-}
+function accept() { local.setItem(CONSENT_STORAGE_KEY, CONSENT_ACCEPTED_VALUE) }
+function reject() { local.setItem(CONSENT_STORAGE_KEY, 'rejected') }
+function clearChoice() { local.removeItem(CONSENT_STORAGE_KEY) }
+function reset() { local = makeStorage(); session = makeStorage(); globalThis.window = { localStorage: local, sessionStorage: session } }
 
 function main() {
   // --- hasAnalyticsConsent contract ---
-  setConsent(null)
+  reset(); clearChoice()
   assert('no choice -> not consented', hasAnalyticsConsent() === false)
+  reject(); assert('rejected -> not consented', hasAnalyticsConsent() === false)
+  local.setItem(CONSENT_STORAGE_KEY, 'garbage'); assert('unknown value -> not consented', hasAnalyticsConsent() === false)
+  accept(); assert('accepted -> consented', hasAnalyticsConsent() === true)
 
-  setConsent('rejected')
-  assert('rejected -> not consented', hasAnalyticsConsent() === false)
+  // --- No consent: getOrCreateViewerId returns null AND writes nothing ---
+  reset(); clearChoice()
+  assert('no consent -> getOrCreateViewerId null', getOrCreateViewerId() === null)
+  assert('no consent -> NOTHING in sessionStorage', session._map.size === 0)
+  assert('no consent -> getConsentedViewerId null', getConsentedViewerId() === null)
 
-  setConsent('garbage')
-  assert('unknown value -> not consented', hasAnalyticsConsent() === false)
+  // --- Rejected: still no id, no write ---
+  reset(); reject()
+  assert('rejected -> getOrCreateViewerId null', getOrCreateViewerId() === null)
+  assert('rejected -> no storage write', session._map.size === 0)
 
-  setConsent(CONSENT_ACCEPTED_VALUE)
-  assert('accepted -> consented', hasAnalyticsConsent() === true)
-  assert('accepted value is the string "accepted"', CONSENT_ACCEPTED_VALUE === 'accepted')
+  // --- Consent: id created, persisted, stable ---
+  reset(); accept()
+  const id1 = getOrCreateViewerId()
+  assert('consent -> id created', typeof id1 === 'string' && id1.length > 0)
+  assert('consent -> persisted to sessionStorage', session.getItem(VIEWER_ID_STORAGE_KEY) === id1)
+  assert('consent -> getConsentedViewerId returns the same id', getConsentedViewerId() === id1)
+  assert('consent -> second getOrCreateViewerId is stable (no double-count)', getOrCreateViewerId() === id1)
 
-  // --- viewer-id gate: NO consent -> no id AND no storage write ---
+  // --- ACCEPT AFTER /live already mounted (mid-session grant): the per-poll
+  //     resolution means the id appears once consent lands, no reload. We model
+  //     "poll" as a call to getConsentedViewerId (poll's fast path) falling back
+  //     to getOrCreateViewerId — exactly what LiveView's loop does. ---
+  reset(); clearChoice()
+  assert('mounted-no-consent poll -> no id', (getConsentedViewerId() ?? getOrCreateViewerId()) === null)
+  accept()
+  const grantedId = getConsentedViewerId() ?? getOrCreateViewerId()
+  assert('mid-session accept -> next poll now has an id', typeof grantedId === 'string' && grantedId.length > 0)
+
+  // --- ACCEPT then REJECT without reload: withdrawal stops transmission AND
+  //     erasing the stored id is possible/effective. ---
+  reset(); accept()
+  const beforeWithdraw = getOrCreateViewerId()
+  assert('pre-withdraw id exists', typeof beforeWithdraw === 'string')
+  reject()
+  assert('after reject -> getConsentedViewerId null (transmission stops)', getConsentedViewerId() === null)
+  assert('after reject -> getOrCreateViewerId also null (no new id minted)', getOrCreateViewerId() === null)
+  // The poll clears the stored id on withdrawal:
+  clearStoredViewerId()
+  assert('after reject + clear -> sessionStorage id erased', session.getItem(VIEWER_ID_STORAGE_KEY) === null)
+
+  // --- storage throwing (private mode) -> safe false / null, never throws ---
   {
-    setConsent(null)
-    const { getOrCreateViewerId, session, VIEWER_ID_STORAGE_KEY } = makeViewerIdGate()
-    const id = getOrCreateViewerId()
-    assert('no consent -> viewer id is null', id === null)
-    assert('no consent -> NOTHING written to sessionStorage', session.getItem(VIEWER_ID_STORAGE_KEY) === null && session._map.size === 0)
-  }
-
-  // --- viewer-id gate: rejected -> still no id ---
-  {
-    setConsent('rejected')
-    const { getOrCreateViewerId, session } = makeViewerIdGate()
-    assert('rejected -> viewer id is null', getOrCreateViewerId() === null)
-    assert('rejected -> no storage write', session._map.size === 0)
-  }
-
-  // --- viewer-id gate: consent -> id created and persisted, stable on re-call ---
-  {
-    setConsent(CONSENT_ACCEPTED_VALUE)
-    const { getOrCreateViewerId, session, VIEWER_ID_STORAGE_KEY } = makeViewerIdGate()
-    const id1 = getOrCreateViewerId()
-    assert('consent -> viewer id created (non-null)', typeof id1 === 'string' && id1.length > 0)
-    assert('consent -> id persisted to sessionStorage', session.getItem(VIEWER_ID_STORAGE_KEY) === id1)
-    const id2 = getOrCreateViewerId()
-    assert('consent -> same id on second call (no double-count)', id2 === id1)
-  }
-
-  // --- storage throwing (private mode) -> safe false, never throws ---
-  {
-    const thrower = { getItem: () => { throw new Error('storage blocked') } }
-    globalThis.window = { localStorage: thrower }
-    let threw = false
-    let result
-    try { result = hasAnalyticsConsent() } catch { threw = true }
-    assert('storage throws -> hasAnalyticsConsent returns false, does not throw', threw === false && result === false)
-    globalThis.window = { localStorage: makeStorage({}) } // restore
+    const thrower = { getItem: () => { throw new Error('blocked') }, setItem: () => { throw new Error('blocked') }, removeItem: () => {} }
+    globalThis.window = { localStorage: thrower, sessionStorage: thrower }
+    let threw = false, consent, id
+    try { consent = hasAnalyticsConsent(); id = getOrCreateViewerId() } catch { threw = true }
+    assert('storage throws -> no throw, consent false, id null', threw === false && consent === false && id === null)
+    globalThis.window = { localStorage: local, sessionStorage: session }
   }
 
   console.log('')

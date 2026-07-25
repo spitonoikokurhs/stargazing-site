@@ -10,7 +10,7 @@ import {
 } from '@/lib/live-status'
 import { formatNextSessionLines, NO_NEXT_SESSION_LINE } from '@/lib/live-farewell'
 import { eventFor, nextEvent } from '@/lib/schedule'
-import { hasAnalyticsConsent } from '@/lib/consent'
+import { getOrCreateViewerId, getConsentedViewerId, clearStoredViewerId } from '@/lib/consent'
 import { FarewellAegeanUfo } from './FarewellAegeanUfo'
 import { FarewellEclipse } from './FarewellEclipse'
 import { resolveFarewellScene, forcedSceneFromQuery, type FarewellScene } from './farewell-scene-choice'
@@ -1181,32 +1181,12 @@ function addAthensDays(date: string, n: number): string {
 // plain in-memory ref) so a mid-session page refresh keeps the SAME id rather
 // than momentarily registering as a second viewer; it naturally disappears
 // when the tab closes, which is exactly when that viewer should stop counting.
-const VIEWER_ID_STORAGE_KEY = 'stargazing:viewerId'
-
-function getOrCreateViewerId(): string | null {
-  if (typeof window === 'undefined') return null
-  // Consent gate (ePrivacy Art. 5(3)): the viewer id is NON-essential analytics
-  // storage, so it must not be created or written without prior consent. Without
-  // consent this returns null — no id is stored, and the poll loop sends no
-  // viewerId param, so trackViewer (server-side) skips this guest entirely (it
-  // already no-ops on a null id). This is what makes suppressing the banner on
-  // /live compliant: nothing is collected there until a guest has accepted
-  // (a choice that persists site-wide, so accepting on the homepage carries
-  // over). If consent is later granted mid-session, the next mount picks up the
-  // id; we deliberately do NOT retroactively backfill this poll.
-  if (!hasAnalyticsConsent()) return null
-  try {
-    const existing = window.sessionStorage.getItem(VIEWER_ID_STORAGE_KEY)
-    if (existing) return existing
-    const fresh = crypto.randomUUID()
-    window.sessionStorage.setItem(VIEWER_ID_STORAGE_KEY, fresh)
-    return fresh
-  } catch {
-    // Private-browsing/storage-disabled: viewer analytics quietly loses this
-    // guest, never a crash — the page itself must keep working regardless.
-    return null
-  }
-}
+// The viewer-id gate lives in lib/consent.ts (getOrCreateViewerId /
+// getConsentedViewerId / clearStoredViewerId) so it is directly unit-testable
+// and shared as one implementation. Its whole contract is consent-aware: no id
+// without consent, and it is re-resolved on EVERY poll below (not cached at
+// mount), so a mid-session accept starts sending it and a mid-session
+// withdrawal stops — no reload needed, exactly matching the grant path.
 
 // statusUrl defaults to the normal hotel endpoint. /live/[event] passes
 // '/api/status?event=<slug>' instead so the exact same component/state
@@ -1239,11 +1219,11 @@ export default function LiveView({
   const activeControllerRef = useRef<AbortController | null>(null)
   const activeImageControllerRef = useRef<AbortController | null>(null)
   const pollGenerationRef = useRef(0)
-  // Generated once per mount (stable across every poll in this tab's
-  // lifetime) — see getOrCreateViewerId's doc comment for why this is
-  // private-analytics-only and never rendered.
-  const viewerIdRef = useRef<string | null>(null)
-  if (viewerIdRef.current === null) viewerIdRef.current = getOrCreateViewerId()
+  // The viewer id is resolved PER POLL (see the poll loop's resolveViewerId),
+  // not cached at mount — so consent changes take effect on the very next poll
+  // in BOTH directions without a reload: a mid-session accept starts attaching
+  // it, a mid-session withdrawal stops (and clears the stored id). This is what
+  // makes withdrawal as effective as granting (ePrivacy 5(3)).
 
   // "updated Xs ago" ticks on its own timer, independent of polling.
   const [, forceTick] = useState(0)
@@ -1278,13 +1258,26 @@ export default function LiveView({
           // StatusLive bodies for visual review of the three display states.
           body = demoBody
         } else {
-          // viewerId appended purely for private viewer analytics (see
-          // getOrCreateViewerId above) — never read back from the response,
-          // never affects rendering. Omitted entirely when unavailable
-          // (private browsing / storage disabled) rather than sending an
-          // empty/placeholder value.
-          const url = viewerIdRef.current
-            ? `${statusUrl}${statusUrl.includes('?') ? '&' : '?'}viewerId=${encodeURIComponent(viewerIdRef.current)}`
+          // viewerId appended purely for private viewer analytics — never read
+          // back from the response, never affects rendering. Resolved FRESH on
+          // every poll, consent-aware:
+          //   - consent granted  -> existing/new id attached
+          //   - no/withdrawn consent -> getConsentedViewerId returns null AND we
+          //     clear any stored id, so the withdrawal is a real erasure, not
+          //     just an omission; the URL then carries no viewerId and
+          //     server-side trackViewer skips this guest.
+          // Because this runs each poll, a mid-session accept or reject takes
+          // effect on the very next request with no reload.
+          let viewerId = getConsentedViewerId()
+          if (viewerId === null) {
+            // Either not consented, or consented-but-no-id-yet. getOrCreateViewerId
+            // mints one only if consent is currently granted (else stays null);
+            // clearStoredViewerId erases any leftover id when consent is absent.
+            viewerId = getOrCreateViewerId()
+            if (viewerId === null) clearStoredViewerId()
+          }
+          const url = viewerId
+            ? `${statusUrl}${statusUrl.includes('?') ? '&' : '?'}viewerId=${encodeURIComponent(viewerId)}`
             : statusUrl
           const res = await fetch(url, { signal: controller.signal, cache: 'no-store' })
           if (!res.ok) throw new Error(`status ${res.status}`)

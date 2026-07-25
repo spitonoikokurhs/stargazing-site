@@ -70,15 +70,9 @@
 
     saveChoice("accepted");
     loadGoogleAnalytics();
-    // Let consent-gated React components (Vercel Analytics + Speed Insights,
-    // see app/ConsentedAnalytics.tsx) start immediately without a page reload.
-    // Must match CONSENT_GRANTED_EVENT in lib/consent.ts.
-    try {
-      window.dispatchEvent(new Event("stargazing-consent-granted"));
-    } catch (error) {
-      // Older engines without the Event constructor: the components still pick
-      // consent up on their next mount/navigation, so this is best-effort.
-    }
+    // Notify consent-gated surfaces (ConsentedAnalytics, /live's poll loop) so
+    // they react WITHOUT a page reload — mount analytics, attach the viewerId.
+    notifyConsentChanged();
     removeBanner();
   }
 
@@ -91,7 +85,28 @@
     });
 
     saveChoice("rejected");
+    // Withdrawal must propagate exactly like a grant (ePrivacy 5(3)): the same
+    // notification fires so ConsentedAnalytics UNMOUNTS and /live drops the
+    // viewerId. Rejecting is not a no-op for an already-consented session.
+    notifyConsentChanged();
     removeBanner();
+  }
+
+  // Dispatch the consent-change signal on EVERY choice, accept or reject.
+  // Fires the general "changed" event (new consumers react in both directions)
+  // and, on accept only, the legacy grant-only event for back-compat. Must
+  // match CONSENT_CHANGED_EVENT / CONSENT_GRANTED_EVENT in lib/consent.ts
+  // (asserted by scripts/test-consent-parity.mjs).
+  function notifyConsentChanged() {
+    try {
+      window.dispatchEvent(new Event("stargazing-consent-changed"));
+      if (getSavedChoice() === "accepted") {
+        window.dispatchEvent(new Event("stargazing-consent-granted"));
+      }
+    } catch (error) {
+      // Older engines without the Event constructor: consumers still pick up
+      // the stored choice on their next mount/navigation. Best-effort only.
+    }
   }
 
   function removeBanner() {

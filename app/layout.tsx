@@ -30,7 +30,12 @@ export default function RootLayout({
     <html lang="en">
       <head>
         <link rel="preconnect" href="https://formspree.io" />
-        <link rel="preconnect" href="https://www.googletagmanager.com" />
+        {/* No googletagmanager preconnect: a preconnect opens a connection to
+            Google before any consent, breaking the "zero third-party contact
+            before consent" posture. GA is loaded (with its own connection) only
+            after the guest accepts — see loadGoogleAnalytics in
+            public/cookie-consent.js — so the pre-warmed socket saved nothing
+            for a non-consenting guest and leaked contact for everyone. */}
       </head>
       <body>
         {children}

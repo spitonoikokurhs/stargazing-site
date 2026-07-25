@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { Analytics } from '@vercel/analytics/react'
 import { SpeedInsights } from '@vercel/speed-insights/next'
-import { hasAnalyticsConsent, CONSENT_GRANTED_EVENT } from '@/lib/consent'
+import { hasAnalyticsConsent, CONSENT_CHANGED_EVENT } from '@/lib/consent'
 
 // Gates Vercel Analytics + Speed Insights behind stored analytics consent.
 // Previously both were mounted unconditionally in the root layout, so they
@@ -24,19 +24,22 @@ import { hasAnalyticsConsent, CONSENT_GRANTED_EVENT } from '@/lib/consent'
 // This is intentionally global (every route), not /live-only: the pre-consent
 // firing was site-wide, so the correct fix is site-wide. It only ever makes the
 // site collect LESS without consent, never more.
+//
+// WITHDRAWAL is as effective as granting (ePrivacy 5(3)): we listen for the
+// general consent-change event and RE-READ the stored state on every change, so
+// accept mounts these and a later reject UNMOUNTS them — both without a reload.
 export function ConsentedAnalytics() {
   const [consented, setConsented] = useState(false)
 
   useEffect(() => {
-    if (hasAnalyticsConsent()) {
-      setConsented(true)
-      return
-    }
-    // Not consented yet — wait for the grant event (fired by
-    // cookie-consent.js) to switch analytics on live, no reload needed.
-    const onGranted = () => setConsented(true)
-    window.addEventListener(CONSENT_GRANTED_EVENT, onGranted)
-    return () => window.removeEventListener(CONSENT_GRANTED_EVENT, onGranted)
+    // Re-read the authoritative stored state on mount AND on every change, so
+    // this reflects the current choice in both directions (grant → true,
+    // withdraw → false). React unmounts <Analytics/>/<SpeedInsights/> when this
+    // flips back to false.
+    const sync = () => setConsented(hasAnalyticsConsent())
+    sync()
+    window.addEventListener(CONSENT_CHANGED_EVENT, sync)
+    return () => window.removeEventListener(CONSENT_CHANGED_EVENT, sync)
   }, [])
 
   if (!consented) return null
