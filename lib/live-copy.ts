@@ -4,6 +4,8 @@
 // decides to show. LiveView calls pickFlavor() on an interval to rotate the
 // line; the fact above it is never touched.
 
+import { DEMO_HOTELS } from '@/lib/demo-event'
+
 // How often LiveView re-picks a flavor line.
 export const FLAVOR_ROTATE_MS = 8 * 1000
 
@@ -20,6 +22,12 @@ const HOTEL_DISPLAY_NAMES: Record<string, string> = {
   'oku-kos': 'OKU Kos',
   'paralos-kyma-dunes': 'Paralos Kyma Dunes',
   'caravia-beach': 'Caravia Beach',
+  // Demo-only venue names for the /demo/[slug] sales pages, imported from the
+  // demo config so there's ONE source of truth (no drift between the page's
+  // branding and what LiveView renders). Additive — real hotel resolution is
+  // unaffected; the demo endpoint sets the response hotelId to a demo slug so
+  // the pitch shows the venue's name here.
+  ...DEMO_HOTELS,
 }
 
 // Pretty name for a hotel slug. Falls back to a title-cased version of the slug
