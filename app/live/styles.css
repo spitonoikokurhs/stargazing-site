@@ -2500,18 +2500,21 @@
   pointer-events: none;
 }
 
-/* The UFO's interactive element is now a native <button> wrapping the SVG (see
-   FarewellAegeanUfo.tsx) — for reliable keyboard + screen-reader support. The
-   button carries NO visual chrome of its own (transparent, no border/padding)
-   so the scene looks identical; display:contents makes it a pure semantic/focus
-   wrapper that generates no box, so the SVG inside keeps resolving its absolute
-   position against .farewell-ufo-slot exactly as before. */
+/* The UFO's interactive element is a native <button> wrapping the SVG (see
+   FarewellAegeanUfo.tsx) — for reliable keyboard + screen-reader support. It is
+   a REAL 130x78 box (NOT display:contents): Safari/VoiceOver handle interactive
+   display:contents inconsistently, and a real box gives honest focus geometry
+   and a full-size touch target. The button carries no visual chrome
+   (transparent, no border), and the SVG inside fills it (position:static,
+   100% width), so the scene looks identical. The teleport/spin animations stay
+   on the SVG (transform-based — unaffected by the button being its box). */
 .farewell-ufo-button {
-  display: contents;
-  background: none;
-  border: 0;
+  display: block;
+  width: 130px;
+  height: 78px; /* the SVG's intrinsic 130x78 viewBox aspect */
   padding: 0;
-  margin: 0;
+  border: 0;
+  background: none;
   font: inherit;
   color: inherit;
   cursor: pointer;
@@ -2521,13 +2524,26 @@
   cursor: default;
 }
 
-.farewell-ufo-unit {
+/* Animated tier: the BUTTON takes the absolute position the SVG used to hold
+   (centered in .farewell-ufo-slot, 14px from top), so the touch target and
+   focus box sit exactly where the UFO is drawn. The SVG then fills the button. */
+.farewell-stage:not(.farewell-stage--static) .farewell-ufo-button {
   position: absolute;
   left: 0;
   right: 0;
   top: 14px;
   margin: auto;
-  width: 130px;
+}
+
+/* Static tier: normal in-flow centered box (matches the old --static layout). */
+.farewell-stage--static .farewell-ufo-button {
+  position: static;
+  margin: 0 auto;
+}
+
+.farewell-ufo-unit {
+  display: block;
+  width: 100%;
   height: auto;
   cursor: pointer;
   transform-origin: 50% 55%;
@@ -2539,19 +2555,16 @@
 }
 
 /* Restored, visible keyboard focus (previously suppressed): a real interactive
-   control MUST show where focus is. Because the button is display:contents
-   (no box to outline), the ring is drawn on the SVG when the button has
-   keyboard focus. Mouse/touch taps don't trigger :focus-visible, so the scene
+   control MUST show where focus is. Drawn on the button's real box now — honest
+   focus geometry. Mouse/touch taps don't trigger :focus-visible, so the scene
    is unchanged for pointer users. */
-.farewell-ufo-button:focus-visible .farewell-ufo-unit {
+.farewell-ufo-button:focus-visible {
   outline: 2px solid #7ee0c4;
   outline-offset: 4px;
   border-radius: 8px;
 }
 
 .farewell-ufo-unit--static {
-  position: static;
-  margin: 0 auto;
   animation: none;
   opacity: 1;
   transform: none;
