@@ -75,3 +75,31 @@ export async function flushInteractionStats(
     return null
   }
 }
+
+// Read the durable interaction rows for one event window (the read endpoint's
+// source). Returns the per-counter rows plus a convenience byKey rollup
+// (counters summed across objectIds per interaction key). Best-effort: returns
+// empty on any DB error. LIVE (still-buffering) counters aren't merged in here —
+// the read endpoint reads the durable table, which the periodic cron keeps
+// current to within ~5 min; a caller wanting the absolute live edge can also
+// read Redis, but the season/calendar consumer this feeds wants the durable rows.
+export async function readDurableInteractionStats(eventKey: string): Promise<{
+  rows: { counterField: string; interactionKey: string; objectId: string | null; count: number }[]
+  byKey: Record<string, number>
+}> {
+  try {
+    const rows = await prisma.eventInteractionStats.findMany({
+      where: { eventKey },
+      select: { counterField: true, interactionKey: true, objectId: true, count: true },
+      orderBy: { counterField: 'asc' },
+    })
+    const byKey: Record<string, number> = {}
+    for (const r of rows) {
+      byKey[r.interactionKey] = (byKey[r.interactionKey] ?? 0) + r.count
+    }
+    return { rows, byKey }
+  } catch (e) {
+    console.error('readDurableInteractionStats failed', e)
+    return { rows: [], byKey: {} }
+  }
+}

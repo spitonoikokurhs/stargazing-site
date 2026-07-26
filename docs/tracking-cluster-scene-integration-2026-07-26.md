@@ -2,12 +2,16 @@
 
 **Date:** 26-07-2026
 **Branch:** `feat/interaction-tracking-review-funnel` (fresh off merged `main` @ `aa53157`)
-**Status:** Investigation only — **no build yet**. Hold for review.
+**Status:** BUILT — decisions approved (all defaults + riders C/D). Held for review, not pushed.
 
-This is the "investigate-first" deliverable the spec required *before* placing the
-review-funnel reveal or wiring the Tier-1 beacons. Every claim below is grounded in the
-actual code (file:line references throughout). It ends with a set of **decisions I need
-from you** — genuine forks the spec left open, where guessing wrong would be expensive.
+This began as the "investigate-first" deliverable the spec required *before* placing the
+review-funnel reveal or wiring the Tier-1 beacons. Every claim in the investigation
+(sections 1–7) is grounded in the actual code (file:line references throughout). Section 6
+listed the decisions; **you approved all five defaults with two riders (C: touch the
+eclipse file safely; D: plumb tonight's hotelId)**, and the cluster is now built.
+
+**→ Jump to [Part 2 — What Was Built](#part-2--what-was-built) for the implementation, the
+Tier-1 identifier-free proof, and the deploy/review notes.**
 
 ---
 
@@ -273,4 +277,123 @@ the reveal is a dismissible guest, never a banner, never over a focal area; fina
 respected (finder only after `finaleCompleted`); eclipse "byte-for-byte" file touched only for the
 single totality signal (pending Decision C).
 
-**Nothing has been built. Awaiting your review of the decisions in §6.**
+---
+
+# Part 2 — What Was Built
+
+Decisions approved (all five defaults; riders **C** = touch the eclipse file with one
+guarded line, **D** = plumb tonight's hotelId). Built in the §7 order across two commits.
+Held for review — **not pushed, not deployed.**
+
+## Files
+
+**New:**
+- `lib/interaction-events.ts` — the interaction-key allowlist + pure helpers (objectId
+  normalisation, counterField build/parse, event validation). Fully unit-tested.
+- `lib/interaction-stats.ts` — Redis buffer: `recordInteraction` (HINCRBY + 48h TTL GC +
+  server-side buffer cap of 512 fields), `readInteractionStats`, and the shared server-side
+  `resolveInteractionScope` (one eventKey resolver for track + read + flush, mirroring viewer-stats).
+- `lib/interaction-stats-flush.ts` — Redis→Postgres flush (`flushInteractionStats`, idempotent
+  absolute-value upsert) + `readDurableInteractionStats` (read side).
+- `lib/track-client.ts` — client transport: `trackInteraction` (sendBeacon/keepalive),
+  `trackingContextFor` (the demo/debug OFF-gate), `track` (context-aware emit), `deriveEventSlug`.
+- `lib/review-funnel.ts` — `REVIEW_URL`, `whatsappUrl(hotelId)` venue-aware prefill, copy.
+- `app/live/ReviewFunnel.tsx` — the baseline/finder reveal component (impressions on visible,
+  clicks per variant, sessionStorage dismiss for baseline).
+- `app/api/track/route.ts` — the Tier-1 beacon sink.
+- `app/api/interaction-stats/route.ts` — the authed read endpoint (viewer-stats token pattern).
+- `app/api/cron/flush-interactions/route.ts` — the ~5min periodic flush cron.
+- `prisma/migrations/20260726T000000_add_event_interaction_stats/migration.sql` — the table.
+- `scripts/test-interaction-events.mjs` (43 assertions, pure) + `scripts/test-interaction-stats.mjs`
+  (Redis integration).
+
+**Modified:**
+- `lib/redis.ts` — added `trackRatelimit` (120/min per IP, separate prefix).
+- `prisma/schema.prisma` — `EventInteractionStats` model.
+- `app/live/LiveView.tsx` — tracking context + 6 hook points + hotelId/onTrack threading.
+- `app/live/FarewellAegeanUfo.tsx` — UFO tap/finale beacons, baseline-dwell + finale-completed
+  gating, the ReviewFunnel card-tail reveals (both animated + static tiers).
+- `app/live/FarewellEclipse.tsx` — totality `message` listener + baseline funnel overlay.
+- `app/live/farewell-eclipse-scene.ts` — **one additive guarded line** (see below).
+- `app/live/styles.css` — funnel CSS (calm, reduced-motion aware).
+- `app/api/status/route.ts` + `lib/live-status.ts` — additive `hotelId` on finished payload (D).
+- `app/api/finish/route.ts` — interaction flush at finish-night.
+- `vercel.json` — the periodic cron registration.
+
+## Scene integration (the delicate parts)
+
+- **UFO:** baseline reveal appears ~18s after mount (the dwell — there's no built-in settle);
+  finder reveal after the finale *fully completes* (surfaced via a new `finaleCompleted` React
+  state flipped at the finale reset points, and at the static-tier `staticRevealed` latch). Both
+  live in the card-tail (below Back-to-Home), so they're correctly hidden during the finale and
+  never cover the UFO / flag / reward focal zones. Static tier gets the baseline too.
+- **Eclipse (rider C):** the scene posts `{type:'eclipse-totality'}` to `window.parent` at first
+  totality, guarded by `window.parent !== window` in a try/catch. `FarewellEclipse` listens and
+  reveals the baseline funnel as a top-right sibling overlay (no finder — the eclipse has no
+  finale). The **exact diff** of the scene file is one comment + one statement, zero existing
+  lines changed:
+
+  ```diff
+  +      // ADDITIVE, standalone-safe: notify the host page (when embedded) that totality was reached...
+  +      try{ if(window.parent && window.parent!==window){ window.parent.postMessage({type:'eclipse-totality'},'*'); } }catch(e){}
+  ```
+
+  **Standalone verified:** I rendered the scene to a file, opened it directly in a headless
+  browser (so `window.parent === window`), and drove it through totality — **zero JS errors**,
+  no visual change. Your offline `scene-eclipse.html` pitch file is safe.
+
+## Tier-1 identifier-free proof (the non-negotiable constraint)
+
+Tier-1 stores **nothing that identifies a person**, by construction — verified end to end:
+
+1. **The wire payload is only `{ key, objectId? }`.** `key` must be in the fixed allowlist
+   (`lib/interaction-events.ts`); `objectId` is a **catalog object** (e.g. `M57`) — a property
+   of the sky, not the viewer — and is length/char-class normalised. `validateInteractionEvent`
+   **ignores every other field** on the body (tested: a body with `viewerId`/`ip` fields has them
+   dropped). No cookie is read or set; the client sends `credentials: 'omit'`.
+2. **The IP is used only to rate-limit, never stored or logged.** `/api/track` reads
+   `x-forwarded-for` solely to call `trackRatelimit.limit(ip)` (Upstash hashes it into an
+   internal counter key with a short TTL — the raw IP is not persisted as data). Unlike
+   `/api/ingest`, `/api/track` doesn't even *log* the IP. No `x-forwarded-for` value leaves the
+   function; it never reaches a counter, Redis hash, or Postgres row.
+3. **The eventKey is resolved server-side** from the schedule — the client can't choose its
+   counter bucket beyond the allowlisted key + optional catalog objectId.
+4. **The stored data is pure tallies.** `EventInteractionStats` rows are `{ eventKey,
+   counterField, interactionKey, objectId, count }` — counts of anonymous events per event
+   window. No per-person row exists; there is no viewerId column. (Tier-2 consented journeys are
+   **not** built in this cluster — when added, the viewerId would attach client-side only when
+   `hasAnalyticsConsent()`, and only then would any identifier be sent.)
+
+Legal footing: identical to a server log line of aggregate counts — no consent required, because
+no identifier is stored or sent.
+
+## Guest-render safety (nothing blocks/crashes the live feed)
+
+- Beacons are fire-and-forget (`sendBeacon`/`keepalive`), never awaited, wrapped in try/catch.
+- `/api/track` **cannot 500**: rate-limit error → continue; bad body → 204; Redis error → 204.
+- Tracking is **fully OFF** for demo (`/api/demo-status`) and the operator debug view (tested).
+- The flush (finish + cron) is best-effort/non-fatal, mirroring the live viewer-stats flush.
+
+## Verification
+
+- ✅ `tsc` clean · `lint` clean · real `next build` green (all new routes present)
+- ✅ **All 14 test suites pass** (incl. the new 43-assertion pure suite + the Redis integration
+  suite; and viewer-stats, which only ever failed here for want of `--env-file`).
+- ✅ Standalone eclipse file driven through totality in a real browser — no errors (rider C).
+
+## Deploy / review notes (for when you're back)
+
+1. **Vercel cron cadence:** `*/5 * * * *` on `/api/cron/flush-interactions`. Vercel **Hobby**
+   only permits daily crons — if this project is Hobby, the deploy will reject the schedule.
+   On **Pro** it's fine. If Hobby, drop it to the finish-flush only (still durable at night's end)
+   or upgrade. Flagging because it's a deploy-time gate, not a code issue.
+2. **DB migration** must run on deploy (`prisma migrate deploy`) to create the table — same as
+   any prior migration on this project.
+3. **`VIEWER_STATS_TOKEN`** already gates `/api/interaction-stats` (reuses the viewer-stats token).
+4. **Manual walkthrough not done against production data:** per the standing rule (no Neon dev
+   branch; dev server points at prod), I verified via build + tests + the standalone browser run
+   rather than driving the live dev server. A quick manual pass on a real finished event (or a
+   dev branch) is worth doing before deploy: tap history pills, open the drawer, enter fullscreen,
+   reach the UFO finale, and confirm the funnel appears and `/api/interaction-stats` shows counts.
+
+**Built, verified, held for review. Not pushed. No AI attribution.**

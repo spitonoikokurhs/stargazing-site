@@ -3605,6 +3605,144 @@
 }
 
 /* ==========================================================================
+   Review / testimonial funnel — the calm, dismissible invitation on the
+   farewell screen (see app/live/ReviewFunnel.tsx). It is a GUEST, not a banner:
+   quiet type, a gentle fade-in only, and it sits BELOW the focal area (UFO/
+   reward on the UFO scene; top-right, clear of the centered sun, on the eclipse).
+   ========================================================================== */
+.review-funnel {
+  /* Inline in the UFO card flow by default (the eclipse wraps it in a fixed
+     overlay — see .farewell-eclipse-funnel). Centered, narrow, unobtrusive. */
+  margin: 20px auto 0;
+  max-width: 300px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  position: relative;
+  z-index: 4; /* above the decorative sea/shimmer, like .farewell-back-home */
+  pointer-events: auto;
+  text-align: center;
+  animation: review-funnel-in 700ms ease both;
+}
+
+.review-funnel-lead {
+  margin: 0;
+  color: #edeae3;
+  font-size: 15px;
+  letter-spacing: 0.3px;
+}
+.review-funnel-sub {
+  margin: 0 0 4px;
+  color: rgba(237, 234, 227, 0.7);
+  font-size: 13px;
+}
+
+.review-funnel-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+}
+
+.review-funnel-btn {
+  display: inline-block;
+  padding: 9px 16px;
+  border-radius: 999px;
+  font-size: 13.5px;
+  letter-spacing: 0.3px;
+  text-decoration: none;
+  border: 1px solid transparent;
+  transition: background 160ms ease, border-color 160ms ease, color 160ms ease;
+}
+/* WhatsApp = the lead-capture path, given the warmer/filled treatment and (in
+   the JSX) placed first. A muted green nod to WhatsApp without shouting. */
+.review-funnel-btn--whatsapp {
+  background: rgba(37, 211, 102, 0.16);
+  border-color: rgba(37, 211, 102, 0.5);
+  color: #d6f5e2;
+}
+.review-funnel-btn--whatsapp:hover,
+.review-funnel-btn--whatsapp:focus-visible {
+  background: rgba(37, 211, 102, 0.26);
+  color: #fff;
+}
+/* Review = the quieter, outline secondary action. */
+.review-funnel-btn--review {
+  background: rgba(10, 10, 15, 0.32);
+  border-color: rgba(237, 234, 227, 0.34);
+  color: #edeae3;
+}
+.review-funnel-btn--review:hover,
+.review-funnel-btn--review:focus-visible {
+  background: rgba(10, 10, 15, 0.5);
+  border-color: rgba(237, 234, 227, 0.6);
+  color: #fff;
+}
+
+/* Dismiss: barely-there text button — present, never competing. Baseline only. */
+.review-funnel-dismiss {
+  margin-top: 2px;
+  background: none;
+  border: none;
+  padding: 4px 8px;
+  color: rgba(237, 234, 227, 0.42);
+  font-size: 12px;
+  letter-spacing: 0.4px;
+  cursor: pointer;
+  transition: color 160ms ease;
+}
+.review-funnel-dismiss:hover,
+.review-funnel-dismiss:focus-visible {
+  color: rgba(237, 234, 227, 0.72);
+}
+
+/* Finder variant: a touch warmer (they earned it) but same calm footprint. */
+.review-funnel--finder .review-funnel-lead {
+  color: #ffe9b8;
+}
+
+/* Eclipse: the funnel is a fixed sibling overlay in the parent tree, top-right,
+   above the iframe (zIndex 51 > 50) and clear of the centered sun + top-left
+   back-home link. A scrim disc keeps it legible over the bright pre-totality
+   sky (though it only ever shows AFTER totality, when the sky is dark). */
+.farewell-eclipse-funnel {
+  position: fixed;
+  top: 14px;
+  right: 14px;
+  z-index: 51;
+  max-width: min(70vw, 300px);
+  pointer-events: auto;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: rgba(10, 10, 15, 0.5);
+  backdrop-filter: blur(5px);
+}
+.farewell-eclipse-funnel .review-funnel {
+  margin: 0;
+}
+
+@keyframes review-funnel-in {
+  0% {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Reduced motion: no slide/fade — the invitation simply appears. (The UFO scene
+   already honours reduced-motion for its own animation; this covers the funnel
+   itself, including inside the eclipse where the scene doesn't.) */
+@media (prefers-reduced-motion: reduce) {
+  .review-funnel {
+    animation: none;
+  }
+}
+
+/* ==========================================================================
    Starting screen — living sky (redesign; ported from
    docs/starting-proto-a-living-sky.html + the venue line from prototype C).
    Full-bleed animated starfield instead of the old empty circular eyepiece.

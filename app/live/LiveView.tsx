@@ -2307,11 +2307,18 @@ function LiveViewPresentation({
       return <div style={{ position: 'fixed', inset: 0, background: '#05060c' }} aria-hidden="true" />
     }
     if (farewellScene === 'eclipse') {
-      return <FarewellEclipse {...farewellProps} />
+      return (
+        <FarewellEclipse
+          {...farewellProps}
+          hotelId={state.finishedInfo.hotelId}
+          onTrack={tracking?.enabled ? (key) => track(tracking, key) : undefined}
+        />
+      )
     }
     return (
       <FarewellAegeanUfo
         {...farewellProps}
+        hotelId={state.finishedInfo.hotelId}
         onTrack={tracking?.enabled ? (key) => track(tracking, key) : undefined}
       />
     )

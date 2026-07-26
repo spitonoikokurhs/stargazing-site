@@ -706,6 +706,8 @@ const ECLIPSE_SCENE_TEMPLATE = String.raw`<!DOCTYPE html>
       postTotality=true; firstCycleDone=true;   // from here on, clouds & birds never return, even on a replay
       if(eaglePerch) eaglePerch.style.opacity='1';
       if(venueFooter) venueFooter.classList.add('show');   // reveal venue footer at first totality
+      // ADDITIVE, standalone-safe: notify the host page (when embedded) that totality was reached, so it can reveal the review invitation. No-op when opened as a standalone file (window.parent===window) — nothing listens and nothing changes visually.
+      try{ if(window.parent && window.parent!==window){ window.parent.postMessage({type:'eclipse-totality'},'*'); } }catch(e){}
     }
     if(!total && wasTotal){ flashBeads(A0); flashDiamond(A0,true);
       shadowbands.style.opacity='.32'; setTimeout(function(){shadowbands.style.opacity='0';},1000);

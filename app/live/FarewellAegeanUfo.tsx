@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { BackToHome } from './BackToHome'
 import { initialTapState, tap as tapDecision, idleReset, type FarewellTapState } from '@/lib/farewell-taps'
 import { type InteractionKey } from '@/lib/interaction-events'
+import { ReviewFunnel } from './ReviewFunnel'
 
 // Ported from docs/ufo-escalatev1.html (the standalone prototype), preserving
 // the design/animation/tap-tier logic as-is per explicit instruction. The
@@ -43,6 +44,10 @@ const EXCITED_LINES = ['whee! 🛸', 'again! ✨', 'so many stars! ⭐', "you're
 const TAP_TIER_2 = 3
 const TAP_TIER_3 = 5
 const STREAK_RESET_IDLE_MS = 4000
+// Dwell before the baseline review invitation appears — long enough that the
+// scene has clearly settled (past the entrance beats), short enough that a guest
+// lingering on the farewell still sees it. Calm, not eager.
+const FUNNEL_BASELINE_DWELL_MS = 18000
 
 // Real stellar colors, weighted like an actual sky — mostly white/blue-white,
 // a few orange-red giants. [color, weight] pairs.
@@ -165,6 +170,7 @@ export function FarewellAegeanUfo({
   nextSessionLead,
   nextSessionSchedule,
   nextSessionLogoSrc,
+  hotelId,
   onTrack,
 }: {
   // "See you again — the stars will be waiting" style line, picked from a
@@ -181,10 +187,14 @@ export function FarewellAegeanUfo({
   // either way the schedule line still renders text-only, same graceful-
   // absence pattern used everywhere else a logo is optional on this page.
   nextSessionLogoSrc: string | null
+  // Tonight's venue slug, for the review-funnel WhatsApp prefill. Null -> generic.
+  hotelId?: string | null
   // Tier-1 interaction beacon sink (UFO scene only — see the report's scene-
   // integration section). The scene calls onTrack('farewell_ufo_tap') /
-  // ('farewell_finale_reached') at the imperative tap/finale points. Optional so
-  // standalone/demo/debug paths that render this without tracking pass nothing.
+  // ('farewell_finale_reached') at the imperative tap/finale points, and the
+  // ReviewFunnel below routes its funnel_* beacons through the same callback.
+  // Optional so standalone/demo/debug paths that render this without tracking
+  // pass nothing.
   onTrack?: (key: InteractionKey) => void
 }) {
   const tier = usePerformanceTier()
@@ -229,6 +239,27 @@ export function FarewellAegeanUfo({
   const [staticRevealed, setStaticRevealed] = useState(false)
   const staticTapsRef = useRef(0)
   const staticResetRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // ---- Review-funnel gating ----
+  // Baseline invitation appears after the scene has SETTLED. There's no built-in
+  // settle event (see the report), so we use a dwell timer keyed off mount:
+  // ~18s, comfortably past the entrance beats, calm rather than eager.
+  const [baselineReady, setBaselineReady] = useState(false)
+  useEffect(() => {
+    const t = setTimeout(() => setBaselineReady(true), FUNNEL_BASELINE_DWELL_MS)
+    return () => clearTimeout(t)
+  }, [])
+  // Finder invitation appears only AFTER the finale fully completes (animated
+  // tiers) or the static reveal latches (static tier). This React state is the
+  // surfaced form of the terminal finaleCompleted latch, flipped at the finale
+  // reset points below; once true it never resets (matches the latch).
+  const [finaleCompleted, setFinaleCompleted] = useState(false)
+  const finaleCompletedRef = useRef(false)
+  const markFinaleCompleted = () => {
+    if (finaleCompletedRef.current) return
+    finaleCompletedRef.current = true
+    setFinaleCompleted(true)
+  }
   function onStaticUfoTap() {
     if (staticRevealed) return
     staticTapsRef.current += 1
@@ -241,6 +272,9 @@ export function FarewellAegeanUfo({
       if (staticResetRef.current) clearTimeout(staticResetRef.current)
       setStaticRevealed(true)
       emitTrack('farewell_finale_reached')
+      // Static-tier "finale" reached — surface the finder reveal (no animation
+      // to wait on, so it's immediate, matching the static reward).
+      markFinaleCompleted()
     }
   }
   useEffect(() => () => { if (staticResetRef.current) clearTimeout(staticResetRef.current) }, [])
@@ -636,6 +670,8 @@ export function FarewellAegeanUfo({
             // finale even though finaleRunning is back to false.
             tapState = idleReset(tapState)
             setStars(2)
+            // Finale has fully completed — surface the finder review reveal.
+            markFinaleCompleted()
           }, 12500)
         } else {
           // Reduced tier: skip the (heaviest) 117-alien flag finale entirely,
@@ -650,6 +686,8 @@ export function FarewellAegeanUfo({
             finaleRunning = false
             tapState = idleReset(tapState) // terminal latch survives
             setStars(2)
+            // Finale (reduced tier) fully completed — surface the finder reveal.
+            markFinaleCompleted()
           }, 4500)
         }
         return
@@ -762,6 +800,15 @@ export function FarewellAegeanUfo({
           <div className="farewell-back-home">
             <BackToHome variant="link" />
           </div>
+          {/* Review funnel (static tier): finder reveal once the static easter
+              egg is found, otherwise the baseline invitation after the dwell.
+              Inline in the card flow, below the back-home link — never over the
+              UFO/reward focal area. */}
+          {finaleCompleted ? (
+            <ReviewFunnel variant="finder" onTrack={onTrack} />
+          ) : (
+            baselineReady && <ReviewFunnel variant="baseline" hotelId={hotelId} onTrack={onTrack} />
+          )}
         </div>
         <div className="farewell-sea" />
         <div className="farewell-shimmer" />
@@ -859,6 +906,17 @@ export function FarewellAegeanUfo({
           <div className="farewell-back-home">
             <BackToHome variant="link" />
           </div>
+          {/* Review funnel (animated tiers): finder reveal after the finale
+              fully completes, otherwise the baseline invitation after the dwell.
+              Lives inside .farewell-card-text, so it's correctly hidden during
+              the finale payoff (.farewell-card-text--hidden) and returns with the
+              card text afterwards — and it sits below the back-home link, clear
+              of the UFO slot, the flag zone, and the reward line. */}
+          {finaleCompleted ? (
+            <ReviewFunnel variant="finder" onTrack={onTrack} />
+          ) : (
+            baselineReady && <ReviewFunnel variant="baseline" hotelId={hotelId} onTrack={onTrack} />
+          )}
         </div>
       </div>
 
