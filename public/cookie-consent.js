@@ -366,6 +366,16 @@
       return;
     }
 
+    // Never show the consent banner on the self-running /demo/* sales pages: a
+    // cookie banner mid-pitch would break the illusion of a live event. The
+    // demo feed is analytics-inert (see app/api/demo-status/route.ts) and stores
+    // no identifier, so nothing is collected here that consent would gate — this
+    // is a display concession, and the banner still appears on every real page.
+    var path = (window.location && window.location.pathname) || "";
+    if (path === "/demo" || path.indexOf("/demo/") === 0) {
+      return;
+    }
+
     showBanner();
   });
 })();
