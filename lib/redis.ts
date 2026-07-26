@@ -20,6 +20,21 @@ export const ingestRatelimit = new Ratelimit({
   prefix: 'ratelimit:ingest',
 })
 
+// Tier-1 interaction-beacon limiter (see app/api/track/route.ts). A guest
+// legitimately fires a handful of interaction beacons across a session (a few
+// pill taps, a drawer open, some UFO taps during the farewell), so 120/min per
+// IP is generous headroom for real use while bounding how fast one client can
+// spray counters. Keyed by IP purely for throttling — the IP is passed to
+// Upstash's limiter (which hashes it into an internal counter key) and is
+// NEVER stored as data, logged, or written to a counter; see the route's
+// identifier-free note. A separate instance/prefix so its quota can never
+// collide with ingestRatelimit.
+export const trackRatelimit = new Ratelimit({
+  redis,
+  limiter: Ratelimit.slidingWindow(120, '1 m'),
+  prefix: 'ratelimit:track',
+})
+
 // The two physical telescope devices. Plain strings in the DB; this array +
 // guard are the application-level validation for the normal hotel dual-source
 // live page (see that route's source-switch logic).

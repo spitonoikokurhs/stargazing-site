@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { BackToHome } from './BackToHome'
 import { initialTapState, tap as tapDecision, idleReset, type FarewellTapState } from '@/lib/farewell-taps'
+import { type InteractionKey } from '@/lib/interaction-events'
 
 // Ported from docs/ufo-escalatev1.html (the standalone prototype), preserving
 // the design/animation/tap-tier logic as-is per explicit instruction. The
@@ -164,6 +165,7 @@ export function FarewellAegeanUfo({
   nextSessionLead,
   nextSessionSchedule,
   nextSessionLogoSrc,
+  onTrack,
 }: {
   // "See you again — the stars will be waiting" style line, picked from a
   // pool (see lib/live-farewell.ts) — or the graceful no-next-session
@@ -179,6 +181,11 @@ export function FarewellAegeanUfo({
   // either way the schedule line still renders text-only, same graceful-
   // absence pattern used everywhere else a logo is optional on this page.
   nextSessionLogoSrc: string | null
+  // Tier-1 interaction beacon sink (UFO scene only — see the report's scene-
+  // integration section). The scene calls onTrack('farewell_ufo_tap') /
+  // ('farewell_finale_reached') at the imperative tap/finale points. Optional so
+  // standalone/demo/debug paths that render this without tracking pass nothing.
+  onTrack?: (key: InteractionKey) => void
 }) {
   const tier = usePerformanceTier()
   const stageRef = useRef<HTMLDivElement>(null)
@@ -200,6 +207,20 @@ export function FarewellAegeanUfo({
   const burstRefs = useRef<(HTMLDivElement | null)[]>([null, null, null])
   const [goodnightIndex, setGoodnightIndex] = useState(0)
 
+  // onTrack held in a ref so the imperative tap/finale closures (which capture
+  // once at effect-setup) always call the latest callback without re-running the
+  // big animation effect on every render. emitTrack is the safe no-op-guarded
+  // caller used at every beacon point.
+  const onTrackRef = useRef(onTrack)
+  onTrackRef.current = onTrack
+  const emitTrack = (key: InteractionKey) => {
+    try {
+      onTrackRef.current?.(key)
+    } catch {
+      // a tracking hiccup must never disturb the farewell
+    }
+  }
+
   // Static-tier (prefers-reduced-motion) tap easter egg. The animated engine
   // below never mounts for the static tier, so it has its own tiny, motion-free
   // version: the SAME TAP_TIER_3 taps reveal a reward line via a gentle
@@ -211,6 +232,7 @@ export function FarewellAegeanUfo({
   function onStaticUfoTap() {
     if (staticRevealed) return
     staticTapsRef.current += 1
+    emitTrack('farewell_ufo_tap')
     if (staticResetRef.current) clearTimeout(staticResetRef.current)
     staticResetRef.current = setTimeout(() => {
       staticTapsRef.current = 0
@@ -218,6 +240,7 @@ export function FarewellAegeanUfo({
     if (staticTapsRef.current >= TAP_TIER_3) {
       if (staticResetRef.current) clearTimeout(staticResetRef.current)
       setStaticRevealed(true)
+      emitTrack('farewell_finale_reached')
     }
   }
   useEffect(() => () => { if (staticResetRef.current) clearTimeout(staticResetRef.current) }, [])
@@ -546,6 +569,11 @@ export function FarewellAegeanUfo({
       tapState = result.state
       if (result.action === 'ignored') return // post-finale: terminal, inert
 
+      // Tier-1: a counted UFO tap. The finale tap is tracked distinctly below
+      // (as farewell_finale_reached), so only the pre-finale 'counted' taps
+      // emit the tap beacon here — the finale isn't double-counted as a tap.
+      if (result.action === 'counted') emitTrack('farewell_ufo_tap')
+
       // Full tier can afford the escalating doubling (2, 4, 8...) for a big
       // dramatic ramp-up. On the reduced tier (already-detected low-power/
       // low-frame-rate devices), grow much more conservatively — +2 stars
@@ -559,6 +587,9 @@ export function FarewellAegeanUfo({
       }, STREAK_RESET_IDLE_MS)
 
       if (result.action === 'finale') {
+        // Tier-1: the finale fired (terminal — the state machine latches
+        // finaleCompleted, so this can only happen once per mount).
+        emitTrack('farewell_finale_reached')
         finaleRunning = true
         busy = true
         ufo.classList.remove('spin', 'spinfast')

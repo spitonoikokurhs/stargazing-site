@@ -208,6 +208,48 @@ model ViewerStatsNightly {
   @@index([date]) // ?date= lookups and season browsing
 }
 
+// Durable Tier-1 interaction counters, persisted from the (48h-TTL, otherwise-
+// ephemeral) Redis interaction hashes so the season's engagement numbers survive
+// past the Redis expiry — the exact same durability rationale as ViewerStatsNightly
+// above, for the interaction counters instead of the viewer counters.
+//
+// SHAPE (rider B — "upsert one row per event, mirroring ViewerStatsNightly"):
+// ViewerStatsNightly is one row because it's a fixed set of scalar fields; an
+// event's interactions are a VARIABLE set of counters (one per interaction key,
+// plus a per-object variant for the two object-scoped keys). The faithful
+// mirror is therefore one row per COUNTER, made idempotent the same way
+// ViewerStatsNightly is: unique on (eventKey, counterField) so a re-flush (every
+// ~5 min during the event, and again at finish) UPSERTS the same counter's row
+// in place rather than duplicating it — a re-finish or a periodic re-flush can
+// never inflate the numbers. The stored `count` is the ABSOLUTE tally from Redis
+// (the source of truth while the buffer lives), not a delta, so an upsert is a
+// straight overwrite — no additive races across overlapping flushes.
+//
+// eventKey is the SAME stable per-event key the Redis counters and
+// ViewerStatsNightly use (viewerEventKey / viewerSpecialEventKey) so an event's
+// interaction rows line up with its viewer row on one identity. counterField is
+// the interaction key, suffixed with ":<objectId>" for the object-scoped keys
+// (see counterField in lib/interaction-events.ts) — key/objectId are also stored
+// split out (below) so the read side doesn't have to parse the field.
+model EventInteractionStats {
+  id            String   @id @default(cuid())
+  eventKey      String // stable per-event key (viewerEventKey/viewerSpecialEventKey)
+  counterField  String // the Redis hash field: interaction key, optionally ":<objectId>"
+  interactionKey String // the interaction key alone (denormalized from counterField for querying)
+  objectId      String? // catalog objectId for object-scoped keys; null otherwise
+  count         Int // absolute tally at flush time (overwrite-on-upsert, not additive)
+  scope         String // "hotel" | "event" (mirrors ViewerStatsNightly.scope)
+  date          String? // Athens "YYYY-MM-DD" for a hotel night; null for a multi-day special event
+  hotelId       String? // hotel slug for a hotel night; null for a special event
+  eventSlug     String? // special-event slug for scope="event"; null for a hotel night
+  source        String   @default("finish") // "finish" | "periodic" | "backfill"
+  updatedAt     DateTime @default(now()) // last flush time for this counter
+
+  @@unique([eventKey, counterField]) // upsert idempotency: one row per counter per event
+  @@index([eventKey]) // read side: all counters for one event
+  @@index([date]) // season browsing by night
+}
+
 // One row per ingested image.
 // source is denormalized from Observation for query convenience —
 // we often query frames by source directly without joining.

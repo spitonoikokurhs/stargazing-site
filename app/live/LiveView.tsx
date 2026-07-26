@@ -11,6 +11,7 @@ import {
 import { formatNextSessionLines, NO_NEXT_SESSION_LINE } from '@/lib/live-farewell'
 import { eventFor, nextEvent } from '@/lib/schedule'
 import { getOrCreateViewerId, getConsentedViewerId, clearStoredViewerId } from '@/lib/consent'
+import { track, trackingContextFor, type TrackingContext } from '@/lib/track-client'
 import { FarewellAegeanUfo } from './FarewellAegeanUfo'
 import { FarewellEclipse } from './FarewellEclipse'
 import { resolveFarewellScene, forcedSceneFromQuery, type FarewellScene } from './farewell-scene-choice'
@@ -250,6 +251,10 @@ type StatusFinished = {
   degraded?: false
   specialEventFinished?: false
   date: string
+  // Tonight's (just-finished) venue slug — additive, for the review-funnel
+  // WhatsApp prefill. Optional/nullable: absent on older payloads or when no
+  // event was scheduled today, in which case the funnel uses a generic prefill.
+  hotelId?: string | null
   next: OfflinePayload['next']
 }
 // A special event's own finished flag (eventFinishedKey — per-source, see
@@ -1198,6 +1203,12 @@ export default function LiveView({
 }: { statusUrl?: string; debugMode?: boolean } = {}) {
   const [state, dispatch] = useReducer(liveStatusReducer, initialLiveStatusState)
 
+  // Tier-1 interaction-tracking context: enabled ONLY on the real guest paths
+  // (/api/status[?event=]); OFF for demo (/api/demo-status, analytics-inert) and
+  // the operator debug view. Derived purely from props so it's stable, and the
+  // single gate every hook point flows through (see @/lib/track-client).
+  const tracking = trackingContextFor(statusUrl, debugMode)
+
   // Operator-diagnostics channel — populated ONLY in debugMode, entirely
   // separate from the reducer/lastLiveFrame so the guest live path and its
   // state machine are byte-for-byte unaffected (the reducer stays
@@ -1322,7 +1333,7 @@ export default function LiveView({
           // set). Either way, do not reset history or change the fare well
           // screen.
           if (body.live === false && body.finished === true) {
-            dispatch({ type: 'POLL_FINISHED', payload: { date: body.date, next: body.next } })
+            dispatch({ type: 'POLL_FINISHED', payload: { date: body.date, hotelId: body.hotelId ?? null, next: body.next } })
           } else if (body.live === false && body.specialEventFinished === true) {
             dispatch({ type: 'POLL_SPECIAL_EVENT_FINISHED' })
           }
@@ -1337,7 +1348,7 @@ export default function LiveView({
           // somehow mid-way through rendering a fresh "live" frame; a
           // deliberate finish always overrides.
           setHistory([])
-          dispatch({ type: 'POLL_FINISHED', payload: { date: body.date, next: body.next } })
+          dispatch({ type: 'POLL_FINISHED', payload: { date: body.date, hotelId: body.hotelId ?? null, next: body.next } })
         } else if (body.live === false && body.specialEventFinished === true) {
           // Same "always wins" priority as POLL_FINISHED, for a special
           // event's own scoped finished flag (see extraEventStatus in
@@ -1693,6 +1704,7 @@ export default function LiveView({
       debugMode={debugMode}
       debugFields={debugFields}
       debugNoFeed={debugNoFeed}
+      tracking={tracking}
     />
   )
 }
@@ -2050,12 +2062,14 @@ function LiveViewPresentation({
   debugMode = false,
   debugFields = null,
   debugNoFeed = false,
+  tracking = null,
 }: {
   state: LiveStatusState
   history: HistoryEntry[]
   debugMode?: boolean
   debugFields?: DebugFields | null
   debugNoFeed?: boolean
+  tracking?: TrackingContext | null
 }) {
   const { uiState, lastLiveFrame } = state
 
@@ -2077,6 +2091,17 @@ function LiveViewPresentation({
     if (!finishedDate) return
     setFarewellScene(resolveFarewellScene(finishedDate, forcedSceneFromQuery()))
   }, [finishedDate])
+
+  // Tier-1: "farewell scene shown" (ufo vs eclipse), fired exactly once per
+  // client when the scene resolves — this is the one moment the choice becomes
+  // known and the finished screen is about to mount. A ref guards once-only so
+  // re-renders don't re-fire. Demo/debug are already excluded via `tracking`.
+  const sceneBeaconSentRef = useRef(false)
+  useEffect(() => {
+    if (!farewellScene || sceneBeaconSentRef.current) return
+    sceneBeaconSentRef.current = true
+    track(tracking, farewellScene === 'eclipse' ? 'farewell_scene_eclipse' : 'farewell_scene_ufo')
+  }, [farewellScene, tracking])
 
   // Which StackRun (if any) the guest has tapped in the history strip to
   // browse — lifted all the way up HERE, above the transition-screen/
@@ -2189,6 +2214,10 @@ function LiveViewPresentation({
       // snapshot rather than a re-derived lookup against the live history
       // array on every render.
       setSelectedHistoryRun(run)
+      // Tier-1: a history pill was successfully opened, by catalog objectId.
+      // Fired here (on committed switch) not on the raw tap, so a null-image or
+      // aborted/failed preload doesn't count as an "opened" target.
+      track(tracking, 'history_pill_tap', run.objectId)
       // The new object's view should start from the image, same as landing
       // on the page fresh — without this, a guest who scrolled down into
       // the previous object's facts/drawer would switch objects while
@@ -2280,7 +2309,12 @@ function LiveViewPresentation({
     if (farewellScene === 'eclipse') {
       return <FarewellEclipse {...farewellProps} />
     }
-    return <FarewellAegeanUfo {...farewellProps} />
+    return (
+      <FarewellAegeanUfo
+        {...farewellProps}
+        onTrack={tracking?.enabled ? (key) => track(tracking, key) : undefined}
+      />
+    )
   }
 
   // A special event's own finished state — deliberately a separate branch
@@ -2367,6 +2401,7 @@ function LiveViewPresentation({
         onSelectHistoryRun={handleSelectHistoryRun}
         debugMode={debugMode}
         debugFields={debugFields}
+        tracking={tracking}
       />
     )
   }
@@ -2416,6 +2451,7 @@ function LiveViewPresentation({
       onSelectHistoryRun={handleSelectHistoryRun}
       debugMode={debugMode}
       debugFields={debugFields}
+      tracking={tracking}
     />
   )
 }
@@ -3174,6 +3210,7 @@ function LiveFrameView({
   onSelectHistoryRun,
   debugMode = false,
   debugFields = null,
+  tracking = null,
 }: {
   uiState: LiveStatusState['uiState']
   lastLiveFrame: NonNullable<LiveStatusState['lastLiveFrame']>
@@ -3183,6 +3220,7 @@ function LiveFrameView({
   onSelectHistoryRun: (run: HistoryEntry | null) => void
   debugMode?: boolean
   debugFields?: DebugFields | null
+  tracking?: TrackingContext | null
 }) {
   // 'off': normal circular view. 'native': the real Fullscreen API is active
   // (Android/desktop — unaffected by this change). 'css-fallback': a fixed
@@ -3302,6 +3340,9 @@ function LiveFrameView({
       setFullscreenMode('off')
       return
     }
+    // Past both exit early-returns above, so this is unambiguously an ENTER
+    // (native or css-fallback). Tier-1 counts fullscreen entries only, not exits.
+    track(tracking, 'fullscreen_enter')
     if (supportsNativeFullscreen()) {
       document.documentElement.requestFullscreen().catch(() => {})
       // fullscreenMode itself is set by the fullscreenchange listener above
@@ -3367,6 +3408,15 @@ function LiveFrameView({
   const effectiveObjectKey = selectedHistoryRun
     ? `history:${selectedHistoryRun.id}`
     : computeRunKey(lastLiveFrame.source, lastLiveFrame.observationId, lastLiveFrame.stackRunStartedAt)
+
+  // Catalog objectId of whatever object is CURRENTLY displayed, for the Tier-1
+  // "object info opened" beacon. When browsing history it's the selected run's
+  // objectId; live, it's the active history entry (the run currently stacking,
+  // which is the object the live card describes). Null when unknown — the
+  // drawer beacon then counts without an object dimension rather than guessing.
+  const effectiveObjectId = selectedHistoryRun
+    ? selectedHistoryRun.objectId
+    : (history.find((h) => h.active)?.objectId ?? history[0]?.objectId ?? null)
 
   // The heading's actual content AND a flat-text version of the same,
   // computed together so useShrinkTitleToFit (called right below, BEFORE
@@ -3615,7 +3665,11 @@ function LiveFrameView({
           <Facts displayObject={effectiveDisplayObject} />
 
           <div className="description">
-            <ObjectDescription key={effectiveObjectKey} displayObject={effectiveDisplayObject} />
+            <ObjectDescription
+              key={effectiveObjectKey}
+              displayObject={effectiveDisplayObject}
+              onDrawerOpen={() => track(tracking, 'object_info_open', effectiveObjectId)}
+            />
           </div>
         </section>
 
@@ -4604,8 +4658,13 @@ function TypeIcon({ type }: { type: string }) {
 // prominent, instruction line smaller/dimmer.
 function ObjectDescription({
   displayObject,
+  onDrawerOpen,
 }: {
   displayObject: DisplayObject
+  // Fired when the enriched drawer is OPENED (not on close) — the Tier-1
+  // "object info opened" beacon. Optional so non-tracking callers (none today,
+  // but demo/debug reach this via effectiveDisplayObject) can omit it.
+  onDrawerOpen?: () => void
 }) {
   if (displayObject.kind === 'known') {
     // Enriched content is authored as a complete set (see CatalogObject in
@@ -4620,6 +4679,7 @@ function ObjectDescription({
           wowFacts={displayObject.wowFacts}
           visualHint={displayObject.visualHint}
           drawer={displayObject.drawer}
+          onDrawerOpen={onDrawerOpen}
         />
       )
     }
@@ -4684,11 +4744,13 @@ function EnrichedCard({
   wowFacts,
   visualHint,
   drawer,
+  onDrawerOpen,
 }: {
   type: string
   wowFacts: string[]
   visualHint: string
   drawer: { heading: string; body: string }[]
+  onDrawerOpen?: () => void
 }) {
   const { text, visible } = useRotatingPhrase(wowFacts, WOW_FACT_ROTATE_MS)
   const [open, setOpen] = useState(false)
@@ -4716,7 +4778,12 @@ function EnrichedCard({
 
   function handleToggle() {
     hasInteractedRef.current = true
-    setOpen((o) => !o)
+    setOpen((o) => {
+      // Fire the "object info opened" beacon only on the OPEN transition, never
+      // on close — a close isn't an "opened" event.
+      if (!o) onDrawerOpen?.()
+      return !o
+    })
   }
 
   useEffect(() => {

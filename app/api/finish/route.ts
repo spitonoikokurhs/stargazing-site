@@ -12,6 +12,8 @@ import {
 import { isExtraEventSlug, extraEventFor } from '@/lib/extra-events'
 import { athensToday, eventFor } from '@/lib/schedule'
 import { snapshotViewerStatsNightly } from '@/lib/viewer-stats-nightly'
+import { resolveInteractionScope } from '@/lib/interaction-stats'
+import { flushInteractionStats } from '@/lib/interaction-stats-flush'
 
 // Node runtime required: crypto.timingSafeEqual, createHash.
 export const runtime = 'nodejs'
@@ -87,6 +89,9 @@ export async function POST(req: NextRequest) {
         eventSlug,
         source: 'finish',
       })
+      // Also flush this event's Tier-1 interaction counters to their durable
+      // table (same best-effort, non-fatal discipline as the viewer snapshot).
+      await flushInteractionStats(resolveInteractionScope(eventSlug), 'finish')
       return json({ finished: true, event: eventSlug })
     }
 
@@ -105,6 +110,8 @@ export async function POST(req: NextRequest) {
       eventSlug: null,
       source: 'finish',
     })
+    // Also flush tonight's hotel Tier-1 interaction counters (best-effort).
+    await flushInteractionStats(resolveInteractionScope(null), 'finish')
     return json({ finished: true })
   } catch (e) {
     console.error('/api/finish: unexpected error', e)

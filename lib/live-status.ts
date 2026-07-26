@@ -98,7 +98,7 @@ export type OfflinePayload = { tonight: TonightInfo | null; next: NextInfo | nul
 // next-session lookup the offline state already uses, so the farewell
 // screen's "Next session: Monday, 21:30" line is never a second source of
 // truth. Both come straight through from /api/status's finished response.
-export type FinishedInfo = { date: string; next: NextInfo | null }
+export type FinishedInfo = { date: string; hotelId: string | null; next: NextInfo | null }
 
 export type LiveStatusState = {
   uiState: UiState

@@ -561,7 +561,12 @@ export async function GET(req: NextRequest) {
         tonightEvent && athensNowHHMM() < tonightEvent.end
           ? { date: today, ...tonightEvent }
           : nextEvent(athensTomorrow(today))
-      return json({ live: false, finished: true, date: today, next })
+      // hotelId of the venue that just finished (tonight's scheduled hotel) —
+      // additive, for the farewell's review-funnel WhatsApp prefill (see
+      // FinishedInfo / the funnel constants). Null when no event is scheduled
+      // today (e.g. an ad-hoc session), in which case the funnel falls back to a
+      // generic prefill. Distinct from `next.hotelId`, which is the NEXT session.
+      return json({ live: false, finished: true, date: today, hotelId: tonightEvent?.hotelId ?? null, next })
     }
 
     const frames: Record<HotelSource, LatestFrame | null> = {
