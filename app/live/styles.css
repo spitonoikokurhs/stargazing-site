@@ -2656,6 +2656,32 @@
   }
 }
 
+/* Finale exit for the MAIN UFO: reuses the flag cells' own departure verb
+   (farewell-flyoff — fade + ascend + shrink) so the exit reads native to the
+   finale. Applied at +1000ms, exactly as the 1s spinfast lands back at
+   identity, so the triple spin flows straight into lift-off with no
+   transform snap. `forwards` keeps it gone until the reset returns it. */
+.farewell-ufo-unit.flyoff {
+  animation: farewell-flyoff 0.8s ease-in forwards;
+}
+
+/* Gentle reappear at the finale reset (+12500ms) — the flyoff class is
+   removed and this fades the UFO back in alongside the returning card text,
+   instead of an instant pop. One-shot: the finale is terminal (the tap latch
+   ignores everything after it), so neither this nor flyoff can ever be
+   re-triggered by further taps. */
+.farewell-ufo-unit.return {
+  animation: farewell-ufo-return 400ms ease-out;
+}
+@keyframes farewell-ufo-return {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
 .farewell-flash {
   position: absolute;
   left: 50%;

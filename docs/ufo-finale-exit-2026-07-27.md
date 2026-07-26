@@ -84,3 +84,36 @@ plus one CSS rule.
 text). Plus the standard drill: tsc + lint + all 15 suites + real build.
 
 **Nothing changed yet. Awaiting your go.**
+
+---
+
+# Addendum — Built (approved, same day)
+
+**One timing correction from the plan:** `spinfast` is **1s**, not the 500ms the proposal
+assumed (keyframes end back at identity at 100%). Firing flyoff mid-spin would have snapped
+the transform, so the exit lands at **+1000ms** — the exact moment the triple spin returns to
+identity — and the fleet/flag start moved to **+1100ms**. Same handoff design, cleaner join:
+the spin flows straight into lift-off with no intermediate frame. UFO fully gone by ~1.8s;
+first mini fades in from ~1.36s (≈700ms of arrival-over-departure overlap).
+
+**Your confirmation #1 — reappear can't glitch or double-animate: CONFIRMED, two ways.**
+By code: post-finale taps hit the terminal latch's `ignored` early-return *before any
+classList code runs* — no path exists that touches `flyoff`/`return` after the reset. By
+test: 8 taps spammed across the reappear window (12.4–13.6s) in a live browser — final state
+`farewell-ufo-unit` (classes clean, no leftovers), opacity 1, zero JS errors.
+
+**Your confirmation #2 — timings byte-identical: CONFIRMED after the change, from the diff.**
+`git diff` shows zero changes to the `2600` (reward), `11000` (scatter), `12500` (reset)
+timestamps, `markFinaleCompleted`, or the beacon lines. The ~1.1s the ships now wait comes
+out of the ~9s assembled-flag hold (→ ~7.9s effective), which is imperceptible; total finale
+length is unchanged.
+
+**Screenshot sequence (live run):** mid-departure at +1.35s — main UFO at 61% opacity,
+ascending, while the flag cells march in from the left (the handoff, in one frame) · +4s —
+UFO computed opacity **0**, ships + flag own the scene · post-reset — UFO restored at
+opacity 1 with clean classes despite the tap-spam.
+
+**Tiers:** reduced + static untouched, exactly as scoped (verified by diff — every change
+sits inside the `flagFinaleEnabled` branch + one CSS block).
+
+Verified: tsc + lint clean · all 15 suites · real build green. Held for review.

@@ -640,17 +640,34 @@ export function FarewellAegeanUfo({
         // reset from before.
         cardText.classList.add('farewell-card-text--hidden')
         if (flagFinaleEnabled) {
-          fleet.classList.remove('go')
-          void fleet.offsetWidth
-          fleet.classList.add('go')
-          flag.classList.remove('go', 'bye')
-          void flag.offsetWidth
-          flag.classList.add('go')
           // The flag formation sits near the top of the stage — nudge the
           // UFO down slightly for the finale so it doesn't sit underneath/
           // overlap the flag while it's flying in and holding. Reverted
           // alongside the rest of the reset below.
           ufoSlot.classList.add('farewell-ufo-slot--finale')
+          // THE EXIT: at +1000ms — exactly as the 1s spinfast lands back at
+          // identity — the main UFO departs via the flag cells' own flyoff
+          // verb (fade + ascend + shrink, 0.8s): the excited triple spin
+          // flows straight into lift-off, gone by ~1.8s. Without this it
+          // stayed parked at full opacity under the arriving fleet for the
+          // whole finale, reading as hidden among the small ships.
+          setTimeout(() => {
+            ufo.classList.remove('spin', 'spinfast')
+            ufo.classList.add('flyoff')
+          }, 1000)
+          // Fleet + flag arrive at +1100ms — a deliberate slight overlap
+          // with the departure (first mini fades in while the UFO is
+          // mid-ascent): a handoff, not two disconnected beats. The scatter/
+          // reset timestamps below are unchanged; the ~1.1s comes out of the
+          // ~9s assembled-flag hold, which is imperceptible.
+          setTimeout(() => {
+            fleet.classList.remove('go')
+            void fleet.offsetWidth
+            fleet.classList.add('go')
+            flag.classList.remove('go', 'bye')
+            void flag.offsetWidth
+            flag.classList.add('go')
+          }, 1100)
           setTimeout(() => {
             reward.classList.remove('show', 'farewell-reward--long')
             void reward.offsetWidth
@@ -666,6 +683,15 @@ export function FarewellAegeanUfo({
             flag.classList.remove('go', 'bye')
             cardText.classList.remove('farewell-card-text--hidden')
             ufoSlot.classList.remove('farewell-ufo-slot--finale')
+            // Bring the departed UFO back: swap flyoff (forwards-filled at
+            // opacity 0) for a 400ms fade-in, arriving with the returning
+            // card text — no pop. One-shot by construction: post-finale taps
+            // are 'ignored' by the terminal latch before any classList code
+            // runs, so nothing can interrupt or re-trigger this.
+            ufo.classList.remove('flyoff')
+            void (ufo as unknown as HTMLElement).offsetWidth
+            ufo.classList.add('return')
+            setTimeout(() => ufo.classList.remove('return'), 500)
             busy = false
             finaleRunning = false
             // Streak count reset for tidiness; the terminal latch
