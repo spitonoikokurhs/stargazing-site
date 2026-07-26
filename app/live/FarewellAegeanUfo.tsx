@@ -821,7 +821,17 @@ export function FarewellAegeanUfo({
       <div className="farewell-stars" />
       <div className="farewell-bgstars" ref={bgLayerRef} />
       <div className="farewell-skyLayer" ref={skyLayerRef} />
-      <div className="farewell-reflLayer" ref={reflLayerRef} />
+      {/* Water-surface effects ONLY (star reflections + impact splashes — its
+          only two appendChild sites). Clipped at the horizon so nothing
+          water-borne can render a single pixel above the waterline: a splash
+          centered ON the line becomes a waterline semicircle instead of poking
+          rings into the sky. Inline style so the clip shares the engine's own
+          HORIZON_VH constant — no duplicated 74 in CSS to drift apart. */}
+      <div
+        className="farewell-reflLayer"
+        ref={reflLayerRef}
+        style={{ clipPath: `inset(${HORIZON_VH}vh 0 0 0)` }}
+      />
 
       <div className="farewell-fleet" ref={fleetRef}>
         <span className="farewell-mini farewell-mini--1" style={{ top: '30%' }}>

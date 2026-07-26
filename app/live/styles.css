@@ -2446,6 +2446,13 @@
   transform: translateX(-140px);
   opacity: 0.5;
   animation: farewell-bob 6s ease-in-out infinite;
+  /* Above .farewell-reflLayer (z-index: 1): the boat is a foreground OBJECT and
+     must occlude the water-surface EFFECTS (splashes/reflections) that layer
+     carries — without this, a random far splash landing in the boat's ~46px
+     window painted over the hull (the "splash in front of the foreground"
+     glitch). Physically right in every reachable case: the boat straddles the
+     horizon, and genuinely-near splashes land well below its box anyway. */
+  z-index: 2;
 }
 
 @keyframes farewell-bob {
