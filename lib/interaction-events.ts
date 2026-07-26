@@ -40,6 +40,7 @@ export const INTERACTION_KEYS = [
   'farewell_scene_eclipse', // the eclipse farewell scene was shown to a guest
   'farewell_ufo_tap', // a counted tap on the UFO (pre-finale; UFO scene only)
   'farewell_finale_reached', // the UFO finale fired (terminal; UFO scene only)
+  'eclipse_totality_reached', // a guest tapped the eclipse through to totality (eclipse scene only; the eclipse's engagement analogue of the UFO finale)
 
   // Review / testimonial funnel — the FOUR variants tracked separately so
   // finder-vs-baseline conversion is comparable (see the spec's Part 2 routing).

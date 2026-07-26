@@ -397,3 +397,106 @@ no identifier is stored or sent.
    reach the UFO finale, and confirm the funnel appears and `/api/interaction-stats` shows counts.
 
 **Built, verified, held for review. Not pushed. No AI attribution.**
+
+---
+
+# Part 3 — Post-audit review pass
+
+A full end-to-end audit was run over the finished cluster (client → wire → server → Redis →
+Postgres → read side → funnel UI). Ten findings; you approved six fixes, four were noted as
+by-design. All six are applied and re-verified.
+
+## Fixes applied
+
+1. **Demo-mode beacon pollution (the one that mattered).** `/live?demo=history-test` (the
+   local query-param test mode) kept `statusUrl='/api/status'`, so the URL-based gate couldn't
+   see it and operator test runs emitted REAL beacons into tonight's counters — the exact
+   pollution class the spec exists to prevent. Fix: `trackingContextFor` gained a third
+   `localDemoMode` param that kills tracking when non-null; LiveView passes `getDemoMode()`.
+   The gate lives in the pure function, so it's directly unit-tested (4 new assertions),
+   including "local demo also kills special-event tracking."
+2. **Rate limit sized for venue reality — flat 600/min, NOT ip+UTC-hour keying.** Why: the
+   limiter is a sliding ONE-MINUTE window; suffixing the hour into the key only rotates which
+   bucket counts each hour — it adds zero peak-minute capacity, which is the thing the
+   farewell crowd actually hits (30-50 phones behind one hotel NAT ≈ 250/min worst case
+   through a single IP). 600/min gives that moment ~2.4x headroom. Abuse stays bounded by the
+   layers BEHIND the limiter: the allowlist drops unknown keys, the 512-field cap bounds hash
+   growth, and the worst an in-limit abuser can do is inflate anonymous tallies — no storage
+   blowup, no identifier, no cost cliff. Simpler AND correct, so it won.
+3. **Static-tier tap double-count.** The reduced-motion 5th tap emitted both `farewell_ufo_tap`
+   AND `farewell_finale_reached`; the animated tier emitted only the finale. Now gated
+   `< TAP_TIER_3` — both tiers count identically (taps 1-4 = taps, tap 5 = finale only).
+4. **`eclipse_totality_reached` counter added.** Roughly half the guests get the eclipse; this
+   is its engagement analogue of the UFO finale. Once-guarded per farewell view (the scene
+   posts the message on every replay loop; the beacon fires only on the first), routed through
+   the same `onTrack` ref pattern as the UFO scene.
+5. **`?date=` on `/api/interaction-stats`.** Mirrors `/api/viewer-stats`' archive branch: past
+   hotel nights read from the durable rows (`archived:true`, `found` flag); today/special
+   events fall through to the current-scope read unchanged.
+6. **Tracking context memoized** (stable identity across poll re-renders; it sits in effect
+   dep arrays).
+
+**Midnight-straggler note (#6, no code change):** one calendar date can hold TWO eventKeys —
+the real `<date>:<hotelId>` night and a `<date>:hotel` fallback bucket (hotelId null) fed by
+guests lingering past midnight. Same date-keying viewer-stats has by design. The `?date=`
+response now surfaces `eventKeys` + per-row `hotelId` precisely so the future season view can
+tell them apart — **rule for that view: a hotelId-null bucket under a date that also has a real
+night is straggler noise, not a second event.** Documented at the source
+(`readDurableInteractionStatsByDate`).
+
+**Noted, no action (by design):** Redis round-trips per beacon (~4; pipeline later if ever
+needed), sequential flush upserts (fine at realistic counter counts), read-side ≤5min
+staleness (durable-table semantics, documented). **Tier 2 banked separately** — per-viewer
+journeys need an append-only table, a different shape; deliberately not entangled here.
+
+## Re-verification (after fixes)
+
+- ✅ `tsc` clean · `lint` clean · real `next build` green (new routes `ƒ`-dynamic; the new
+  endpoint declares `force-dynamic` so it doesn't add probe noise to the build log)
+- ✅ **All 14 suites pass** — the pure suite now at 49 assertions including the demo-gate and
+  totality-key cases.
+
+## Answer 1 — Vercel cron: how to check the plan, and the fallback
+
+- **Check:** Vercel dashboard → your team avatar → Settings → Billing shows Hobby/Pro. (Or
+  just deploy: on **Hobby**, the `*/5 * * * *` schedule in vercel.json **fails the deployment**
+  with a cron-schedule error — Hobby crons are limited to once-daily triggers, max 2 jobs.
+  With flush-interactions added this project has exactly 2, so the count is fine either way.)
+- **On Pro:** nothing to do — 5-min cadence deploys as-is.
+- **Fallback if Hobby:** change the schedule to `"0 2 * * *"` (daily, an hour after
+  close-sessions). Durability degrades gracefully, not badly: the finish-flush still lands the
+  night's final numbers the moment you finish; the daily run becomes a backstop that fully
+  recovers even a MISSED finish, because the Redis buffer lives 48h. What you lose vs 5-min is
+  only the mid-event crash window ("crash loses the night's so-far counters until the morning
+  backstop" instead of "loses ≤5 minutes") — Redis itself crashing mid-event is the only
+  scenario where that matters.
+
+## Answer 2 — Risk-ordered manual walkthrough (run on production, after deploy)
+
+Ordered by what could hurt most, first:
+
+1. **Farewell feel (guest-sacred, highest risk).** On a phone, on a finished night (or the
+   forced-scene query you use for testing): UFO scene plays untouched → ~18s later the baseline
+   invitation fades in under the card, calm, dismissible → dismiss sticks for the tab. Tap the
+   UFO 5× → the finale plays FULLY uninterrupted → after the flag scatters (~12.5s) the card
+   text returns with the finder ask → it opens the Google review form. Then the eclipse guest:
+   tap to totality → after totality the top-right invitation appears → WhatsApp opens with the
+   right venue in the prefill. Then a reduced-motion phone: static scene, baseline appears with
+   no motion; 5 taps → static reward + finder.
+2. **Your offline pitch file.** Open your local `scene-eclipse.html` directly — plays to
+   totality, zero errors, zero visual change. (Verified headless here; eyeball it once.)
+3. **No pollution (fix #1).** `/live?demo=history-test` with DevTools Network open → tap pills,
+   open the drawer, go fullscreen → **zero** requests to `/api/track`. Repeat on `/demo/plaza`
+   and `/live-debug`.
+4. **Real beacons land.** On real `/live`: pill tap / drawer open / fullscreen → Network shows
+   `POST /api/track` → 204. Then
+   `curl -H "Authorization: Bearer <token>" https://www.stargazing.world/api/interaction-stats`
+   → counters present (within ~5 min on Pro; after finish on the Hobby fallback).
+5. **Finished payload + finish flush.** After a real `/api/finish`: `/api/status` finished body
+   carries `hotelId`; interaction-stats shows the night's rows; next day
+   `?date=YYYY-MM-DD` returns them with `archived:true`.
+6. **Funnel tallies.** Click each of the funnel's buttons once during a test window and confirm
+   the four `funnel_*` click/impression counters increment separately — remembering those test
+   clicks are then in the numbers (do it before the event day).
+
+**Fixes applied, re-verified, held for review. Not pushed. No AI attribution.**

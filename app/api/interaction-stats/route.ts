@@ -1,10 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createHash, timingSafeEqual } from 'crypto'
 import { resolveInteractionScope } from '@/lib/interaction-stats'
-import { readDurableInteractionStats } from '@/lib/interaction-stats-flush'
+import {
+  readDurableInteractionStats,
+  readDurableInteractionStatsByDate,
+} from '@/lib/interaction-stats-flush'
+import { athensToday } from '@/lib/schedule'
 
 // Node runtime required: crypto.timingSafeEqual, createHash.
 export const runtime = 'nodejs'
+// Always dynamic: the route reads request headers (auth) on every call, and
+// declaring it silences Next's build-time static-render probe (which otherwise
+// logs a spurious "Dynamic server usage" error through our catch block — the
+// pre-existing /api/viewer-stats lives with that noise; this route needn't).
+export const dynamic = 'force-dynamic'
 
 function json(body: unknown, status = 200) {
   return NextResponse.json(body, { status, headers: { 'Cache-Control': 'no-store' } })
@@ -51,6 +60,32 @@ export async function GET(req: NextRequest) {
 
     const eventSlug = req.nextUrl.searchParams.get('event')
     const scope = resolveInteractionScope(eventSlug)
+
+    // ?date=YYYY-MM-DD reads a PAST hotel night's archived interaction rows —
+    // mirrors /api/viewer-stats' archive branch exactly: hotel scope only (a
+    // special event's eventKey is date-independent, so ?event= already reads
+    // its own stable rows and ?date= is ignored there), and `date` omitted or
+    // set to today keeps the normal current-scope read below. Rows carry
+    // eventKey/hotelId because one date can hold both the real night AND the
+    // midnight-straggler fallback bucket — see the consumer caveat on
+    // readDurableInteractionStatsByDate (a season view must not present the
+    // hotelId-null bucket as a night of its own).
+    const requestedDate = req.nextUrl.searchParams.get('date')
+    const today = athensToday()
+    if (scope.scope === 'hotel' && requestedDate && requestedDate !== today) {
+      const archived = await readDurableInteractionStatsByDate(requestedDate)
+      return json({
+        scope: 'hotel',
+        date: requestedDate,
+        archived: true,
+        found: archived.rows.length > 0,
+        eventKeys: archived.eventKeys,
+        byKey: archived.byKey,
+        counters: archived.rows,
+        generatedAt: new Date().toISOString(),
+      })
+    }
+
     const stats = await readDurableInteractionStats(scope.eventKey)
 
     return json({
@@ -59,6 +94,7 @@ export async function GET(req: NextRequest) {
       date: scope.date,
       hotelId: scope.hotelId,
       eventSlug: scope.eventSlug,
+      archived: false,
       // Per-key rollup (counters summed across objectIds) for a quick read, plus
       // the full per-counter rows (including the per-objectId breakdown).
       byKey: stats.byKey,

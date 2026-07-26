@@ -103,3 +103,54 @@ export async function readDurableInteractionStats(eventKey: string): Promise<{
     return { rows: [], byKey: {} }
   }
 }
+
+// Archive read for a PAST hotel night by Athens date (?date= on the read
+// endpoint — the interaction sibling of /api/viewer-stats' archive branch).
+// Rows carry their eventKey/hotelId because one date can legitimately hold
+// MORE THAN ONE eventKey:
+//   - "<date>:<hotelId>" — the real scheduled night (hotelId set);
+//   - "<date>:hotel"     — the fallback bucket (hotelId null), fed by e.g. a
+//     guest lingering past midnight (their beacons re-key onto the NEW date
+//     with no scheduled event — same date-keying the viewer-stats system has
+//     by design) or an unscheduled ad-hoc session.
+// CONSUMER CAVEAT (season/calendar view): rows with hotelId === null under a
+// date that ALSO has a real hotelId'd night are midnight-straggler noise, not
+// a second event — group by eventKey and don't present the fallback bucket as
+// a night of its own unless it's the only bucket the date has.
+export async function readDurableInteractionStatsByDate(date: string): Promise<{
+  rows: {
+    eventKey: string
+    hotelId: string | null
+    counterField: string
+    interactionKey: string
+    objectId: string | null
+    count: number
+  }[]
+  byKey: Record<string, number>
+  eventKeys: string[]
+}> {
+  try {
+    const rows = await prisma.eventInteractionStats.findMany({
+      where: { date, scope: 'hotel' },
+      select: {
+        eventKey: true,
+        hotelId: true,
+        counterField: true,
+        interactionKey: true,
+        objectId: true,
+        count: true,
+      },
+      orderBy: [{ eventKey: 'asc' }, { counterField: 'asc' }],
+    })
+    const byKey: Record<string, number> = {}
+    const eventKeys: string[] = []
+    for (const r of rows) {
+      byKey[r.interactionKey] = (byKey[r.interactionKey] ?? 0) + r.count
+      if (!eventKeys.includes(r.eventKey)) eventKeys.push(r.eventKey)
+    }
+    return { rows, byKey, eventKeys }
+  } catch (e) {
+    console.error('readDurableInteractionStatsByDate failed', e)
+    return { rows: [], byKey: {}, eventKeys: [] }
+  }
+}

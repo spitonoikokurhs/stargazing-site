@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useLayoutEffect, useReducer, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from 'react'
 import {
   liveStatusReducer,
   initialLiveStatusState,
@@ -1204,10 +1204,17 @@ export default function LiveView({
   const [state, dispatch] = useReducer(liveStatusReducer, initialLiveStatusState)
 
   // Tier-1 interaction-tracking context: enabled ONLY on the real guest paths
-  // (/api/status[?event=]); OFF for demo (/api/demo-status, analytics-inert) and
-  // the operator debug view. Derived purely from props so it's stable, and the
-  // single gate every hook point flows through (see @/lib/track-client).
-  const tracking = trackingContextFor(statusUrl, debugMode)
+  // (/api/status[?event=]); OFF for demo (/api/demo-status, analytics-inert),
+  // the operator debug view, AND /live's own ?demo= local test mode
+  // (getDemoMode) — operator test runs must never pollute a real night's
+  // counters. Memoized so the context keeps a stable identity across poll
+  // re-renders (it sits in effect dep arrays downstream). getDemoMode reads
+  // window.location.search, which is fixed for the life of a mount, so props
+  // are the only real inputs.
+  const tracking = useMemo(
+    () => trackingContextFor(statusUrl, debugMode, getDemoMode()),
+    [statusUrl, debugMode],
+  )
 
   // Operator-diagnostics channel — populated ONLY in debugMode, entirely
   // separate from the reducer/lastLiveFrame so the guest live path and its

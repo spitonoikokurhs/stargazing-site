@@ -263,7 +263,10 @@ export function FarewellAegeanUfo({
   function onStaticUfoTap() {
     if (staticRevealed) return
     staticTapsRef.current += 1
-    emitTrack('farewell_ufo_tap')
+    // The 5th (finale) tap emits ONLY farewell_finale_reached below — matching
+    // the animated tier, where the finale tap is tracked as the finale and not
+    // double-counted as a tap. Pre-finale taps (1-4) count here.
+    if (staticTapsRef.current < TAP_TIER_3) emitTrack('farewell_ufo_tap')
     if (staticResetRef.current) clearTimeout(staticResetRef.current)
     staticResetRef.current = setTimeout(() => {
       staticTapsRef.current = 0

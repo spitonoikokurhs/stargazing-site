@@ -30,6 +30,8 @@ assert('non-string rejected', !isInteractionKey(42) && !isInteractionKey(null) &
 assert('all four funnel variants present',
   ['funnel_whatsapp_click', 'funnel_baseline_review_click', 'funnel_finder_review_click', 'funnel_whatsapp_impression']
     .every((k) => isInteractionKey(k)))
+assert('eclipse totality key present', isInteractionKey('eclipse_totality_reached'))
+assert('eclipse totality is NOT object-scoped', !keyTakesObjectId('eclipse_totality_reached'))
 
 // ---- object-scoped keys ----
 assert('history_pill_tap is object-scoped', keyTakesObjectId('history_pill_tap'))
@@ -77,6 +79,13 @@ assert('hotel path enabled', trackingContextFor('/api/status', false).enabled ==
 assert('special-event path enabled + slug', (() => { const c = trackingContextFor('/api/status?event=parnonas', false); return c.enabled && c.eventSlug === 'parnonas' })())
 assert('demo path DISABLED', trackingContextFor('/api/demo-status?demo=plaza', false).enabled === false)
 assert('debug mode DISABLED even on status', trackingContextFor('/api/status?debug=1', true).enabled === false)
+// The /live?demo= LOCAL test mode (getDemoMode) keeps statusUrl '/api/status' —
+// the third param is the only thing that can see it, and it must kill tracking
+// so operator test runs never pollute a real night's counters.
+assert('local ?demo= mode DISABLED on real statusUrl', trackingContextFor('/api/status', false, 'history-test').enabled === false)
+assert('local demo also kills special-event tracking', trackingContextFor('/api/status?event=parnonas', false, 'known-nebula').enabled === false)
+assert('local demo null -> unchanged (enabled)', trackingContextFor('/api/status', false, null).enabled === true)
+assert('local demo disabled context has null slug', trackingContextFor('/api/status?event=parnonas', false, 'known-nebula').eventSlug === null)
 assert('deriveEventSlug hotel -> null', deriveEventSlug('/api/status') === null)
 assert('deriveEventSlug event -> slug', deriveEventSlug('/api/status?event=oku-kos') === 'oku-kos')
 

@@ -20,18 +20,28 @@ export const ingestRatelimit = new Ratelimit({
   prefix: 'ratelimit:ingest',
 })
 
-// Tier-1 interaction-beacon limiter (see app/api/track/route.ts). A guest
-// legitimately fires a handful of interaction beacons across a session (a few
-// pill taps, a drawer open, some UFO taps during the farewell), so 120/min per
-// IP is generous headroom for real use while bounding how fast one client can
-// spray counters. Keyed by IP purely for throttling — the IP is passed to
-// Upstash's limiter (which hashes it into an internal counter key) and is
-// NEVER stored as data, logged, or written to a counter; see the route's
-// identifier-free note. A separate instance/prefix so its quota can never
-// collide with ingestRatelimit.
+// Tier-1 interaction-beacon limiter (see app/api/track/route.ts). Sized for
+// VENUE REALITY, not a single phone: at a hotel event most guests sit behind
+// the venue's NAT and present ONE shared IP, and the traffic peak is exactly
+// the farewell (30-50 phones each firing ~5 UFO taps + funnel impressions +
+// clicks within a couple of minutes ≈ 250/min worst case through one IP).
+// 600/min gives that moment ~2.4x headroom — losing the farewell peak to a
+// silent throttle would be dropping the most interesting data at its most
+// interesting moment. Deliberately a FLAT per-minute raise rather than
+// ip+hour keying: the sliding window is per-minute regardless of what's in
+// the key, so hour-suffixing would only rotate buckets, not add peak-minute
+// capacity. Abuse stays bounded by the layers BEHIND the limiter — the
+// allowlist drops unknown keys, the 512-field buffer cap bounds hash growth,
+// and the worst an abuser can do even inside the limit is inflate anonymous
+// tallies of known keys (no storage blowup, no identifier, no cost cliff).
+// Keyed by IP purely for throttling — the IP is passed to Upstash's limiter
+// (which hashes it into an internal counter key) and is NEVER stored as
+// data, logged, or written to a counter; see the route's identifier-free
+// note. A separate instance/prefix so its quota can never collide with
+// ingestRatelimit.
 export const trackRatelimit = new Ratelimit({
   redis,
-  limiter: Ratelimit.slidingWindow(120, '1 m'),
+  limiter: Ratelimit.slidingWindow(600, '1 m'),
   prefix: 'ratelimit:track',
 })
 

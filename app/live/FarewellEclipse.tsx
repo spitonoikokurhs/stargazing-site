@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { buildEclipseSceneHtml } from './farewell-eclipse-scene'
 import { BackToHome } from './BackToHome'
 import { ReviewFunnel } from './ReviewFunnel'
@@ -81,6 +81,17 @@ export function FarewellEclipse({
   // review invitation "after totality," per the spec. Latched: once true it
   // stays, so a replay of the eclipse loop doesn't re-toggle the invitation.
   const [totalityReached, setTotalityReached] = useState(false)
+  // onTrack held in a ref (same pattern as FarewellAegeanUfo's onTrackRef): the
+  // []-dep listener effect below captures its closure once at mount, while the
+  // onTrack prop is a fresh arrow from LiveView on every render — the ref keeps
+  // the latest callback reachable without re-subscribing the listener.
+  const onTrackRef = useRef(onTrack)
+  onTrackRef.current = onTrack
+  // Once-guard for the Tier-1 totality beacon: the scene posts 'eclipse-totality'
+  // at EVERY totality onset — the eclipse loop is replayable — but "a guest
+  // reached totality" should count once per farewell view, mirroring
+  // farewell_finale_reached's one-shot semantics on the UFO scene.
+  const totalityBeaconSentRef = useRef(false)
   useEffect(() => {
     function onMessage(e: MessageEvent) {
       // Validate shape only (the sandboxed null-origin iframe has an opaque
@@ -88,6 +99,14 @@ export function FarewellEclipse({
       // own known message type and ignore everything else).
       if (e && e.data && typeof e.data === 'object' && (e.data as { type?: unknown }).type === 'eclipse-totality') {
         setTotalityReached(true)
+        if (!totalityBeaconSentRef.current) {
+          totalityBeaconSentRef.current = true
+          try {
+            onTrackRef.current?.('eclipse_totality_reached')
+          } catch {
+            // a tracking hiccup must never disturb the farewell
+          }
+        }
       }
     }
     window.addEventListener('message', onMessage)

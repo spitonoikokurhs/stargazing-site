@@ -28,9 +28,22 @@ export type TrackingContext = { enabled: boolean; eventSlug: string | null }
 // ?event= special-event path); everything else (demo's /api/demo-status, any
 // future feed) is excluded. debugMode (the operator /live-debug view) is always
 // excluded regardless of URL.
-export function trackingContextFor(statusUrl: string, debugMode: boolean): TrackingContext {
+//
+// localDemoMode: /live also has its OWN query-param test mode (?demo=known-nebula
+// / history-test / … — see getDemoMode in app/live/LiveView.tsx) that synthesizes
+// status bodies WITHOUT changing statusUrl — so the URL gate alone can't see it.
+// The caller passes that mode here and any non-null value kills tracking:
+// operator test runs on /live?demo=… must never pollute a real night's counters
+// (the exact pollution class event-window attribution exists to prevent). Null on
+// SSR (getDemoMode is window-guarded) is fine — the context is only consumed by
+// client-side handlers/effects, never rendered, so no hydration concern.
+export function trackingContextFor(
+  statusUrl: string,
+  debugMode: boolean,
+  localDemoMode: string | null = null,
+): TrackingContext {
   const isGuestStatus = statusUrl === '/api/status' || statusUrl.startsWith('/api/status?')
-  const enabled = !debugMode && isGuestStatus
+  const enabled = !debugMode && localDemoMode === null && isGuestStatus
   return { enabled, eventSlug: enabled ? deriveEventSlug(statusUrl) : null }
 }
 
