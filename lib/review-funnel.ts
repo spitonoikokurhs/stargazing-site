@@ -37,12 +37,13 @@ export function whatsappUrl(hotelId: string | null | undefined): string {
 // ---- Guest-facing copy (premium, calm tone — "a guest, not a banner") ----
 export const FUNNEL_COPY = {
   // Baseline block: one warm line, then the two actions (WhatsApp first).
+  // No dismiss string: the baseline block auto-fades after ~30s untouched
+  // (see ReviewFunnel.tsx) instead of asking the guest to tap anything.
   baseline: {
     lead: 'Enjoyed tonight?',
     sub: "We'd love a few words.",
     whatsapp: 'Message us on WhatsApp',
     review: 'Leave a review',
-    dismiss: 'Dismiss',
   },
   // Finder block: they found the secret, so the copy acknowledges it.
   finder: {

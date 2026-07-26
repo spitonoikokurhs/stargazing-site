@@ -3567,25 +3567,35 @@
 /* UFO farewell: inside .farewell-card-text, below the flavor line. Positioned
    above the interactive stage so the link is reliably tappable (the UFO
    tap-target and background layers must not eat the click). */
+/* The calm exit at the very bottom of the farewell (both UFO tiers) — reads as
+   the end of the visual order (scene -> funnel -> exit) rather than competing
+   with the card or the funnel block. Sits just above the tap-hint caption
+   (bottom: 8px, z-index: 3) and above the decorative sea/shimmer so it stays
+   tappable; stage-level, so it no longer disappears with .farewell-card-text
+   during the finale. */
 .farewell-back-home {
-  margin-top: 22px;
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 40px;
   display: flex;
   justify-content: center;
-  position: relative;
   z-index: 4;
   pointer-events: auto;
 }
 
 /* Eclipse farewell: overlaid on top of the scene iframe (which is
-   position:fixed, zIndex 50). Anchored TOP-LEFT rather than bottom-center: the
-   eclipse scene has its own venue footer at the bottom, and a bottom-center
-   overlay also collides with the site's cookie-consent banner on a first
-   visit. Top-left keeps the prominent link clear of both while staying above
-   the iframe (zIndex 51 > 50) so taps reach the parent-rendered link. A subtle
-   scrim disc keeps it legible over the bright daytime-sky phase of the scene. */
+   position:fixed, zIndex 50). Anchored BOTTOM-LEFT — the calm exit at the end
+   of the screen, consistent with the UFO farewell's bottom placement — and
+   left rather than center because the scene's own venue footer owns
+   bottom-center (bottom: 34px inside the iframe; higher still in portrait).
+   The old bottom-center cookie-banner collision no longer applies (the banner
+   is path-suppressed on /live* — see public/cookie-consent.js). Stays above
+   the iframe (zIndex 51 > 50) so taps reach the parent-rendered link; the
+   scrim disc keeps it legible over the ruins silhouette. */
 .farewell-eclipse-back-home {
   position: fixed;
-  top: 14px;
+  bottom: 14px;
   left: 14px;
   z-index: 51;
   display: flex;
@@ -3680,21 +3690,18 @@
   color: #fff;
 }
 
-/* Dismiss: barely-there text button — present, never competing. Baseline only. */
-.review-funnel-dismiss {
-  margin-top: 2px;
-  background: none;
-  border: none;
-  padding: 4px 8px;
-  color: rgba(237, 234, 227, 0.42);
-  font-size: 12px;
-  letter-spacing: 0.4px;
-  cursor: pointer;
-  transition: color 160ms ease;
+/* Auto-fade (baseline only, no dismiss button): after ~30s untouched the block
+   excuses itself with a slow opacity-only fade — 2.4s, deliberately below the
+   speed that pulls a watching eye (duration must match AUTO_FADE_DURATION_MS
+   in ReviewFunnel.tsx). Interacting mid-fade removes the class and the same
+   transition gently restores it. Under reduced-motion the component never
+   starts a fade (the block persists — see ReviewFunnel.tsx for the call), so
+   no @media override is needed; the transition below simply never runs. */
+.review-funnel {
+  transition: opacity 2400ms ease;
 }
-.review-funnel-dismiss:hover,
-.review-funnel-dismiss:focus-visible {
-  color: rgba(237, 234, 227, 0.72);
+.review-funnel--fading {
+  opacity: 0;
 }
 
 /* Finder variant: a touch warmer (they earned it) but same calm footprint. */

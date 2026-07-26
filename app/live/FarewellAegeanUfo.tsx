@@ -796,17 +796,9 @@ export function FarewellAegeanUfo({
             <br />
             Same time, next star.
           </div>
-          {/* The calm high point of the event — a receptive guest who just had
-              a great experience is the best moment to offer a path into the
-              rest of the site. Prominent link (like the offline state), and
-              above the decorative sea/shimmer layers so it stays tappable. */}
-          <div className="farewell-back-home">
-            <BackToHome variant="link" />
-          </div>
           {/* Review funnel (static tier): finder reveal once the static easter
               egg is found, otherwise the baseline invitation after the dwell.
-              Inline in the card flow, below the back-home link — never over the
-              UFO/reward focal area. */}
+              Inline in the card flow — never over the UFO/reward focal area. */}
           {finaleCompleted ? (
             <ReviewFunnel variant="finder" onTrack={onTrack} />
           ) : (
@@ -815,6 +807,11 @@ export function FarewellAegeanUfo({
         </div>
         <div className="farewell-sea" />
         <div className="farewell-shimmer" />
+        {/* The calm exit, last in the visual order (scene -> funnel -> exit) —
+            stage-level bottom placement, same as the animated tier. */}
+        <div className="farewell-back-home">
+          <BackToHome variant="link" />
+        </div>
       </div>
     )
   }
@@ -904,17 +901,12 @@ export function FarewellAegeanUfo({
             <br />
             Same time, next star.
           </div>
-          {/* Prominent back-to-home link at the calm end-of-event moment (see
-              the static path above for the rationale). */}
-          <div className="farewell-back-home">
-            <BackToHome variant="link" />
-          </div>
           {/* Review funnel (animated tiers): finder reveal after the finale
               fully completes, otherwise the baseline invitation after the dwell.
               Lives inside .farewell-card-text, so it's correctly hidden during
               the finale payoff (.farewell-card-text--hidden) and returns with the
-              card text afterwards — and it sits below the back-home link, clear
-              of the UFO slot, the flag zone, and the reward line. */}
+              card text afterwards — clear of the UFO slot, the flag zone, and
+              the reward line. */}
           {finaleCompleted ? (
             <ReviewFunnel variant="finder" onTrack={onTrack} />
           ) : (
@@ -931,6 +923,14 @@ export function FarewellAegeanUfo({
         <path d="M23 8 Q14 16 16 28 L23 28 Z" fill="#c6dde6" opacity=".55" />
         <path d="M14 30 L32 30 L28 36 L18 36 Z" fill="#7f9fb0" />
       </svg>
+      {/* The calm exit, LAST in the visual order (scene -> funnel -> exit):
+          stage-level and absolutely positioned at the very bottom, above the
+          tap-hint caption. Deliberately OUTSIDE .farewell-card-text so it no
+          longer vanishes during the finale — a small bottom link doesn't
+          compete with the payoff, and the exit stays available throughout. */}
+      <div className="farewell-back-home">
+        <BackToHome variant="link" />
+      </div>
       <div className="farewell-caption">tap the UFO 👽 keep tapping…</div>
     </div>
   )
