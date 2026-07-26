@@ -7,7 +7,7 @@
     },
     {
       "path": "/api/cron/flush-interactions",
-      "schedule": "*/5 * * * *"
+      "schedule": "0 2 * * *"
     }
   ]
 }

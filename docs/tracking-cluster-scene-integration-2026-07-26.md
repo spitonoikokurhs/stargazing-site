@@ -383,10 +383,11 @@ no identifier is stored or sent.
 
 ## Deploy / review notes (for when you're back)
 
-1. **Vercel cron cadence:** `*/5 * * * *` on `/api/cron/flush-interactions`. Vercel **Hobby**
-   only permits daily crons — if this project is Hobby, the deploy will reject the schedule.
-   On **Pro** it's fine. If Hobby, drop it to the finish-flush only (still durable at night's end)
-   or upgrade. Flagging because it's a deploy-time gate, not a code issue.
+1. **Vercel cron cadence:** ~~`*/5 * * * *`~~ **RESOLVED 26-07-2026: plan is Hobby — schedule
+   switched to `0 2 * * *` (daily, 02:00, an hour after close-sessions).** Durability stays
+   sound: finish-flush lands the night at finish time; the daily run is a backstop that fully
+   recovers even a missed finish (48h Redis TTL). If the project ever moves to Pro, set
+   vercel.json back to `*/5 * * * *` — no code change needed.
 2. **DB migration** must run on deploy (`prisma migrate deploy`) to create the table — same as
    any prior migration on this project.
 3. **`VIEWER_STATS_TOKEN`** already gates `/api/interaction-stats` (reuses the viewer-stats token).

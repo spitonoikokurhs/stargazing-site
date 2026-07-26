@@ -19,8 +19,16 @@ function authorized(req: NextRequest, secret: string): boolean {
   return timingSafeEqual(presented, expected)
 }
 
-// Periodic Tier-1 interaction flush (rider B: "~5min periodic flush, so a crash
-// loses minutes not the night"). Triggered by Vercel Cron (see vercel.json).
+// Periodic Tier-1 interaction flush. Triggered by Vercel Cron (see vercel.json).
+// SCHEDULE: daily at 02:00 (Hobby plan — sub-daily cron schedules fail the
+// deployment there; rider B's preferred ~5min cadence needs Pro). Durability is
+// still sound on the daily cadence: the finish-flush lands the night's final
+// numbers at finish time, and because the Redis buffer lives 48h, this daily run
+// is a backstop that fully recovers even a MISSED finish the next morning. What
+// the daily cadence gives up vs 5min is only the mid-event-crash window — if
+// Redis itself dies mid-event, the night's so-far counters are gone; with 5min
+// they'd be ≤5min stale in Postgres. If the project ever moves to Pro, just
+// change vercel.json back to "*/5 * * * *" — this route needs no code change.
 // Flushes the CURRENT hotel event window's Redis interaction counters into the
 // durable EventInteractionStats table; the flush is an idempotent absolute-value
 // upsert (see flushInteractionStats), so running it every few minutes just keeps
