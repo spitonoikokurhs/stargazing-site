@@ -338,6 +338,17 @@
   }
 
   onReady(function () {
+    // /season is the private, noindex OPERATOR calendar (see app/season) — not
+    // a guest surface at all. Skip everything here (banner, floating settings
+    // button, even the accepted-consent GA load): operator archive reading is
+    // not guest analytics, and the banner would overlay the data tables. Full
+    // early-return, unlike the /live* and /demo/* cases below which still run
+    // the accepted-consent GA branch.
+    var operatorPath = (window.location && window.location.pathname) || "";
+    if (operatorPath === "/season" || operatorPath.indexOf("/season/") === 0) {
+      return;
+    }
+
     const savedChoice = getSavedChoice();
 
     addPrivacySettingsButton();

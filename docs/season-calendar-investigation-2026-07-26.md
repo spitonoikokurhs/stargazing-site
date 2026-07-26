@@ -162,3 +162,41 @@ Reuse `lib/debug-auth` **wholesale** — same `DEBUG_VIEW_TOKEN`, same signed `s
 6. tsc + lint + real build; hold for review.
 
 **Nothing built yet. Awaiting your review — especially the Q3 layout call (table over grid).**
+
+---
+
+# Addendum — Built (26-07-2026)
+
+Approved (table over grid + all caveat calls + three riders) and built on this branch. Held
+for review — not pushed, not deployed.
+
+**Files:** `lib/season-data.ts` (pure assembly — union, timeline folding, duration truth,
+consent split, rollups) · `scripts/test-season-data.mjs` (**42 fixture assertions**, one per
+documented rule) · `app/season/page.tsx` (server component) · `app/season/auth/route.ts`
+(debug-auth bootstrap) · `app/season/SeasonUnauthorized.tsx` · `app/season/season.css` ·
+`public/cookie-consent.js` (one addition, below).
+
+**Riders honored:** ① best night split **pre-consent / consent-gated** in the summary strip
+(the consent-gated slot honestly shows "—" until a post-consent night exists — verified
+against the live archive); ② per-hotel rollup **defaults to avg-unique desc** (the renewal
+ranking) with `?sort=` header links for events/peak — unmeasured venues sink below real
+numbers rather than sorting as zero; ③ the operator-testing caveat is the closing line of the
+page footnote ("treat pre-16-07-adjacent counts as upper bounds in renewal conversations").
+
+**One deviation from the plan, deliberate:** no `/api/season-stats` endpoint. The page is a
+server component querying Prisma directly (filters are URL params, expansion is native
+`<details>` — the whole page ships **182 B of client JS**). A separate endpoint would have
+been dead code the page never called; if a JSON consumer ever appears, the assembly lib is
+already pure and an endpoint over it is a 30-line add.
+
+**One defect found by actually running it:** the guest cookie-consent banner rendered over
+the operator tables (both viewports). Fixed in `public/cookie-consent.js` — `/season*` gets a
+full early-return (no banner, no floating button, no GA: operator archive reading is not
+guest analytics). Verified suppressed on `/season` AND still appearing on the homepage.
+
+**Verified:** 42/42 fixtures · all 15 suites · tsc + lint clean · real build green
+(`/season` ƒ-dynamic, 182 B) · **rendered against the real production archive** (read-only)
+at 1280 px and 390 px: summary strip 10 events / 148 unique / avg 25 "(6 of 10 measured)",
+renewal table ranked OKU Kos 36 → Paralos 18 with measured-counts disclosed, timeline with
+`~` approx durations and confidence annotations, backfill badges, 4 "no viewer stats" nights,
+zero JS errors.

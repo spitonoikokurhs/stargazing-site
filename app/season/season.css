@@ -1,0 +1,375 @@
+/* /season — private operator calendar. Desktop-first (read at a desk), degrades
+   to stacked cards on phones. Quiet, dense, data-forward: this page is a
+   reading instrument, not a guest surface — no motion beyond <details>'s
+   native toggle, system font stack, high-contrast numerals. */
+
+.season-root {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 28px 20px 64px;
+  font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  color: #1d222b;
+  background: #fbfaf7;
+}
+
+.season-header h1 {
+  margin: 0;
+  font-size: 26px;
+  letter-spacing: 0.2px;
+}
+.season-sub {
+  margin: 4px 0 0;
+  color: #6b7280;
+  font-size: 13px;
+}
+
+/* ---- summary strip ---- */
+.season-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 22px 0 26px;
+}
+.season-stat {
+  flex: 1 1 150px;
+  min-width: 150px;
+  background: #fff;
+  border: 1px solid #e5e1d8;
+  border-radius: 10px;
+  padding: 12px 14px;
+}
+.season-stat-num {
+  display: block;
+  font-size: 26px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+.season-stat-label {
+  display: block;
+  margin-top: 2px;
+  color: #6b7280;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+/* ---- per-hotel rollup (the renewal table) ---- */
+.season-hotels {
+  margin: 0 0 26px;
+  overflow-x: auto;
+}
+.season-hotels table {
+  width: 100%;
+  border-collapse: collapse;
+  background: #fff;
+  border: 1px solid #e5e1d8;
+  border-radius: 10px;
+  overflow: hidden;
+  font-size: 14px;
+}
+.season-hotels th,
+.season-hotels td {
+  text-align: left;
+  padding: 9px 14px;
+  border-bottom: 1px solid #efece4;
+}
+.season-hotels th {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #6b7280;
+  background: #f6f4ee;
+}
+.season-hotels th a {
+  color: inherit;
+  text-decoration: none;
+}
+.season-hotels th a.is-sorted {
+  color: #1d222b;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.season-hotels tbody tr:last-child td {
+  border-bottom: none;
+}
+.season-num {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+.season-hotels sup {
+  color: #a16207;
+  cursor: help;
+}
+
+/* ---- filters ---- */
+.season-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 12px;
+  margin: 0 0 18px;
+  font-size: 13px;
+  color: #4b5563;
+}
+.season-filters select,
+.season-filters input[type='date'] {
+  display: block;
+  margin-top: 3px;
+  padding: 5px 8px;
+  border: 1px solid #d6d1c4;
+  border-radius: 7px;
+  background: #fff;
+  font: inherit;
+  color: #1d222b;
+}
+.season-filters button {
+  padding: 7px 16px;
+  border: 1px solid #1d222b;
+  border-radius: 7px;
+  background: #1d222b;
+  color: #fbfaf7;
+  font: inherit;
+  cursor: pointer;
+}
+.season-filters-clear {
+  color: #6b7280;
+  font-size: 12px;
+}
+
+/* ---- night list ---- */
+.season-nights-head,
+.season-night-summary {
+  display: grid;
+  grid-template-columns: 100px 1fr 70px 70px 70px 70px 110px;
+  gap: 10px;
+  align-items: center;
+  padding: 9px 14px;
+}
+.season-nights-head {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #6b7280;
+}
+.season-nights-head .season-cell--num {
+  text-align: right;
+}
+
+.season-night {
+  background: #fff;
+  border: 1px solid #e5e1d8;
+  border-radius: 10px;
+  margin-bottom: 8px;
+}
+.season-night-summary {
+  cursor: pointer;
+  list-style: none;
+  font-size: 14px;
+}
+.season-night-summary::-webkit-details-marker {
+  display: none;
+}
+.season-night[open] .season-night-summary {
+  border-bottom: 1px solid #efece4;
+}
+.season-cell--date {
+  font-variant-numeric: tabular-nums;
+  color: #374151;
+}
+.season-cell--venue {
+  font-weight: 600;
+}
+.season-cell--type {
+  color: #6b7280;
+  font-size: 12px;
+}
+.season-cell--num {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+.season-cell--nostats,
+.season-cell--cancelled {
+  grid-column: span 2;
+  color: #a16207;
+  font-size: 12px;
+}
+.season-cell--cancelled {
+  color: #b91c1c;
+}
+.season-cell--flags {
+  display: flex;
+  gap: 5px;
+  justify-content: flex-end;
+}
+.season-badge {
+  font-size: 10.5px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  border: 1px solid #d6d1c4;
+  color: #6b7280;
+  white-space: nowrap;
+}
+.season-badge--backfill {
+  border-color: #f0c66b;
+  color: #a16207;
+  background: #fdf6e5;
+}
+.season-badge--ix {
+  border-color: #93c5fd;
+  color: #1d4ed8;
+  background: #eff6ff;
+}
+
+/* night detail (expanded) */
+.season-night-detail {
+  padding: 12px 14px 14px;
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  gap: 18px;
+}
+.season-tl-list,
+.season-ix-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 13px;
+}
+.season-tl {
+  display: grid;
+  grid-template-columns: 52px 1fr 72px 64px;
+  gap: 8px;
+  padding: 4px 0;
+  border-bottom: 1px dashed #efece4;
+}
+.season-tl:last-child {
+  border-bottom: none;
+}
+.season-tl-time {
+  color: #6b7280;
+  font-variant-numeric: tabular-nums;
+}
+.season-tl-dur {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.season-tl-src {
+  color: #9ca3af;
+  font-size: 11px;
+  text-align: right;
+}
+.season-tl--settling .season-tl-name {
+  color: #9ca3af;
+  font-style: italic;
+}
+.season-tl-conf {
+  color: #a16207;
+  font-style: normal;
+  font-size: 12px;
+}
+.season-ix-list li {
+  padding: 3px 0;
+  color: #4b5563;
+}
+.season-ix-list strong {
+  font-variant-numeric: tabular-nums;
+  color: #1d222b;
+}
+.season-detail-empty {
+  color: #9ca3af;
+  font-size: 13px;
+  margin: 4px 0;
+}
+
+/* consent-boundary divider */
+.season-divider {
+  margin: 14px 0;
+  padding: 9px 14px;
+  border: 1px dashed #a16207;
+  border-radius: 8px;
+  background: #fdf6e5;
+  color: #7c5202;
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+/* footnotes */
+.season-footnotes {
+  margin-top: 26px;
+  color: #8a8577;
+  font-size: 12px;
+  line-height: 1.6;
+  border-top: 1px solid #e5e1d8;
+  padding-top: 14px;
+}
+
+/* unauthorized */
+.season-unauth {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  background: #fbfaf7;
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  padding: 20px;
+}
+.season-unauth-card {
+  max-width: 420px;
+  background: #fff;
+  border: 1px solid #e5e1d8;
+  border-radius: 12px;
+  padding: 26px 28px;
+  color: #1d222b;
+}
+.season-unauth-card h1 {
+  margin: 0 0 10px;
+  font-size: 20px;
+}
+.season-unauth-card p {
+  color: #4b5563;
+  font-size: 14px;
+  line-height: 1.6;
+}
+.season-unauth-card a {
+  color: #1d4ed8;
+  font-size: 13px;
+}
+
+/* ---- phone degradation: stacked cards, no horizontal scroll ---- */
+@media (max-width: 720px) {
+  .season-nights-head {
+    display: none;
+  }
+  .season-night-summary {
+    grid-template-columns: 1fr 1fr;
+    row-gap: 4px;
+  }
+  .season-cell--date {
+    order: 1;
+  }
+  .season-cell--venue {
+    order: 2;
+    text-align: right;
+  }
+  .season-cell--type {
+    order: 3;
+  }
+  .season-cell--num,
+  .season-cell--nostats,
+  .season-cell--cancelled {
+    order: 4;
+    text-align: right;
+  }
+  /* On desktop the column header labels the numbers; on phone each number
+     carries its own label via data-label (set in NightRow). */
+  .season-cell--num::before {
+    content: attr(data-label);
+    color: #9ca3af;
+    font-size: 11px;
+    font-variant-numeric: normal;
+  }
+  .season-cell--flags {
+    order: 5;
+    grid-column: span 2;
+  }
+  .season-night-detail {
+    grid-template-columns: 1fr;
+  }
+}
