@@ -2,8 +2,17 @@
 
 **Date:** 27-07-2026
 **Branch:** `fix/farewell-polish` (off `main` @ `7fb216e`)
-**Status:** #1 investigated, fix proposed, **NOT applied — awaiting your approval**. #2 and #3
-built as specified, held for review. No push/deploy.
+**Status:** All three landed. #1 was investigated first (below), approved, then applied in
+`6d20bad` with the deterministic before/after repro: impact pinned onto the boat — BEFORE,
+rings painted over the hull and crossed the horizon; AFTER, the identical impact rendered
+behind the boat and cut cleanly at the waterline. Repro pins reverted; the commit is layering
+only. #2/#3 in `25ead80`. Held for review — no push/deploy.
+
+**Finale-link question (answered, no change made):** during the finale the bottom exit sits
+~400px below anything animated, at the same faint contrast as the tap-hint caption — which
+has ALWAYS stayed visible during the finale, so the register has precedent. It doesn't
+compete with the payoff. If you still want it hidden: clean, ~8 lines (one stage-class toggle
+at the three existing finale start/reset sites + a 4-line CSS rule), no new timing logic.
 
 ---
 
