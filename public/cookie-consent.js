@@ -201,30 +201,52 @@
     );
   }
 
-  // Path-based immersive check for the CONSENT BANNER specifically. Distinct
-  // from isImmersivePage() (which is DOM-based) on purpose: the immersive
-  // markers (.live-root / .farewell-stage) are client-rendered by React AFTER
-  // hydration and, on the farewell, only after a /api/status poll returns
-  // finished — but this banner is created on DOMContentLoaded, BEFORE any of
-  // that mounts. A DOM query at banner-time would therefore miss the immersive
-  // page on a fresh QR arrival and flash the banner over the farewell during
-  // the gap (the exact bug this fixes). The URL path is known immediately, so
-  // gating on it eliminates the timing gap entirely — and it also covers the
-  // eclipse farewell, which renders inside an <iframe srcDoc> and so never puts
-  // .farewell-stage in the main document for the old CSS :has() hide to match.
+  // ---------------------------------------------------------------------
+  // PATH EXCLUSIONS — the single place that decides where this script backs
+  // off. Two tiers, deliberately different in scope:
   //
-  // Every /live* route is the immersive guest experience (/live,
-  // /live/special-event, and the operator /live-debug once branches converge) —
-  // dark, full-screen, night-adapted. Suppressing the banner here is the SAME
-  // concession isImmersivePage() already makes for the privacy-settings button,
-  // extended to the banner. Consent stays fully intact: analytics remain denied
-  // (Consent Mode default) until a guest accepts, and the banner still appears
-  // on every non-immersive page, so a guest who later navigates to the homepage
-  // is prompted normally. A QR-only guest who never leaves /live simply
-  // generates no consented tracking — the correct compliant default.
-  function isImmersivePath() {
-    var path = window.location.pathname || "";
-    return path === "/live" || path.indexOf("/live/") === 0 || path.indexOf("/live-debug") === 0;
+  //   startsWithPath(prefixes): tiny shared matcher — exact match or
+  //   "<prefix>/…" (so "/live" matches "/live" and "/live/x", never "/livery").
+  //
+  //   TIER 1 — BANNER-ONLY suppression (isBannerSuppressedPath):
+  //     /live*  — the immersive guest experience (dark, full-screen,
+  //               night-adapted; includes /live-debug). Path-based rather than
+  //               DOM-based on purpose: the immersive markers (.live-root /
+  //               .farewell-stage) are client-rendered AFTER hydration — and
+  //               the eclipse farewell lives in an <iframe srcDoc> and never
+  //               puts a marker in this document at all — while this banner is
+  //               created on DOMContentLoaded, so a DOM query would flash the
+  //               banner over the farewell on a fresh QR arrival.
+  //     /demo*  — the self-running sales pitches; a cookie banner mid-pitch
+  //               breaks the illusion, and the demo feed is analytics-inert
+  //               (see app/api/demo-status/route.ts).
+  //     Everything ELSE still runs: a previously-accepted guest still gets GA,
+  //     and consent stays intact — analytics remain denied until acceptance,
+  //     and the banner still appears on every normal page.
+  //
+  //   TIER 2 — FULL skip (isOperatorPath, checked first in onReady):
+  //     /season* — the private, noindex operator calendar. Not a guest surface
+  //     at all, so nothing here should run: no banner, no floating settings
+  //     button, and no GA load even for an accepted choice — operator archive
+  //     reading is not guest analytics (and the banner physically overlays the
+  //     data tables).
+  //
+  // Adding a future exclusion = one line in the right tier's list below.
+  // ---------------------------------------------------------------------
+  function startsWithPath(prefixes) {
+    var path = (window.location && window.location.pathname) || "";
+    for (var i = 0; i < prefixes.length; i++) {
+      if (path === prefixes[i] || path.indexOf(prefixes[i] + "/") === 0) return true;
+    }
+    return false;
+  }
+
+  function isBannerSuppressedPath() {
+    return startsWithPath(["/live", "/live-debug", "/demo"]);
+  }
+
+  function isOperatorPath() {
+    return startsWithPath(["/season"]);
   }
 
   function addPrivacySettingsButton() {
@@ -338,14 +360,8 @@
   }
 
   onReady(function () {
-    // /season is the private, noindex OPERATOR calendar (see app/season) — not
-    // a guest surface at all. Skip everything here (banner, floating settings
-    // button, even the accepted-consent GA load): operator archive reading is
-    // not guest analytics, and the banner would overlay the data tables. Full
-    // early-return, unlike the /live* and /demo/* cases below which still run
-    // the accepted-consent GA branch.
-    var operatorPath = (window.location && window.location.pathname) || "";
-    if (operatorPath === "/season" || operatorPath.indexOf("/season/") === 0) {
+    // TIER 2: full skip on operator paths (see the PATH EXCLUSIONS block).
+    if (isOperatorPath()) {
       return;
     }
 
@@ -369,21 +385,11 @@
       return;
     }
 
-    // Suppress the one-time consent banner on the immersive /live* experience
-    // (see isImmersivePath) so it can never cover the farewell/UFO scene on a
-    // first-visit phone. Not a compliance change: nothing is tracked without
-    // consent, and the banner still appears on every non-immersive page.
-    if (isImmersivePath()) {
-      return;
-    }
-
-    // Never show the consent banner on the self-running /demo/* sales pages: a
-    // cookie banner mid-pitch would break the illusion of a live event. The
-    // demo feed is analytics-inert (see app/api/demo-status/route.ts) and stores
-    // no identifier, so nothing is collected here that consent would gate — this
-    // is a display concession, and the banner still appears on every real page.
-    var path = (window.location && window.location.pathname) || "";
-    if (path === "/demo" || path.indexOf("/demo/") === 0) {
+    // TIER 1: banner-only suppression on /live* and /demo* (see the PATH
+    // EXCLUSIONS block for the full rationale). Not a compliance change:
+    // nothing is tracked without consent, and the banner still appears on
+    // every normal page.
+    if (isBannerSuppressedPath()) {
       return;
     }
 
