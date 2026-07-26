@@ -34,6 +34,33 @@ export function demoHotelName(slug: string): string {
   return DEMO_HOTELS[slug] ?? DEMO_HOTELS.generic
 }
 
+// ?name=<text> override for an unplanned venue: sanitized, length-capped plain
+// text used as the displayed hotel name (the endpoint puts it in the response's
+// hotelId, which hotelDisplayName returns as-is for unknown values). Returns
+// null for empty/blank/all-stripped input so the caller falls back to the
+// slug's mapped name.
+const DEMO_NAME_MAX = 40
+
+// Characters removed from a ?name value: markup/URL/injection-risky punctuation
+// (< > " ` & / \ { } [ ] ( ) | ;). Everything else is kept — international
+// letters (accented Bodrum names), digits, spaces, and ordinary name
+// punctuation (apostrophe, hyphen, period, comma), which are safe: the value is
+// rendered as escaped text by React, never as markup. A denylist avoids the
+// Unicode-property regex (\p{L}), which would need a higher TS target than this
+// project builds with.
+const DEMO_NAME_DENY = /[<>"`&/\\{}[\]()|;]/g
+
+export function sanitizeDemoName(raw: string | null | undefined): string | null {
+  if (!raw) return null
+  const cleaned = raw
+    .replace(DEMO_NAME_DENY, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, DEMO_NAME_MAX)
+    .trim()
+  return cleaned.length > 0 ? cleaned : null
+}
+
 // Resolve any requested slug to a known one (falls back to 'generic'), so the
 // endpoint and page always operate on a valid slug and the branding is stable.
 export function resolveDemoSlug(slug: string | null | undefined): string {
@@ -42,9 +69,9 @@ export function resolveDemoSlug(slug: string | null | undefined): string {
 }
 
 // ---- The scripted loop ----
-// A ~60-90s starting phase, then 4-5 target segments (~90-120s each). Each
-// target: the catalog id (drives the real card), the real frame image, and a
-// plausible accumulated-exposure figure that ticks up within the segment.
+// A ~60-90s starting phase, then target segments (~90-120s each). Each target:
+// the catalog id (drives the real card), the real frame image, and a plausible
+// accumulated-exposure figure that ticks up within the segment.
 export type DemoTarget = {
   catalogId: string
   blobUrl: string
@@ -108,17 +135,14 @@ export function demoStageOffsetMs(stage: string | null | undefined): number | nu
 }
 
 // Accumulated exposure for a target segment: starts at the target's floor and
-// climbs ~1s per real second into the segment, capped at the segment length so
-// it reads like a live stack building up.
+// climbs ~1s per real second into the segment.
 export function demoAccumulatedTime(target: DemoTarget, intoSegmentMs: number): number {
   return target.startAccumulatedSeconds + Math.floor(intoSegmentMs / 1000)
 }
 
-// The history entries that have accumulated by a given phase: every target
-// BEFORE the current one is a completed run, plus the current one as active —
-// exactly how the real history strip fills across a night, resetting when the
-// loop restarts. startedAt/endedAt are synthesised from the phase so ordering
-// is stable; the caller stamps concrete ISO strings from a base time.
+// The number of COMPLETED targets by a given phase (every target before the
+// current one). The endpoint builds the accumulated history strip from this,
+// mirroring how the real strip fills across a night and resets on loop restart.
 export function demoCompletedTargetCount(phase: DemoPhase): number {
   return phase.kind === 'starting' ? 0 : phase.index
 }

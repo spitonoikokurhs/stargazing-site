@@ -15,6 +15,7 @@ import {
   demoAccumulatedTime,
   resolveDemoSlug,
   demoHotelName,
+  sanitizeDemoName,
   DEMO_STARTING_MS,
   DEMO_SEGMENT_MS,
   DEMO_TARGETS,
@@ -44,9 +45,13 @@ function validStartingBody(v) {
 }
 
 async function bodyAt(slug, stage) {
+  return bodyAtFull(slug, stage, null)
+}
+async function bodyAtFull(slug, stage, name) {
   const qs = new URLSearchParams()
   if (slug != null) qs.set('demo', slug)
   if (stage != null) qs.set('stage', stage)
+  if (name != null) qs.set('name', name)
   // Include a viewerId to prove the endpoint IGNORES it (analytics-inert).
   qs.set('viewerId', 'should-be-ignored-000000')
   const res = GET(new NextRequest(`https://x.test/api/demo-status?${qs}`))
@@ -99,6 +104,31 @@ async function main() {
   assert('mandarin -> Mandarin Oriental Bodrum', demoHotelName('mandarin') === 'Mandarin Oriental Bodrum')
   assert('generic -> Your Hotel', demoHotelName('generic') === 'Your Hotel')
   assert('unknown -> Your Hotel', demoHotelName('nope') === 'Your Hotel')
+
+  // ?name= override sanitization
+  assert('name: plain text kept', sanitizeDemoName('Sunset Palace') === 'Sunset Palace')
+  // apostrophe/hyphen/period kept; ampersand denied (entity risk) -> becomes space
+  assert('name: apostrophe + hyphen kept', sanitizeDemoName("O'Brien - Bodrum") === "O'Brien - Bodrum")
+  assert('name: ampersand stripped to space', sanitizeDemoName('Spa & Resort') === 'Spa Resort')
+  assert('name: accented letters kept', sanitizeDemoName('Süzer Sun Bodrum') === 'Süzer Sun Bodrum')
+  assert('name: angle brackets/markup removed', !sanitizeDemoName('<b>Grand</b> Hotel').includes('<') && !sanitizeDemoName('<b>Grand</b> Hotel').includes('>'))
+  assert('name: quotes/slashes stripped', !/["/\\]/.test(sanitizeDemoName('He said "hi"/bye\\')))
+  assert('name: whitespace collapsed + trimmed', sanitizeDemoName('  Grand   Bodrum  ') === 'Grand Bodrum')
+  assert('name: length capped at 40', sanitizeDemoName('x'.repeat(100)).length === 40)
+  assert('name: empty -> null (falls back to slug)', sanitizeDemoName('') === null)
+  assert('name: whitespace-only -> null', sanitizeDemoName('   ') === null)
+  assert('name: all-stripped -> null', sanitizeDemoName('<<<>>>') === null)
+  assert('name: null input -> null', sanitizeDemoName(null) === null)
+
+  // ?name= flows through the endpoint into the branding hotelId
+  {
+    const live = await bodyAtFull('generic', '2', 'Sunset Palace')
+    assert('endpoint: ?name overrides hotelId branding', live.hotelId === 'Sunset Palace')
+    const starting = await bodyAtFull('generic', 'starting', 'Sunset Palace')
+    assert('endpoint: ?name overrides starting branding', starting.tonight.hotelId === 'Sunset Palace')
+    const noName = await bodyAtFull('mandarin', '2', null)
+    assert('endpoint: no ?name -> slug branding', noName.hotelId === 'mandarin')
+  }
 
   // ---- endpoint response shapes (the isStatusResponse contract) ----
   {

@@ -10,6 +10,7 @@ import {
   demoAccumulatedTime,
   demoCompletedTargetCount,
   resolveDemoSlug,
+  sanitizeDemoName,
   type DemoPhase,
 } from '@/lib/demo-event'
 
@@ -110,6 +111,13 @@ export function GET(req: NextRequest) {
   try {
     const slug = resolveDemoSlug(req.nextUrl.searchParams.get('demo'))
 
+    // ?name=<text> override: brand for an unplanned venue by editing the URL.
+    // Sanitized + length-capped (see sanitizeDemoName). When present it becomes
+    // the response hotelId, which hotelDisplayName renders as-is — so
+    // /demo/generic?name=Sunset%20Palace shows "Sunset Palace". Falls back to
+    // the slug's mapped name when absent/blank.
+    const brandingId = sanitizeDemoName(req.nextUrl.searchParams.get('name')) ?? slug
+
     // ?stage= override (presenter convenience): jump the LOOP POSITION to a
     // named stage. Absent -> the real wall clock drives the loop on its own.
     // CRUCIALLY, only the loop POSITION uses the stage offset; all displayed
@@ -128,7 +136,7 @@ export function GET(req: NextRequest) {
       return json({
         live: false,
         starting: true,
-        tonight: { hotelId: slug, start: '21:30', end: '23:30', cancelled: false },
+        tonight: { hotelId: brandingId, start: '21:30', end: '23:30', cancelled: false },
         next: null,
       })
     }
@@ -141,7 +149,7 @@ export function GET(req: NextRequest) {
       return json({
         live: false,
         starting: true,
-        tonight: { hotelId: slug, start: '21:30', end: '23:30', cancelled: false },
+        tonight: { hotelId: brandingId, start: '21:30', end: '23:30', cancelled: false },
         next: null,
       })
     }
@@ -167,7 +175,7 @@ export function GET(req: NextRequest) {
       sessionId: `demo-session-${slug}`,
       // hotelId surfaced so branding (hotelDisplayName / logo) renders; the demo
       // page maps the slug to its marketing name via lib/demo-event.
-      hotelId: slug,
+      hotelId: brandingId,
       viewers: null,
       history,
       stackRunStartedAt,
