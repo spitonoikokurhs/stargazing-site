@@ -93,3 +93,84 @@ export function clearStoredViewerId(): void {
     // Nothing to clean up if storage is unavailable.
   }
 }
+
+// ---- Consent-free ephemeral viewer id (the QR-guest counting fix) ----
+//
+// WHY THIS EXISTS: guests scan a QR straight onto /live, where the consent
+// banner is suppressed (so it can't cover the farewell). They are therefore
+// never offered consent, so getConsentedViewerId/getOrCreateViewerId return
+// null and trackViewer skips them — the real audience is uncountable. This
+// gives the counter an id that needs NO consent, on the same footing as the
+// Tier-1 interaction counters, so unique + peak reflect the actual live
+// audience for the operator's own estimate.
+//
+// ============================================================================
+// IDENTIFIER-FREE / ePrivacy Art. 5(3) — the end-to-end proof.
+//
+// WHAT is stored:  a single random UUID (crypto.randomUUID()).
+// WHERE it lives:  a module-scope JS variable in the page's memory ONLY
+//                  (`ephemeralViewerId` below). It is NEVER written to
+//                  localStorage, sessionStorage, a cookie, IndexedDB, cache,
+//                  window.name, or any other browser-persisted store.
+// HOW LONG:        the lifetime of the page (one document). A tab close, a
+//                  reload, or a cross-page navigation discards it and the next
+//                  page load mints a brand-new one. It cannot outlive the
+//                  document and cannot be read back on a later visit.
+// WHY it's used:   solely to de-duplicate a LIVE audience count server-side
+//                  (added to a 48h-TTL, per-event Redis set for unique, and a
+//                  60s active window for peak) — never to recognise the guest,
+//                  never joined to anything personal, never returned to the
+//                  client, never logged as identity.
+//
+// WHY Art. 5(3) IS NOT TRIGGERED: 5(3) governs STORING information on, or
+// ACCESSING information already stored on, the user's terminal equipment.
+// This id is never stored on the device (it lives only in volatile page
+// memory, exactly like any transient runtime variable) and nothing is ever
+// read back from the device — so there is no "storage of or access to
+// information" to consent to. Same basis as the Tier-1 interaction beacons.
+// Contrast the CONSENTED path above, which DOES write to sessionStorage and so
+// (correctly) requires consent.
+//
+// RELOAD CAVEAT (documented, not hidden): because nothing is persisted, a
+// reload of the same tab mints a NEW id. That inflates UNIQUE slightly (a
+// reloading guest counts more than once) — the safe, upward direction for an
+// audience estimate. It barely affects PEAK CONCURRENT: peak is a 60s active
+// window (recordViewerActivity), so the old id ages out within ~60s and the
+// reloaded tab replaces rather than adds. There is no zero-storage way to make
+// a reloaded tab re-present the same id (that is precisely what persistence
+// would buy, and persistence is what triggers 5(3)) — so we accept the small
+// upward bias by design rather than store anything to remove it.
+// ============================================================================
+
+// The one ephemeral id for this page load. `let` at module scope: created lazily
+// on first use, then stable for every subsequent call within the SAME document
+// (so React re-renders / re-mounts and same-page route changes reuse it — the id
+// only resets on a true page load). Reset to null is impossible without a reload,
+// which is the whole point.
+let ephemeralViewerId: string | null = null
+
+// Returns the page's ephemeral viewer id, minting it on first call. Prefixed
+// so a counter/debugger can tell an ephemeral (consent-free) id apart from a
+// consented one at a glance — the prefix carries no information about the
+// guest, only about which code path produced the id.
+export function getEphemeralViewerId(): string | null {
+  if (typeof window === 'undefined') return null
+  if (ephemeralViewerId === null) {
+    try {
+      ephemeralViewerId = `eph-${crypto.randomUUID()}`
+    } catch {
+      // No crypto (ancient/locked-down engine): skip counting this guest rather
+      // than throw. A missing tally is a non-event; the page must keep working.
+      return null
+    }
+  }
+  return ephemeralViewerId
+}
+
+// TEST-ONLY: reset the module-scope id so a test can assert fresh-mint behaviour
+// across simulated page loads. Never called by app code (a real page load is the
+// only reset in production). Exported rather than hidden so the test needs no
+// module-cache trickery.
+export function __resetEphemeralViewerIdForTest(): void {
+  ephemeralViewerId = null
+}

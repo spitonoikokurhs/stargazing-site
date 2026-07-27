@@ -218,6 +218,43 @@
   color: #1d4ed8;
   background: #eff6ff;
 }
+/* Undercounted (consent-gated) night — the one viewer number that must not be
+   trusted. Warm red so it reads as a caution, distinct from the amber backfill. */
+.season-badge--undercount {
+  border-color: #f0a5a5;
+  color: #b91c1c;
+  background: #fdecec;
+}
+.season-undercount-note {
+  color: #b91c1c;
+  font-size: 11px;
+}
+
+/* Regime legend badges in the footnote. */
+.season-regime-list {
+  margin: 6px 0;
+  padding-left: 0;
+  list-style: none;
+}
+.season-regime-list li {
+  margin: 5px 0;
+  line-height: 1.5;
+}
+.season-badge--regime1 {
+  border-color: #cbd5e1;
+  color: #475569;
+  background: #f1f5f9;
+}
+.season-badge--regime2 {
+  border-color: #f0a5a5;
+  color: #b91c1c;
+  background: #fdecec;
+}
+.season-badge--regime3 {
+  border-color: #a7d9b8;
+  color: #15803d;
+  background: #eefaf1;
+}
 
 /* night detail (expanded) */
 .season-night-detail {

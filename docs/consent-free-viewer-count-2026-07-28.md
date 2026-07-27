@@ -209,4 +209,66 @@ audience size; the *size* is what option (b) recovers.)
    write it up more formally, but I won't proceed on the counting change until you're satisfied
    it's consent-free to your standard.
 
-**Nothing built. Awaiting your direction on Q(decisions) above.**
+---
+
+# Addendum — Built (approved: (b) alone + badge-and-exclude)
+
+Decisions approved: design (b) alone, season regime-2 badge-and-exclude. Built; held for
+review, not pushed.
+
+## What was built
+
+**Counting (lib/consent.ts + LiveView):**
+- `getEphemeralViewerId()` — a single `crypto.randomUUID()` (prefixed `eph-`) held in a
+  **module-scope JS variable only**. Never localStorage/sessionStorage/cookie/window.name/
+  IndexedDB. Stable within a page load (React re-mounts reuse it); a reload mints a new one.
+  `__resetEphemeralViewerIdForTest` lets the suite simulate a reload.
+- LiveView's poll precedence: consented stored id → else ephemeral id. **One id per poll, one
+  counter, no competing number.** Demo/debug never reach it (they take the `demoBody` branch
+  or point at `/api/demo-status`, both before this code).
+
+**The Art. 5(3) proof lives in the code** (lib/consent.ts, the boxed block) exactly as asked —
+what is stored (one random UUID), where (volatile page memory only), how long (the document's
+life), why (server-side dedup of a live count, never re-identification), and why 5(3) isn't
+triggered (nothing is stored on or read from the device — same basis as the Tier-1 beacons;
+contrast the consented path, which writes sessionStorage and so correctly needs consent).
+
+**Reload caveat — the technique question you raised:** there is **no zero-storage way** to make
+a reloaded tab re-present the same id — persistence is exactly what would buy that, and
+persistence is what triggers 5(3). So the id is stable across re-renders/route-changes within a
+page load (module memory — the cheap reduction that costs nothing) but resets on a true reload.
+The residual over-count is **on unique only and leans upward** (safe for an estimate); **peak is
+barely affected** — peak is a 60s active window (`recordViewerActivity`), so a reloaded tab's
+old id ages out within ~60s and replaces rather than adds. This is the regime-1-vs-3 note you
+flagged, now stated in the /season footnote too (regime 1's id was sessionStorage-persistent;
+regime 3's is not, so regime 3 runs slightly higher for the same audience — read a small bump
+as measurement, not growth).
+
+**Season (three regimes):** `regimeForDate` classifies each night pre-consent / consent-gated /
+consent-free (boundaries 26-07 and 28-07). Consent-gated nights are **badged "undercounted"**
+per row and **excluded from every average and from best-night**; best-night draws only from the
+two everyone-counted regimes; per-hotel rollups show `(−n undercounted)` and dagger mixed
+pre/free averages. A three-regime legend + reload footnote replace the old single divider.
+
+## Verification (live, not just unit)
+
+- **The fix, proven end-to-end in a real browser:** a fresh guest straight to `/live` with NO
+  consent interaction → **every `/api/status` poll carried `viewerId=eph-…`** (so they're
+  counted), while **localStorage, sessionStorage, and cookies were all empty** (nothing on the
+  device — 5(3) untouched), and the consent banner stayed suppressed on `/live` (guest
+  experience unchanged).
+- `/season` rendered against the **real production archive**: the 27-07 Astir night carries the
+  red "undercounted" badge, its 4/2 is excluded (Astir rollup shows "1 of 3 (−1 undercounted)"),
+  the season average reads "6 comparable, 1 undercounted excluded", best-night is the comparable
+  36, and the three-regime legend renders. Zero JS errors.
+- Consent suite: new ephemeral + precedence assertions (never-stored, within-tab stable,
+  reload-remints, consented-wins, withdraw-falls-back-to-ephemeral). Season suite: rebuilt with
+  a three-regime fixture (pre / gated / free) asserting exclusion from averages + best-night.
+- tsc + lint clean · **all 15 suites** · real `next build` green.
+
+## Guardrails held
+
+No farewell change. No banner on `/live*` (verified still suppressed). Guest experience
+untouched — the ephemeral id is an in-memory variable on a URL param that already existed.
+
+**Built + live-verified. Held for review. Not pushed.**

@@ -7,6 +7,7 @@ import {
   assembleSeason,
   sortHotels,
   CONSENT_BOUNDARY_DATE,
+  CONSENT_FREE_BOUNDARY_DATE,
   type HotelSortKey,
   type NightEntry,
   type TimelineEntry,
@@ -126,6 +127,17 @@ function NightRow({ night }: { night: NightEntry }) {
           {objectCount > 0 ? objectCount : '—'}
         </span>
         <span className="season-cell season-cell--flags">
+          {/* Only the UNDERCOUNTED (consent-gated) regime is badged per-row — it's
+              the one number that must never be trusted; the comparable regimes are
+              explained in the footnote rather than badged on every row. */}
+          {night.undercounted && night.viewer ? (
+            <span
+              className="season-badge season-badge--undercount"
+              title="Consent-gated night: QR guests were never offered consent, so they weren't counted. This viewer number is a floor, not the audience. Excluded from averages and best-night."
+            >
+              undercounted
+            </span>
+          ) : null}
           {night.interactions ? <span className="season-badge season-badge--ix">ix</span> : null}
           {night.viewer?.snapshotSource === 'backfill' ? (
             <span className="season-badge season-badge--backfill" title="Reconstructed by backfill, not a live finish snapshot">
@@ -273,10 +285,6 @@ export default async function SeasonPage({
   // iteration — same constraint that shaped sanitizeDemoName's regex.
   const hotelOptions = Array.from(new Set(season.nights.filter((n) => n.hotelId).map((n) => n.hotelId as string))).sort()
 
-  // Consent divider position: nights are newest-first, so the divider renders
-  // before the FIRST pre-consent night — and only when both sides are visible.
-  const hasPost = nights.some((n) => !n.preConsent)
-  const hasPre = nights.some((n) => n.preConsent)
 
   const sortHref = (key: HotelSortKey) => {
     const p = new URLSearchParams()
@@ -308,29 +316,24 @@ export default async function SeasonPage({
         <div className="season-stat">
           <span className="season-stat-num">{season.summary.avgUnique ?? '—'}</span>
           <span className="season-stat-label">
-            avg / night ({season.summary.measuredNights} of {season.summary.totalEvents} measured)
+            avg / night ({season.summary.measuredNights} comparable
+            {season.summary.undercountedNights > 0 ? `, ${season.summary.undercountedNights} undercounted excluded` : ''})
           </span>
         </div>
-        {/* Best night split at the consent boundary — a single headline would
-            always be a pre-consent artifact (those counts included every tab). */}
+        {/* Best night from comparable-counting regimes only (pre-consent +
+            consent-free both count everyone). Never a consent-gated undercounted
+            night — that's the number safe to quote in a meeting. */}
         <div className="season-stat">
-          <span className="season-stat-num">{season.summary.bestBefore?.unique ?? '—'}</span>
+          <span className="season-stat-num">{season.summary.bestComparable?.unique ?? '—'}</span>
           <span className="season-stat-label">
-            best night · pre-consent
-            {season.summary.bestBefore
-              ? ` (${fmtDate(season.summary.bestBefore.date)}${
-                  season.summary.bestBefore.hotelId ? `, ${hotelDisplayName(season.summary.bestBefore.hotelId)}` : season.summary.bestBefore.eventSlug ? `, ${season.summary.bestBefore.eventSlug}` : ''
-                })`
-              : ''}
-          </span>
-        </div>
-        <div className="season-stat">
-          <span className="season-stat-num">{season.summary.bestAfter?.unique ?? '—'}</span>
-          <span className="season-stat-label">
-            best night · consent-gated
-            {season.summary.bestAfter
-              ? ` (${fmtDate(season.summary.bestAfter.date)}${
-                  season.summary.bestAfter.hotelId ? `, ${hotelDisplayName(season.summary.bestAfter.hotelId)}` : ''
+            best night
+            {season.summary.bestComparable
+              ? ` (${fmtDate(season.summary.bestComparable.date)}${
+                  season.summary.bestComparable.hotelId
+                    ? `, ${hotelDisplayName(season.summary.bestComparable.hotelId)}`
+                    : season.summary.bestComparable.eventSlug
+                      ? `, ${season.summary.bestComparable.eventSlug}`
+                      : ''
                 })`
               : ''}
           </span>
@@ -362,14 +365,24 @@ export default async function SeasonPage({
                 <td className="season-num">{h.events}</td>
                 <td className="season-num">
                   {h.avgUnique ?? '—'}
-                  {h.mixedConsent ? <sup title="Mixes pre- and post-consent nights — counting basis changed 26-07-2026">†</sup> : null}
+                  {h.mixedRegime ? (
+                    <sup title="Averages pre-consent and consent-free nights; the consent-free ephemeral id isn't reload-persistent, so its nights run slightly higher — see footnote.">
+                      †
+                    </sup>
+                  ) : null}
                 </td>
                 <td className="season-num">
                   {h.avgPeak ?? '—'}
-                  {h.mixedConsent ? <sup>†</sup> : null}
+                  {h.mixedRegime ? <sup>†</sup> : null}
                 </td>
                 <td className="season-num">
                   {h.measuredNights} of {h.events}
+                  {h.undercountedNights > 0 ? (
+                    <span className="season-undercount-note" title="Consent-gated night(s) shown in the list but excluded from this average — QR guests weren't captured.">
+                      {' '}
+                      (−{h.undercountedNights} undercounted)
+                    </span>
+                  ) : null}
                 </td>
               </tr>
             ))}
@@ -421,31 +434,47 @@ export default async function SeasonPage({
           <span className="season-cell season-cell--num">objects</span>
           <span className="season-cell season-cell--flags"></span>
         </div>
-        {nights.map((night, i) => {
-          const prev = nights[i - 1]
-          const showDivider = hasPre && hasPost && night.preConsent && (!prev || !prev.preConsent)
-          return (
-            <div key={night.eventKey}>
-              {showDivider ? (
-                <div className="season-divider" role="note">
-                  measurement change — consent gating deployed {fmtDate(CONSENT_BOUNDARY_DATE)}: counts above include
-                  consenting guests only; counts below include every tab. Not comparable across this line.
-                </div>
-              ) : null}
-              <NightRow night={night} />
-            </div>
-          )
-        })}
+        {nights.map((night) => (
+          <NightRow key={night.eventKey} night={night} />
+        ))}
         {nights.length === 0 ? <p className="season-detail-empty">No nights match these filters.</p> : null}
       </section>
 
       <footer className="season-footnotes">
         <p>
-          A “viewer” is a browser tab that polled the live page, not a person. Averages are computed over measured
-          nights only — nights before the snapshot system (16-07-2026) are listed as “no viewer stats”, never counted
-          as zero. † mixes pre- and post-consent nights. ~ durations are derived from the night’s last received frame.
-          Early-season numbers may also include the operator’s own testing on /live (day-long attribution, no consent
-          gate at the time) — treat pre-16-07-adjacent counts as upper bounds in renewal conversations.
+          A “viewer” is a browser tab that polled the live page, not a person. Averages cover comparable measured nights
+          only — nights before the snapshot system (16-07-2026) are listed as “no viewer stats”, never counted as zero.
+          ~ durations are derived from the night’s last received frame. Early-season numbers may also include the
+          operator’s own testing on /live (day-long attribution, no consent gate at the time) — treat pre-16-07-adjacent
+          counts as upper bounds.
+        </p>
+        <p>
+          <strong>Three counting regimes.</strong> Viewer counts came from three mechanisms, so a change in the number
+          can be a change in measurement, not audience:
+        </p>
+        <ul className="season-regime-list">
+          <li>
+            <span className="season-badge season-badge--regime1">pre-consent</span> before{' '}
+            {fmtDate(CONSENT_BOUNDARY_DATE)} — every tab counted (persistent id, survived reloads).
+          </li>
+          <li>
+            <span className="season-badge season-badge--regime2">consent-gated</span> {fmtDate(CONSENT_BOUNDARY_DATE)} to{' '}
+            {fmtDate(CONSENT_FREE_BOUNDARY_DATE)} — <strong>only consenting guests counted; QR guests never saw the
+            banner, so these nights are undercounted.</strong> Shown in the list, marked, and EXCLUDED from every average
+            and from best-night. Don’t quote them.
+          </li>
+          <li>
+            <span className="season-badge season-badge--regime3">consent-free</span> from{' '}
+            {fmtDate(CONSENT_FREE_BOUNDARY_DATE)} — every tab counted again, via a consent-free ephemeral id (nothing
+            stored on the device).
+          </li>
+        </ul>
+        <p>
+          Pre-consent and consent-free both count everyone and are broadly comparable, with one caveat (†): the
+          consent-free id is <em>not</em> reload-persistent (nothing is stored), while the pre-consent id was — so a
+          reloading guest mints a new id and consent-free nights run <em>slightly higher</em> than pre-consent for the
+          same real audience. This affects unique only (peak is a 60-second active window, barely touched). Read a small
+          consent-free bump as measurement, not growth.
         </p>
       </footer>
     </main>

@@ -10,7 +10,7 @@ import {
 } from '@/lib/live-status'
 import { formatNextSessionLines, NO_NEXT_SESSION_LINE } from '@/lib/live-farewell'
 import { eventFor, nextEvent } from '@/lib/schedule'
-import { getOrCreateViewerId, getConsentedViewerId, clearStoredViewerId } from '@/lib/consent'
+import { getOrCreateViewerId, getConsentedViewerId, clearStoredViewerId, getEphemeralViewerId } from '@/lib/consent'
 import { track, trackingContextFor, type TrackingContext } from '@/lib/track-client'
 import { FarewellAegeanUfo } from './FarewellAegeanUfo'
 import { FarewellEclipse } from './FarewellEclipse'
@@ -1278,21 +1278,33 @@ export default function LiveView({
         } else {
           // viewerId appended purely for private viewer analytics — never read
           // back from the response, never affects rendering. Resolved FRESH on
-          // every poll, consent-aware:
-          //   - consent granted  -> existing/new id attached
-          //   - no/withdrawn consent -> getConsentedViewerId returns null AND we
-          //     clear any stored id, so the withdrawal is a real erasure, not
-          //     just an omission; the URL then carries no viewerId and
-          //     server-side trackViewer skips this guest.
-          // Because this runs each poll, a mid-session accept or reject takes
-          // effect on the very next request with no reload.
+          // every poll, consent-aware, by a clear precedence so there is ONE id
+          // per poll feeding ONE counter (never two competing numbers):
+          //   1. consent granted -> the stored consented id (stable across
+          //      reloads; the better number, so consenting guests count more
+          //      accurately AND unlock Tier-2 journeys elsewhere).
+          //   2. otherwise -> the CONSENT-FREE ephemeral id (getEphemeralViewerId):
+          //      page-memory only, never stored on the device (see the Art. 5(3)
+          //      proof in lib/consent.ts). This is what finally lets QR guests —
+          //      who land on /live, never see the banner, and so never consent —
+          //      be counted at all, on the same footing as the Tier-1 counters.
+          // Because this runs each poll, a mid-session accept/reject switches
+          // which id is used on the very next request with no reload; and either
+          // way the guest is counted, so the audience number is single-sourced
+          // and complete.
           let viewerId = getConsentedViewerId()
           if (viewerId === null) {
-            // Either not consented, or consented-but-no-id-yet. getOrCreateViewerId
-            // mints one only if consent is currently granted (else stays null);
-            // clearStoredViewerId erases any leftover id when consent is absent.
+            // Consented-but-no-id-yet mints+stores one; genuinely-unconsented
+            // returns null and we clear any leftover stored id (a real erasure
+            // on withdrawal, not just an omission).
             viewerId = getOrCreateViewerId()
-            if (viewerId === null) clearStoredViewerId()
+            if (viewerId === null) {
+              clearStoredViewerId()
+              // No consent: fall back to the consent-free ephemeral id so the
+              // guest is still COUNTED (anonymously), just not tracked across
+              // sessions. This is the fix for the QR-guest undercount.
+              viewerId = getEphemeralViewerId()
+            }
           }
           const url = viewerId
             ? `${statusUrl}${statusUrl.includes('?') ? '&' : '?'}viewerId=${encodeURIComponent(viewerId)}`

@@ -40,6 +40,8 @@ const {
   getOrCreateViewerId,
   getConsentedViewerId,
   clearStoredViewerId,
+  getEphemeralViewerId,
+  __resetEphemeralViewerIdForTest,
   CONSENT_STORAGE_KEY,
   CONSENT_ACCEPTED_VALUE,
   VIEWER_ID_STORAGE_KEY,
@@ -98,6 +100,54 @@ function main() {
   // The poll clears the stored id on withdrawal:
   clearStoredViewerId()
   assert('after reject + clear -> sessionStorage id erased', session.getItem(VIEWER_ID_STORAGE_KEY) === null)
+
+  // --- CONSENT-FREE ephemeral id (the QR-guest counting fix) ---
+  // The load-bearing claim: it counts a guest WITHOUT storing anything on the
+  // device (so Art. 5(3) isn't triggered), and it coexists with the consented
+  // path as a clean precedence (one id per poll).
+  {
+    reset(); clearChoice(); __resetEphemeralViewerIdForTest()
+    const eph1 = getEphemeralViewerId()
+    assert('ephemeral: id minted with no consent', typeof eph1 === 'string' && eph1.length > 0)
+    assert('ephemeral: prefixed eph-', eph1.startsWith('eph-'))
+    // THE identifier-free proof: nothing touched device storage.
+    assert('ephemeral: NOTHING written to localStorage', local._map.size === 0)
+    assert('ephemeral: NOTHING written to sessionStorage', session._map.size === 0)
+    // Stable within the same page load (React re-mounts reuse it, no double-count).
+    assert('ephemeral: stable within page load', getEphemeralViewerId() === eph1)
+    // A "reload" (module reset) mints a NEW id — the documented upward bias.
+    __resetEphemeralViewerIdForTest()
+    const eph2 = getEphemeralViewerId()
+    assert('ephemeral: fresh id after a page load (reload over-count is upward)', eph2 !== eph1 && eph2.startsWith('eph-'))
+    assert('ephemeral: still wrote nothing to storage after remint', local._map.size === 0 && session._map.size === 0)
+  }
+
+  // --- PRECEDENCE: exactly what LiveView's poll resolves, one id per poll ---
+  function pollId() {
+    // Mirror of LiveView's resolution order.
+    let v = getConsentedViewerId()
+    if (v === null) {
+      v = getOrCreateViewerId()
+      if (v === null) { clearStoredViewerId(); v = getEphemeralViewerId() }
+    }
+    return v
+  }
+  {
+    reset(); clearChoice(); __resetEphemeralViewerIdForTest()
+    const noConsent = pollId()
+    assert('precedence: no consent -> ephemeral id (guest IS counted)', typeof noConsent === 'string' && noConsent.startsWith('eph-'))
+    assert('precedence: no-consent poll still wrote nothing to storage', session._map.size === 0)
+    // Now accept: the CONSENTED (stored) id takes precedence over the ephemeral.
+    accept()
+    const consentedNow = pollId()
+    assert('precedence: after accept -> consented id wins (not eph-)', typeof consentedNow === 'string' && !consentedNow.startsWith('eph-'))
+    assert('precedence: consented id is the stored one', consentedNow === session.getItem(VIEWER_ID_STORAGE_KEY))
+    // Reject again: falls back to the SAME ephemeral id (still counted, not tracked).
+    reject()
+    const afterReject = pollId()
+    assert('precedence: after reject -> back to ephemeral (still counted)', afterReject.startsWith('eph-'))
+    assert('precedence: withdrawal erased the stored consented id', session.getItem(VIEWER_ID_STORAGE_KEY) === null)
+  }
 
   // --- storage throwing (private mode) -> safe false / null, never throws ---
   {
