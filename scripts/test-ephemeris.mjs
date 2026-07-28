@@ -1,0 +1,126 @@
+// Tests for the shared ephemeris layer (lib/ephemeris.ts). Verifies the maths
+// against known-good values, the DST/timezone honesty (the load-bearing
+// correctness rule — each city's times in its OWN zone), and honest null
+// handling. Uses fixed instants so results are deterministic.
+//
+// Run with: node --import tsx scripts/test-ephemeris.mjs
+import {
+  CITIES,
+  cityById,
+  sunMoonTimes,
+  moonInfo,
+  visibleNotables,
+  altAz,
+  isDarkEnough,
+  azimuthToCompass,
+  zoneAbbrev,
+  NOTABLES,
+} from '../lib/ephemeris.ts'
+
+let failures = 0
+function assert(label, cond, detail) {
+  if (cond) console.log(`PASS  ${label}`)
+  else { failures++; console.log(`FAIL  ${label}${detail ? '  — ' + detail : ''}`) }
+}
+// HH:MM within +/- tolMin of an expected HH:MM (rise/set is ~1min accurate; a
+// small tolerance keeps the test robust without being meaningless).
+function timeNear(actual, expectedHHMM, tolMin) {
+  if (!actual) return false
+  const toMin = (s) => Number(s.slice(0, 2)) * 60 + Number(s.slice(3, 5))
+  return Math.abs(toMin(actual) - toMin(expectedHHMM)) <= tolMin
+}
+
+const kos = cityById('kos')
+const london = cityById('london')
+const berlin = cityById('berlin')
+
+// A summer instant (DST active in all EU zones) and a winter one (DST off).
+const SUMMER = new Date('2026-07-28T18:00:00Z')
+const WINTER = new Date('2026-01-15T18:00:00Z')
+
+// ---- config ----
+assert('5 cities configured', CITIES.length === 5)
+assert('cities have IANA zones', CITIES.every((c) => typeof c.tz === 'string' && c.tz.includes('/')))
+assert('adding-a-city is config-only (Athens present)', !!cityById('athens'))
+
+// ---- DST honesty: the zone abbreviation reflects DST for the instant ----
+assert('Kos summer -> EEST (DST)', zoneAbbrev(SUMMER, kos.tz) === 'EEST', zoneAbbrev(SUMMER, kos.tz))
+assert('Kos winter -> EET (no DST)', zoneAbbrev(WINTER, kos.tz) === 'EET', zoneAbbrev(WINTER, kos.tz))
+assert('London summer -> BST', zoneAbbrev(SUMMER, london.tz) === 'BST', zoneAbbrev(SUMMER, london.tz))
+assert('London winter -> GMT', zoneAbbrev(WINTER, london.tz) === 'GMT', zoneAbbrev(WINTER, london.tz))
+assert('Berlin summer -> CEST', zoneAbbrev(SUMMER, berlin.tz) === 'CEST', zoneAbbrev(SUMMER, berlin.tz))
+
+// ---- sun/moon times: known-good values (verified against the smoke test) ----
+{
+  const t = sunMoonTimes(kos, SUMMER)
+  assert('Kos date is local', t.localDate === '2026-07-28')
+  assert('Kos times labelled EEST', t.tzAbbrev === 'EEST')
+  // Kos 28-07: sunrise ~06:12, sunset ~20:21 local (EEST = UTC+3).
+  assert('Kos sunrise ~06:12 EEST', timeNear(t.sunrise, '06:12', 3), t.sunrise)
+  assert('Kos sunset ~20:21 EEST', timeNear(t.sunset, '20:21', 3), t.sunset)
+  assert('Kos has a dark-from time in summer', typeof t.darkFrom === 'string', String(t.darkFrom))
+  // dark-from must be AFTER sunset.
+  assert('Kos dark-from is after sunset', t.darkFrom > t.sunset, `${t.sunset} -> ${t.darkFrom}`)
+}
+
+// ---- DST correctness across cities: sunset differs by the RIGHT offset ----
+{
+  // Same instant, Kos (UTC+3 summer) vs London (UTC+1 summer). London is west +
+  // 2h behind the clock, so its sunset WALL time isn't a simple shift — but both
+  // must be plausible evening times and labelled with the right zone.
+  const kosT = sunMoonTimes(kos, SUMMER)
+  const lonT = sunMoonTimes(london, SUMMER)
+  assert('London times labelled BST', lonT.tzAbbrev === 'BST')
+  assert('London summer sunset is late evening (20:00-22:00 BST)', lonT.sunset >= '20:00' && lonT.sunset <= '22:00', lonT.sunset)
+  // London high-summer: nautical dark may never arrive -> darkFrom null is HONEST.
+  assert('London darkFrom is null-or-late (honest high-latitude summer)', lonT.darkFrom === null || lonT.darkFrom >= '22:30', String(lonT.darkFrom))
+}
+
+// ---- moon phase: known value + verdict wiring ----
+{
+  const m = moonInfo(SUMMER)
+  // 28-07-2026 is near full (verified ~99% in the smoke test).
+  assert('moon ~near-full on 28-07', m.illumPercent >= 90, `${m.illumPercent}%`)
+  assert('moon phase name present', typeof m.phaseName === 'string' && m.phaseName.length > 0, m.phaseName)
+  assert('bright moon -> washout note', m.stargazingNote.includes('wash') || m.stargazingNote.includes('Bright'), m.stargazingNote)
+  // A dark-moon instant gives the ideal note.
+  const newish = moonInfo(new Date('2026-08-12T20:00:00Z')) // near new moon
+  assert('near-new moon -> low illum', newish.illumPercent <= 20, `${newish.illumPercent}%`)
+  assert('dark moon -> ideal note', newish.stargazingNote.toLowerCase().includes('ideal') || newish.stargazingNote.toLowerCase().includes('dark'), newish.stargazingNote)
+}
+
+// ---- compass + visibility gating ----
+assert('azimuth 135 -> southeast', azimuthToCompass(135) === 'southeast')
+assert('azimuth 0 -> north', azimuthToCompass(0) === 'north')
+assert('azimuth 350 -> north (wrap)', azimuthToCompass(350) === 'north')
+assert('azimuth 225 -> southwest', azimuthToCompass(225) === 'southwest')
+
+// Daylight gate: at noon UTC over Kos it is broad daylight -> NOTHING notable.
+{
+  const noon = new Date('2026-07-28T09:00:00Z') // ~noon local Kos
+  assert('daylight -> not dark enough', isDarkEnough(kos, noon) === false)
+  assert('daylight -> visibleNotables empty (silence beats wrong)', visibleNotables(kos, noon).length === 0)
+}
+
+// The smoke-test anchor: Saturn from Kos at 28-07 20:00 UTC was BELOW the horizon
+// (-5.8deg), so it must NOT appear as visible — the maths gates itself.
+{
+  const saturn = NOTABLES.find((n) => n.name === 'Saturn')
+  const { altitude } = altAz(kos, saturn, new Date('2026-07-28T20:00:00Z'))
+  assert('Saturn below horizon at test instant (self-gating)', altitude < 0, `${altitude.toFixed(1)}deg`)
+}
+
+// After true dark, SOMETHING among the notables should be up on a normal night
+// (sanity that the pipeline surfaces objects at all when it should).
+{
+  const lateNight = new Date('2026-07-28T22:30:00Z') // ~01:30 local Kos, deep night
+  const vis = visibleNotables(kos, lateNight)
+  assert('deep night -> some notable is up', vis.length >= 1, `count=${vis.length}`)
+  assert('visible entries carry a compass direction', vis.every((v) => typeof v.direction === 'string' && v.direction.length > 0))
+  assert('visible entries are above the 15deg floor', vis.every((v) => v.altitude >= 15))
+  assert('sorted highest-first', vis.every((v, i) => i === 0 || vis[i - 1].altitude >= v.altitude))
+}
+
+console.log('')
+if (failures > 0) { console.log(`${failures} ephemeris test(s) FAILED`); process.exit(1) }
+console.log('All ephemeris tests passed.')

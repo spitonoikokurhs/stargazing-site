@@ -153,4 +153,68 @@ ship them as two pages/surfaces.
    Moon, the naked-eye planets, and ~5 famous DSOs that are genuinely bright — M31, M42, M45,
    M13, M8 — gated on season/visibility. Your call on the list.)
 
-**Nothing built beyond the investigation + the already-done mock fix. Awaiting your direction.**
+---
+
+# Addendum — Built: shared ephemeris lib + sky-calendar (28-07-2026)
+
+Decisions approved (server-side compute; calendar first; cities Kos/Athens/Berlin/Rome/London;
+notables = planets + Moon + the showpiece DSOs, held to the trust thresholds). Calendar +
+shared lib built; flavor lines are next (not yet built). Held for review, not pushed.
+
+## What was built
+
+- **`config/cities.json`** — Kos, Athens, Berlin, Rome, London (coords + height + IANA zone).
+  Adding a city is one entry here, no code change (per your constraint).
+- **`lib/ephemeris.ts`** — the shared server-side layer (astronomy-engine wrapped): `sunMoonTimes`
+  (rise/set + dark-from), `moonInfo` (phase name + illumination % + stargazing verdict),
+  `moonWeek` (7-night strip), and the flavor-line groundwork (`visibleNotables`, `altAz`,
+  `isDarkEnough`, `NOTABLES`). Pure; the engine is imported ONLY here.
+- **`app/sky-calendar/page.tsx` + `.css`** — guest-facing, indexed, server-computed (hourly
+  ISR). Moon header (glyph + verdict), 7-night planning strip (dark nights highlighted),
+  per-city rise/set table, and the DST/timezone honesty note. Dark aesthetic, desktop-first,
+  phone-fine.
+- **`scripts/test-ephemeris.mjs`** — 33 assertions.
+
+## DST / timezone honesty — CONFIRMED (your build-report ask)
+
+The correctness rule is enforced and tested. astronomy-engine computes in UTC; every emitted
+local time is formatted into that **specific city's IANA zone** via `Intl.DateTimeFormat`,
+which applies the zone's real offset AND its daylight-saving rules for the given instant. So the
+page is honest per city, and says which clock each time is on:
+
+- **Each row carries its zone abbreviation, resolved for the date** — verified live on 28-07
+  (summer): Kos/Athens **EEST**, Berlin/Rome **CEST**, London **BST**. The test also asserts the
+  winter values (Kos **EET**, London **GMT**) so a DST flip can't silently break the labels.
+- **Rendered times are genuinely different per zone and correct** — live: Kos sunset 20:21 EEST,
+  Rome 20:32 CEST, London 20:54 BST (later, further west/north). Not a naive single-offset shift.
+- **An explicit note on the page** tells the reader every time is in that city's own local clock
+  with DST applied, and what "—" and "stays light" mean.
+- **Honest nulls:** `SearchRiseSet` returns null on polar day / no-moonrise days, and `darkFrom`
+  is null when the sky never reaches nautical dusk (northern summer). The page renders "—" /
+  "stays light" — never an invented time. (`darkFrom` uses `SearchAltitude`, not `SearchRiseSet`
+  — a bug I caught in review: SearchRiseSet's last arg is metres-above-ground, not a sun angle.)
+
+## Server-side-only — CONFIRMED
+
+Real `next build`: `/sky-calendar` ships **182 B** of page JS (First Load = the shared 87.5 kB
+baseline). The ~46 KB astronomy-engine is **not in the client bundle** — the page is
+static-prerendered and the engine stays server-only, exactly as designed. Client cost: zero.
+
+## Verified
+
+- 33/33 ephemeris assertions (DST abbrevs summer+winter, known-good Kos sunset 20:21 EEST, moon
+  ~99%, daylight → silence, Saturn self-gated below horizon, deep-night notables surface).
+- tsc + lint clean · all suites · real build green.
+- Rendered live at 900px and 390px: correct per-zone times, 5 cities, 7-night strip, honest
+  moon verdict, zero JS errors. Consent banner correctly appears (this IS a guest page, unlike
+  /live* and /season).
+
+## Next (not built): the flavor-line "true right now" pool
+
+The groundwork is in `lib/ephemeris.ts` (`visibleNotables` returns the gated, above-15°,
+after-dusk, direction-tagged notables — [] when nothing qualifies, so silence beats a wrong
+claim). Remaining: a gated `FlavorSituation`/pre-`pickFlavor` branch in `lib/live-copy.ts` that
+turns a visible notable into one short Aegean-toned line, recomputed from the live clock. Held
+for a follow-up per the build order.
+
+**Calendar + shared lib built and verified. Flavor lines next. Held for review. Not pushed.**

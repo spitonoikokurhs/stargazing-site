@@ -1,0 +1,10 @@
+{
+  "_comment": "Cities for the guest sun/moon calendar (see lib/ephemeris.ts + app/sky-calendar). Adding a city is ONE entry here — no code change. `tz` is the IANA zone: it is the single source of truth for that city's local time AND its DST rules (astronomy-engine computes in UTC; we format into each city's own zone via Intl, so Berlin/Rome/London/Athens each get their correct offset, DST included, automatically). lat/lon in degrees (N/E positive); height in metres (0 is fine at sea level — negligible effect on rise/set). Order here is display order; Kos first (home).",
+  "cities": [
+    { "id": "kos", "name": "Kos", "country": "Greece", "lat": 36.8933, "lon": 27.2889, "height": 0, "tz": "Europe/Athens" },
+    { "id": "athens", "name": "Athens", "country": "Greece", "lat": 37.9838, "lon": 23.7275, "height": 0, "tz": "Europe/Athens" },
+    { "id": "berlin", "name": "Berlin", "country": "Germany", "lat": 52.52, "lon": 13.405, "height": 34, "tz": "Europe/Berlin" },
+    { "id": "rome", "name": "Rome", "country": "Italy", "lat": 41.9028, "lon": 12.4964, "height": 21, "tz": "Europe/Rome" },
+    { "id": "london", "name": "London", "country": "United Kingdom", "lat": 51.5072, "lon": -0.1276, "height": 11, "tz": "Europe/London" }
+  ]
+}

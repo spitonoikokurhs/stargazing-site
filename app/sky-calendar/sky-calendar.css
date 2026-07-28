@@ -1,0 +1,224 @@
+/* /sky-calendar — a calm, dark, guest-facing planning page. Matches the site's
+   night aesthetic (deep blue-black, warm off-white text, a soft gold accent),
+   desktop-first, degrades cleanly on a phone. Single self-contained sheet like
+   the other guest pages. */
+
+.sky-root {
+  --bg: #0a0e17;
+  --panel: #121826;
+  --edge: rgba(150, 180, 220, 0.14);
+  --ink: #eae7df;
+  --muted: rgba(234, 231, 223, 0.62);
+  --gold: #e8c583;
+  --dark-accent: #7ee0c4;
+
+  min-height: 100vh;
+  margin: 0 auto;
+  max-width: 860px;
+  padding: 40px 20px 72px;
+  background: radial-gradient(1200px 600px at 50% -10%, #16203a 0%, var(--bg) 55%);
+  color: var(--ink);
+  font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  line-height: 1.5;
+}
+
+.sky-header {
+  text-align: center;
+  margin-bottom: 28px;
+}
+.sky-header h1 {
+  margin: 0;
+  font-size: clamp(28px, 6vw, 40px);
+  font-weight: 600;
+  letter-spacing: 0.4px;
+}
+.sky-sub {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 15px;
+}
+
+.sky-h2 {
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--muted);
+  margin: 0 0 12px;
+  font-weight: 600;
+}
+
+/* ---- Moon header ---- */
+.sky-moon {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 20px 22px;
+  background: var(--panel);
+  border: 1px solid var(--edge);
+  border-radius: 16px;
+  margin-bottom: 26px;
+}
+.sky-moon-glyph {
+  font-size: 54px;
+  line-height: 1;
+  filter: drop-shadow(0 0 14px rgba(232, 197, 131, 0.25));
+}
+.sky-moon-headline {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+}
+.sky-moon-note {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+/* ---- 7-night strip ---- */
+.sky-week {
+  margin-bottom: 30px;
+}
+.sky-week-strip {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 8px;
+}
+.sky-week-day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 12px 4px;
+  background: var(--panel);
+  border: 1px solid var(--edge);
+  border-radius: 12px;
+  text-align: center;
+}
+.sky-week-day--dark {
+  border-color: rgba(126, 224, 196, 0.4);
+  background: rgba(126, 224, 196, 0.08);
+}
+.sky-week-glyph {
+  font-size: 26px;
+  line-height: 1;
+}
+.sky-week-label {
+  font-size: 12px;
+  color: var(--ink);
+}
+.sky-week-pct {
+  font-size: 11px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.sky-week-hint {
+  margin: 12px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+/* ---- City table ---- */
+.sky-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--edge);
+  border-radius: 14px;
+  background: var(--panel);
+}
+.sky-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 15px;
+  min-width: 460px;
+}
+.sky-table th,
+.sky-table td {
+  padding: 12px 14px;
+  text-align: left;
+  border-bottom: 1px solid var(--edge);
+}
+.sky-table thead th {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  font-weight: 600;
+}
+.sky-table tbody tr:last-child th,
+.sky-table tbody tr:last-child td {
+  border-bottom: none;
+}
+.sky-city-name {
+  font-weight: 600;
+  white-space: nowrap;
+}
+.sky-tz {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  border: 1px solid var(--edge);
+  color: var(--muted);
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  vertical-align: middle;
+}
+.sky-num {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+.sky-num--dark {
+  color: var(--dark-accent);
+}
+.sky-tz-note,
+.sky-week-hint {
+  line-height: 1.55;
+}
+.sky-tz-note {
+  margin: 14px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+/* ---- Footer CTA ---- */
+.sky-footer {
+  margin-top: 34px;
+  padding-top: 18px;
+  border-top: 1px solid var(--edge);
+  text-align: center;
+  color: var(--muted);
+  font-size: 14px;
+}
+.sky-footer a {
+  color: var(--gold);
+  text-decoration: none;
+  border-bottom: 1px solid rgba(232, 197, 131, 0.4);
+}
+.sky-footer a:hover,
+.sky-footer a:focus-visible {
+  color: #f3d9a6;
+}
+
+/* ---- Phone ---- */
+@media (max-width: 560px) {
+  .sky-week-strip {
+    grid-template-columns: repeat(7, 1fr);
+    gap: 4px;
+  }
+  .sky-week-day {
+    padding: 8px 2px;
+  }
+  .sky-week-glyph {
+    font-size: 20px;
+  }
+  .sky-week-label {
+    font-size: 10px;
+  }
+  .sky-moon-glyph {
+    font-size: 44px;
+  }
+}
