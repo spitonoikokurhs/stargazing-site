@@ -145,6 +145,21 @@ export default function HomePage() {
             <span>Michalis Reisis</span>
           </a>
 
+          {/* The live pill stays on the bar at ALL sizes (it's time-sensitive
+              info a guest wants at a glance); the rest of the nav collapses
+              behind the menu toggle on mobile. */}
+          <LiveStatusPill variant="header" />
+
+          {/* CSS-only mobile menu: a hidden checkbox toggles the nav open, so
+              there's zero JS and nothing to hydrate/break. The label is the
+              hamburger; it's hidden on desktop where the full nav shows inline. */}
+          <input type="checkbox" id="nav-toggle" className="nav-toggle" aria-hidden="true" />
+          <label htmlFor="nav-toggle" className="nav-burger" aria-label="Open menu">
+            <span></span>
+            <span></span>
+            <span></span>
+          </label>
+
           <nav>
             <a href="#gallery">Gallery</a>
             <a href="#partnerships">Partnerships</a>
@@ -152,7 +167,6 @@ export default function HomePage() {
             <a href="#faq">FAQ</a>
             <a href="/bodrum-hotelleri">Bodrum TR</a>
             <a href="#guest-feedback">Feedback</a>
-            <LiveStatusPill variant="header" />
             <a href="#contact" className="btn">Contact</a>
             <a href="mailto:mike@stargazing.events" className="btn primary">Email Michalis</a>
           </nav>
