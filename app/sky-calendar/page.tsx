@@ -26,8 +26,12 @@ export const revalidate = 3600
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
 
-function fmtDateLabel(d: Date): string {
-  return d.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })
+// Date/weekday labels must read in the SELECTED CITY's local zone, not the
+// server's (Vercel runs UTC — without the timeZone a Kos guest just past midnight
+// would see tomorrow's date while it's still "tonight" for them). Every string
+// on the card is then internally consistent in that city's clock.
+function fmtDateLabel(d: Date, tz: string): string {
+  return d.toLocaleDateString('en-GB', { timeZone: tz, weekday: 'long', day: 'numeric', month: 'long' })
 }
 
 export default function SkyCalendarPage({
@@ -67,7 +71,12 @@ export default function SkyCalendarPage({
     return `/sky-calendar?${p.toString()}`
   }
   const dayLabel = (offset: number) =>
-    offset === 0 ? 'Tonight' : new Date(when.getTime() + offset * 86_400_000).toLocaleDateString('en-GB', { weekday: 'short' })
+    offset === 0
+      ? 'Tonight'
+      : new Date(when.getTime() + offset * 86_400_000).toLocaleDateString('en-GB', {
+          timeZone: city.tz,
+          weekday: 'short',
+        })
 
   // The darkness ladder as ordered rows (skip any null phase honestly).
   const twilightRows: { label: string; time: string | null; emphasis?: boolean }[] = [
@@ -132,7 +141,7 @@ export default function SkyCalendarPage({
             {city.name}
             <span className="sky-tz">{zoneAbbrev(when, city.tz)}</span>
           </h2>
-          <span className="sky-card-date">{fmtDateLabel(when)} · all times {zoneAbbrev(when, city.tz)} (local)</span>
+          <span className="sky-card-date">{fmtDateLabel(when, city.tz)} · all times {zoneAbbrev(when, city.tz)} (local)</span>
         </div>
 
         {/* Darkness timeline */}
@@ -183,7 +192,7 @@ export default function SkyCalendarPage({
           )}
           {hiddenPlanets.length > 0 ? (
             <p className="sky-planets-hidden">
-              Not up tonight: {hiddenPlanets.map((p) => p.name).join(', ')}.
+              Not visible at night from {city.name} tonight: {hiddenPlanets.map((p) => p.name).join(', ')}.
             </p>
           ) : null}
         </div>

@@ -508,7 +508,7 @@ function planetTonight(
       bestTime: null,
       maxAltitude: -90,
       direction: 'south',
-      summary: 'No fully-dark window tonight (northern summer).',
+      summary: 'Not assessable tonight — the sky never gets fully dark (northern summer).',
     }
   }
 
@@ -519,10 +519,13 @@ function planetTonight(
 
   let summary: string
   if (!visible) {
+    // Be explicit that this is about the NIGHT — the whole point is "not visible
+    // during nighttime from this city", never a bare "too low" that could read
+    // as a momentary thing.
     summary =
       best.alt < 0
-        ? `Below the horizon during dark hours from ${city.name} tonight.`
-        : `Too low from ${city.name} tonight — under the tree-and-rooftop line.`
+        ? `Not visible at night from ${city.name} tonight — it stays below the horizon the whole time it's dark.`
+        : `Not visible at night from ${city.name} tonight — it never climbs clear of the horizon haze while it's dark.`
   } else {
     const phrase = whenPhrase(best.when, tw.astroDusk.date, tw.astroDawn.date)
     // e.g. "High just before dawn (around 05:45) — in the south."

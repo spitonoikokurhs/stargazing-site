@@ -156,7 +156,7 @@ assert('azimuth 225 -> southwest', azimuthToCompass(225) === 'southwest')
   assert('Saturn visible during dark (~53deg)', byName.Saturn?.visible === true && byName.Saturn.maxAltitude > 40, `${byName.Saturn?.maxAltitude?.toFixed(0)}`)
   assert('Saturn line names a direction + best time', /in the \w+/.test(byName.Saturn.summary) && /around \d\d:\d\d/.test(byName.Saturn.summary), byName.Saturn.summary)
   assert('Jupiter NOT falsely shown (below horizon at night)', byName.Jupiter?.visible === false)
-  assert('Jupiter honest not-up line', /below the horizon|too low/i.test(byName.Jupiter.summary), byName.Jupiter.summary)
+  assert('Jupiter honest not-up line says NOT VISIBLE AT NIGHT', /not visible at night/i.test(byName.Jupiter.summary), byName.Jupiter.summary)
   // The daytime-transit bug would have reported Jupiter ~72deg "high" — guard against regression.
   assert('no planet claims a daytime-transit altitude (all visible are genuinely up in dark)', planets.filter((p) => p.visible).every((p) => p.maxAltitude >= 15))
   // Visible sorted before not-visible.
