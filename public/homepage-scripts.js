@@ -37,3 +37,29 @@ lightbox.addEventListener('click', () => {
 document.addEventListener('keydown', (event) => {
   if (event.key === 'Escape') lightbox.classList.remove('open');
 });
+
+// Mobile menu: close it after a nav choice. The menu itself is CSS-only (a
+// checkbox toggle), which can't know a link was tapped — so this un-checks it
+// on navigation, so tapping a link scrolls to the section AND closes the menu
+// (leaving it open would cover the section you just jumped to). Also closes on
+// Escape and on a tap outside the header. Guarded so it's a no-op if the toggle
+// isn't present.
+const navToggle = document.getElementById('nav-toggle');
+if (navToggle) {
+  const closeMenu = () => { navToggle.checked = false; };
+
+  // Any link inside the header nav closes the menu when tapped.
+  document.querySelectorAll('header nav a').forEach((link) => {
+    link.addEventListener('click', closeMenu);
+  });
+
+  // Escape closes the menu too.
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') closeMenu();
+  });
+
+  // Tap outside the header (on the page) closes an open menu.
+  document.addEventListener('click', (event) => {
+    if (navToggle.checked && !event.target.closest('header')) closeMenu();
+  });
+}
