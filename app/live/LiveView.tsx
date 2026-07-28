@@ -762,27 +762,40 @@ const KNOWN_DEMO_SOURCE: Record<string, { catalogId: string; blobUrl: string; to
 // the "withhold the possibly-wrong name, even on tap" case). mock-10 is the
 // active/current one (matches the demo's own KNOWN_DEMOS['history-test'] = M13
 // card).
+//
+// IMAGES ARE DELIBERATELY MATCHED to each pill's object (28-07-2026). On a real
+// event the image and objectId always come from the same StackRun, so they
+// agree; the mock now honours that so a screen-share of ?demo=history-test never
+// shows e.g. a spiral galaxy under a "Dumbbell Nebula" card. Given the small
+// image library, the mock's OBJECTS were chosen to fit the genuinely-matching
+// pictures (M33 Triangulum, M20 Trifid, M42 Orion) rather than forcing wrong
+// pairings; entries whose true image we don't have use a generic astrophoto
+// (astro-0X.jpg — treated as unlabelled stock everywhere, not a specific object)
+// paired with an object whose card is honest about that (kept to a couple, and
+// never a famous target whose real look a viewer would recognise as wrong).
 const MOCK_HISTORY: HistoryEntry[] = [
   {
     id: 'mock-1',
-    objectId: 'M27',
-    objectName: 'Dumbbell Nebula',
-    objectType: 'Planetary Nebula',
+    // M33 Triangulum — genuine image match (galaxy-triangulum-m33.jpg).
+    objectId: 'M33',
+    objectName: 'Triangulum Galaxy',
+    objectType: 'Spiral Galaxy',
     confidence: 'high',
     startedAt: '2026-07-09T20:00:00.000Z',
     endedAt: '2026-07-09T20:12:00.000Z',
-    blobUrl: '/images/astro-05.jpg',
+    blobUrl: '/images/galaxy-triangulum-m33.jpg',
     active: false,
   },
   {
     id: 'mock-2',
-    objectId: 'NGC7000',
-    objectName: 'North America Nebula',
+    // M42 Orion — genuine image match (nebula-orion-m42.jpg).
+    objectId: 'M42',
+    objectName: 'Orion Nebula',
     objectType: 'Diffuse Nebula',
     confidence: 'high',
     startedAt: '2026-07-09T20:12:00.000Z',
     endedAt: '2026-07-09T20:24:00.000Z',
-    blobUrl: '/images/astro-04.jpg',
+    blobUrl: '/images/nebula-orion-m42.jpg',
     active: false,
   },
   {
@@ -794,26 +807,31 @@ const MOCK_HISTORY: HistoryEntry[] = [
     startedAt: '2026-07-09T20:24:00.000Z',
     endedAt: '2026-07-09T20:36:00.000Z',
     // Deliberately null — the "no saved image for this target" test case
-    // (see this const's own doc comment above).
+    // (see this const's own doc comment above). KEPT as-is: real test value.
     blobUrl: null,
     active: false,
   },
   {
     id: 'mock-4',
-    objectId: 'M31',
-    objectName: 'Andromeda Galaxy',
+    // NGC 6946 Fireworks — a real galaxy image we have; its own true identity,
+    // so the picture matches the label (it's not in the catalog, so the card
+    // falls back to the minimal id/name/type — which is itself a valid path to
+    // exercise, and honest: the image really is the Fireworks Galaxy).
+    objectId: 'NGC6946',
+    objectName: 'Fireworks Galaxy',
     objectType: 'Spiral Galaxy',
     confidence: 'high',
     startedAt: '2026-07-09T20:36:00.000Z',
     endedAt: '2026-07-09T20:48:00.000Z',
-    blobUrl: '/images/galaxy-triangulum-m33.jpg',
+    blobUrl: '/images/galaxy-fireworks-ngc6946.jpg',
     active: false,
   },
   {
     id: 'mock-5',
-    objectId: 'LEO-TRIPLET',
-    objectName: 'Leo Triplet',
-    objectType: 'Galaxy Group',
+    // NGC 2403 — real image, true identity (minimal-card fallback, honest).
+    objectId: 'NGC2403',
+    objectName: 'NGC 2403',
+    objectType: 'Spiral Galaxy',
     confidence: 'medium',
     startedAt: '2026-07-09T20:48:00.000Z',
     endedAt: '2026-07-09T21:00:00.000Z',
@@ -822,28 +840,31 @@ const MOCK_HISTORY: HistoryEntry[] = [
   },
   {
     id: 'mock-6',
-    objectId: 'M51',
-    objectName: 'Whirlpool Galaxy',
+    // IC 342 Hidden Galaxy — real image, true identity (minimal-card fallback).
+    objectId: 'IC342',
+    objectName: 'Hidden Galaxy',
     objectType: 'Spiral Galaxy',
     confidence: 'high',
     startedAt: '2026-07-09T21:00:00.000Z',
     endedAt: '2026-07-09T21:12:00.000Z',
-    blobUrl: '/images/galaxy-fireworks-ngc6946.jpg',
+    blobUrl: '/images/galaxy-ic342-hidden.jpg',
     active: false,
   },
   {
     id: 'mock-7',
+    // M101 off-center medium with NO in-range runner-up — the exact M101 case
+    // from 2026-07-20. Must remain a NORMAL named, tappable pill
+    // (shouldShowMatchName true), and tapping it must render the full "Pinwheel
+    // Galaxy" catalog card. We have no Pinwheel image, so a generic astrophoto
+    // stands in (astro-06 — unlabelled stock, not a recognisably-wrong object).
     objectId: 'M101',
     objectName: 'Pinwheel Galaxy',
     objectType: 'Spiral Galaxy',
     confidence: 'medium',
-    // Off-center medium with NO in-range runner-up — the exact M101 case from
-    // 2026-07-20. Must remain a NORMAL named, tappable pill (shouldShowMatchName
-    // true), and tapping it must render the full "Pinwheel Galaxy" card.
     hasInRangeRunnerUp: false,
     startedAt: '2026-07-09T21:12:00.000Z',
     endedAt: '2026-07-09T21:24:00.000Z',
-    blobUrl: '/images/galaxy-ic342-hidden.jpg',
+    blobUrl: '/images/astro-06.jpg',
     active: false,
   },
   {
@@ -851,8 +872,8 @@ const MOCK_HISTORY: HistoryEntry[] = [
     // runner-up. isDisplayableRun -> false, so this pill is OMITTED from the
     // strip entirely (non-active + non-displayable), which is the withhold: no
     // pill means no tap means no possibly-wrong named card. This is the
-    // history-side proof of the tappable-pill fix — before it, this would have
-    // shown as a tappable "Bode's Galaxy" pill and rendered its card on tap.
+    // history-side proof of the tappable-pill fix. KEPT as test value; its
+    // image never renders (the pill is dropped), so the pairing is immaterial.
     id: 'mock-contested',
     objectId: 'M81',
     objectName: "Bode's Galaxy",
@@ -866,6 +887,7 @@ const MOCK_HISTORY: HistoryEntry[] = [
   },
   {
     id: 'mock-8',
+    // M20 Trifid — genuine image match (nebula-trifid-m20.jpg).
     objectId: 'M20',
     objectName: 'Trifid Nebula',
     objectType: 'Diffuse Nebula',
@@ -883,11 +905,15 @@ const MOCK_HISTORY: HistoryEntry[] = [
     confidence: 'none',
     startedAt: '2026-07-09T21:36:00.000Z',
     endedAt: '2026-07-09T21:38:00.000Z',
+    // KEPT null — the unresolved/settling test case (see doc comment above).
     blobUrl: null,
     active: false,
   },
   {
     id: 'mock-10',
+    // Active/current — M13, matching KNOWN_DEMOS['history-test']. Generic
+    // astrophoto (astro-01, unlabelled stock — the same one that demo uses for
+    // its M13 card, so the live frame and this pill agree).
     objectId: 'M13',
     objectName: 'Hercules Globular Cluster',
     objectType: 'Globular Cluster',
