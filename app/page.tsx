@@ -140,9 +140,9 @@ export default function HomePage() {
 
       <header>
         <div className="container nav">
-          <a href="#top" className="brand">
+          <a href="#top" className="brand" aria-label="Stargazing Events — home">
             <span className="brand-dot"></span>
-            <span>Michalis Reisis</span>
+            <span>Stargazing Events</span>
           </a>
 
           {/* The live pill stays on the bar at ALL sizes (it's time-sensitive
@@ -168,8 +168,7 @@ export default function HomePage() {
             <a href="/sky-calendar">Tonight&apos;s Sky</a>
             <a href="/bodrum-hotelleri">Bodrum TR</a>
             <a href="#guest-feedback">Feedback</a>
-            <a href="#contact" className="btn">Contact</a>
-            <a href="mailto:mike@stargazing.events" className="btn primary">Email Michalis</a>
+            <a href="#contact" className="btn primary">Contact</a>
           </nav>
         </div>
       </header>

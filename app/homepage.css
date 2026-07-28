@@ -302,7 +302,7 @@ footer{padding:28px 0 40px;border-top:1px solid var(--border);color:var(--muted)
     font-size:1.05rem;
   }
   header nav a:last-child{border-bottom:none}
-  /* The two CTA buttons go full-width and sit at the end of the menu. */
+  /* The CTA button goes full-width at the end of the menu. */
   header nav .btn{
     margin-top:10px;
     text-align:center;
