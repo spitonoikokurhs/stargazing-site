@@ -10,6 +10,7 @@ import {
   moonDuringDark,
   zoneAbbrev,
 } from '@/lib/ephemeris'
+import { issPasses } from '@/lib/iss'
 import './sky-calendar.css'
 
 export const metadata: Metadata = {
@@ -34,7 +35,7 @@ function fmtDateLabel(d: Date, tz: string): string {
   return d.toLocaleDateString('en-GB', { timeZone: tz, weekday: 'long', day: 'numeric', month: 'long' })
 }
 
-export default function SkyCalendarPage({
+export default async function SkyCalendarPage({
   searchParams,
 }: {
   searchParams: { city?: string; date?: string }
@@ -54,6 +55,11 @@ export default function SkyCalendarPage({
   const planets = planetsTonight(city, when, tw)
   const visiblePlanets = planets.filter((p) => p.visible)
   const hiddenPlanets = planets.filter((p) => !p.visible)
+
+  // ISS visible passes for the city-local day (needs a live TLE — see lib/iss).
+  // Safe by contract: returns { ok:false } with a reason if the feed is down or
+  // stale, so we render "unavailable" rather than anything fabricated.
+  const iss = await issPasses(city, when)
 
   const jsonLd = JSON.stringify({
     '@context': 'https://schema.org',
@@ -198,12 +204,41 @@ export default function SkyCalendarPage({
             </p>
           ) : null}
         </div>
+
+        {/* ISS visible passes — real data from a live satellite feed, or an
+            honest "unavailable" if the feed is down/stale (never fabricated). */}
+        <div className="sky-block">
+          <h3 className="sky-block-title">ISS passes <span className="sky-block-sub">(naked eye)</span></h3>
+          {iss.ok && iss.passes.length > 0 ? (
+            <>
+              <ul className="sky-iss">
+                {iss.passes.map((p, i) => (
+                  <li key={i} className="sky-iss-pass">
+                    <span className="sky-iss-time">{p.start}</span>
+                    <span className="sky-iss-desc">
+                      appears in the {p.startDir}, climbs to {p.peakAltitude}° by {p.peak}, gone by {p.end} in the {p.endDir}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              <p className="sky-block-note">
+                The Space Station looks like a bright, steady star gliding across the sky over a few minutes — no
+                flashing. Look toward the first direction at the start time.
+              </p>
+            </>
+          ) : iss.ok ? (
+            <p className="sky-block-note">No visible ISS passes over {city.name} tonight.</p>
+          ) : (
+            <p className="sky-block-note">ISS pass times are unavailable right now — {iss.reason}</p>
+          )}
+        </div>
       </section>
 
       <p className="sky-tz-note">
         Every time is shown in {city.name}’s own local clock, with daylight saving applied for the date. “—” means the
         event doesn’t occur (for example, some nights the moon doesn’t rise); “stays light” means the sky never reaches
-        that stage (northern summer). Planet visibility is judged during the genuinely-dark window, not by a daytime
+        that stage (northern summer). ISS pass times use live orbital data and show only passes
+        visible to the naked eye (bright enough, in a dark-enough sky). Planet visibility is judged during the genuinely-dark window, not by a daytime
         high point — so a planet only appears here when you could actually see it.
       </p>
 

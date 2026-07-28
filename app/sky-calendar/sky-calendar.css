@@ -293,6 +293,31 @@
   font-size: 10.5px;
   margin-right: 2px;
 }
+/* ISS passes */
+.sky-iss {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.sky-iss-pass {
+  display: grid;
+  grid-template-columns: 62px 1fr;
+  align-items: baseline;
+  gap: 4px 12px;
+}
+.sky-iss-time {
+  font-weight: 600;
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+  color: var(--dark-accent);
+}
+.sky-iss-desc {
+  font-size: 14px;
+}
+
 .sky-planets-hidden {
   margin: 12px 0 0;
   color: var(--muted);
