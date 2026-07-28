@@ -218,3 +218,179 @@ turns a visible notable into one short Aegean-toned line, recomputed from the li
 for a follow-up per the build order.
 
 **Calendar + shared lib built and verified. Flavor lines next. Held for review. Not pushed.**
+
+---
+
+# Part 2 — Nightly sky-conditions card (scope addition, reshapes the calendar)
+
+You want a per-date, per-city conditions card: full twilight phases, moon-during-dark-window,
+and eyepiece-planet visibility with plain-language "best seen around…". This is not a bolt-on —
+it becomes the substance of the calendar page. I verified every computation against the real
+library (throwaway install, ran the maths, removed it) before proposing.
+
+## Q1 — What astronomy-engine gives directly vs. what I derive
+
+**Computed directly (a function call each):**
+- **Twilight phases** — `SearchAltitude(Sun, obs, ±1, from, 1, angle)` with `angle` = −6 (civil),
+  −12 (nautical), −18 (astronomical). Descending (−1) after noon = **dusk**; ascending (+1)
+  before the next noon = **dawn**. Verified for Kos 28-07: civil 17:50, nautical 18:25, **astro
+  19:03 UTC** (→ 22:03 EEST — that's your "session can properly start" number).
+- **Planet transit + max altitude, in ONE call** — `SearchHourAngle(planet, obs, 0, from, 1)`.
+  Hour angle 0 = due-south culmination = the object's highest point; the returned event carries
+  `.time` AND `.hor` (altitude/azimuth) directly, so max altitude and transit time come together.
+  Verified: Jupiter transits at alt 72.2° (az 180 = due south), Saturn 56.6°.
+- **Rise/set** for sun/moon/planets — `SearchRiseSet` (already used).
+- **Moon phase + illumination** — `MoonPhase` + `Illumination` (already used).
+- **Mercury/Venus visibility** — `Elongation(body, when)` gives tonight's angular separation from
+  the Sun + a `visibility` field ('morning'/'evening'). Verified: Mercury 28-07 = 18.5°, morning.
+
+**Derived (simple logic on top, no extra ephemeris):**
+- **Moon up during the dark window?** — interval overlap: does [moonrise, moonset] intersect
+  [astro-dusk, astro-dawn]? Pure arithmetic on times I already compute. This is your
+  "moon-all-night vs moon-free" distinction.
+- **"Best seen around HH:MM, low/high in the [direction]"** — from transit time + max altitude +
+  transit azimuth (always due south from our latitudes) → plain sentence. "high" if max alt
+  >45°, "moderate" 25–45°, "low" 15–25°; skip below ~15° entirely (per your "don't list what
+  nobody can see").
+- **Mercury inclusion gate** — show Mercury ONLY when `Elongation` says it's genuinely
+  observable (elongation > ~10° AND the object clears the horizon during a dark-ish window).
+  Otherwise omit it, not "not visible" clutter.
+- **Which planets to show tonight** — compute all of Jupiter/Saturn/Venus/Mars (+ Mercury when
+  gated), drop any whose max altitude never clears ~15° during the night. A dropped planet gets
+  ONE honest line ("Jupiter is too low from Kos tonight"), not a row implying it's up.
+
+**Nothing needs an external source.** All offline, ~1 arc-minute, MIT.
+
+## Q2 — Layout: one page + city switcher, tonight-default, with a date picker
+
+**One page, `/sky-calendar`, with a city switcher** — not a page per city. Reasoning:
+- **SEO:** five near-identical pages would compete with each other (thin/duplicate-content risk);
+  one strong page with `?city=` (or a path segment) and per-city `<h2>`s concentrates the ranking
+  signal. If we later want per-city landing pages for local search ("stargazing Rome"), those
+  should be a *deliberate* small set of richer pages, not an auto-generated five — a later call.
+- **Phone:** a switcher (chips/select) reads far better than five long stacked pages; the guest
+  standing next to the scope picks Kos once and sees everything.
+- **Server-computed still:** city + date are params; the page recomputes server-side and ships
+  strings. Engine never hits the client (already proven: 182 B page JS).
+
+**Tonight is the default; a date picker (not a multi-day table) for planning.** The card is
+information-dense per night (twilight × 6, moon, 4–5 planets with sentences) — a multi-day table
+of all that would be unreadable. So: **tonight by default**, a compact date picker to look ahead
+(trip planning), and the existing **7-night moon strip stays** as the at-a-glance "pick a dark
+night" overview that complements the detailed single-night card. Best of both: strip for
+scanning, card for the chosen night.
+
+## Q3 — Same surface as the sun/moon calendar? YES — it absorbs it.
+
+I agree with your suspicion. The moon/sun calendar and this conditions card are the **same
+page** — the card IS the calendar, deepened. Concretely, the page becomes:
+1. **Moon header** (kept) — phase glyph, %, verdict.
+2. **7-night moon strip** (kept) — pick a dark night.
+3. **City switcher + date (default tonight).**
+4. **The night card for the chosen city/date:**
+   - **Darkness timeline** — sunset → civil → nautical → **astronomical dark (highlighted: "a
+     session can start")** → … → astronomical dawn → sunrise. Plain row with times, astro-dark
+     emphasised.
+   - **Moon tonight** — rise/set, phase, and the plain verdict: "Moon sets at 01:10 — dark and
+     moon-free after that" vs "Moon up most of the night — bright, best for the Moon itself."
+   - **Planets tonight (eyepiece)** — a line per visible planet: "**Saturn** — best around 03:40,
+     high in the south." Raw rise/set/transit kept in a details/expand for the number-wanters.
+     A short "not up tonight" note for the dropped ones.
+   - Every time labelled with the city's zone (EEST/CEST/BST…), DST-correct (already built +
+     tested).
+
+The per-city rise/set **table** I built becomes redundant once each city has a full card — I'll
+**replace** it with the switcher+card (the table showed 5 cities × sunset/moonrise; the card
+shows one city × everything, which is what a planner or a guest actually reads). The 7-night
+strip and moon header carry over.
+
+## Q4 — Product fit (informs the copy)
+
+Planets are your **eyepiece** experience (stream = deep sky, eyepiece = planets), so the planet
+lines are written two ways at once: **"what to look for tonight"** for a guest at the scope
+("Saturn's high in the south right now — that's the one with rings in the eyepiece") and
+**planning** for a visitor ("Jupiter rises late this week; come after 11pm or wait for August").
+The plain-language sentences serve both; the raw times serve the planners who want them.
+
+## Build plan (on approval of Q2/Q3 above)
+
+1. Extend `lib/ephemeris.ts`: `twilightPhases(city, date)` (6 times), `planetsTonight(city, date)`
+   (per-planet: rise/set/transit/maxAlt/direction/visible-flag + the plain sentence, gated +
+   Mercury-elongation), `moonDuringDark(city, date)` (the overlap verdict). All server-side,
+   pure, unit-tested against verified values (astro-dark 22:03 EEST, Saturn transit alt 56.6°,
+   Mercury morning-only).
+2. Rework `/sky-calendar`: add the city switcher + date param, replace the 5-city table with the
+   single-city night card, keep the moon header + 7-night strip.
+3. CSS for the card (timeline, planet lines). Same dark aesthetic.
+4. Extend `scripts/test-ephemeris.mjs` with the new derivations + gates.
+5. Verify (tsc/lint/suites/real build + live render at desktop+phone), confirming DST per city
+   and that server-only still holds (engine not in client bundle). Hold for review.
+
+**Two decisions before I build:** (a) **one page + `?city=` switcher, tonight-default + date
+picker** — confirm? (b) **replace the 5-city table with the single-city card** (vs. keep both)?
+My recommendation is the switcher+card; the table stops earning its space once each city has a
+full card.
+
+**Investigation done + verified. Awaiting your go on the two layout calls, then I build.**
+
+---
+
+# Part 3 — Built: nightly sky-conditions card
+
+Approved: **one page + `?city=` switcher, tonight-default + date param; replace the 5-city table
+with the single-city night card.** Built on the shared `lib/ephemeris.ts`. Held for review.
+
+## What was built
+
+- **`lib/ephemeris.ts` extended:** `twilightPhases` (the full ladder — sunset → civil → nautical
+  → **astronomical dark** → astro dawn → nautical → civil → sunrise, each nullable), `planetsTonight`
+  (per-planet rise/set + best-during-dark time/altitude/direction + plain sentence + the "not up"
+  honesty case), `moonDuringDark` (moon-in-dark-window verdict — your moon-free vs moon-up-all-night
+  distinction). Mercury gated on real elongation. All server-side.
+- **`/sky-calendar` reworked:** moon header + 7-night strip (kept) → city switcher chips → the
+  single-city night card: darkness timeline (astro-dark row highlighted "a session can start"),
+  moon verdict + raw times, and the planet lines with expandable raw times. The 5-city table is
+  gone (superseded by the card).
+- **`test-ephemeris.mjs` extended** — now covers the twilight ladder, the during-dark planet
+  evaluation, the moon-during-dark verdict, and the no-dark (northern-summer null) path.
+
+## Q1 confirmed in build — what's computed vs derived
+
+- **Computed directly:** twilight phases (`SearchAltitude` at −6/−12/−18), planet transit + alt/az
+  (`SearchHourAngle`, event carries `.hor` directly), rise/set (`SearchRiseSet`), moon phase/illum,
+  Mercury visibility (`Elongation`).
+- **Derived (simple logic):** the "best seen around HH:MM, low/high in the [direction]" sentence;
+  the moon-in-dark-window overlap; the planet inclusion gate.
+
+## The honesty bug I caught and fixed (worth flagging)
+
+My first pass reported each planet's **raw transit** — which for Jupiter/Venus tonight is during
+the DAY (Jupiter "high, best around 13:21", Mercury "72°"). That would have told a guest at the
+eyepiece to look for a planet that's below the horizon all night. **Fixed:** a planet's visibility
+and best time are now evaluated by sampling its altitude **across the astronomical-dark window**,
+not at transit. Live result for Kos 28-07: Saturn "High just before dawn (04:31) — in the
+southeast" (53°, genuine), Mars low, **Venus + Jupiter honestly "Not up tonight"** — no false
+rows. A regression test now guards this (every visible planet must clear 15° during real dark).
+
+## DST honesty — confirmed live per city
+
+Rendered: Kos "all times **EEST**", Berlin "all times **CEST**" — each city's own zone, DST applied
+for the date, stated on the card. Every time carries its zone; the test asserts summer AND winter
+abbreviations so a DST flip can't silently break them. Honest nulls throughout ("stays light" when
+a phase isn't reached; "Not up tonight"; the northern-summer no-dark note).
+
+## Verified
+
+- Extended ephemeris suite (twilight ladder ~22:03 astro-dark, during-dark planets with the
+  daytime-transit regression guard, moon-during-dark, Berlin-midsummer null-dark) — all pass.
+- tsc + lint clean · all suites · real build green. `/sky-calendar` ships **182 B** page JS —
+  engine still server-only, not in the client bundle.
+- Live render at 900px + 390px: correct per-zone times (EEST/CEST), astro-dark highlighted,
+  honest planet visibility, city switcher, zero JS errors.
+
+## Still not built: the astro-correct flavor lines (feature 2b)
+
+The groundwork (`visibleNotables`) is in place; the gated "true right now" flavor pool in
+`lib/live-copy.ts` remains for a follow-up.
+
+**Conditions card built + verified. Held for review. Not pushed.**

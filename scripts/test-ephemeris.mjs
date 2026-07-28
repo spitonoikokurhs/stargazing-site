@@ -15,6 +15,9 @@ import {
   azimuthToCompass,
   zoneAbbrev,
   NOTABLES,
+  twilightPhases,
+  planetsTonight,
+  moonDuringDark,
 } from '../lib/ephemeris.ts'
 
 let failures = 0
@@ -119,6 +122,60 @@ assert('azimuth 225 -> southwest', azimuthToCompass(225) === 'southwest')
   assert('visible entries carry a compass direction', vis.every((v) => typeof v.direction === 'string' && v.direction.length > 0))
   assert('visible entries are above the 15deg floor', vis.every((v) => v.altitude >= 15))
   assert('sorted highest-first', vis.every((v, i) => i === 0 || vis[i - 1].altitude >= v.altitude))
+}
+
+// ---- NIGHTLY CONDITIONS: twilight ladder ----
+{
+  const tw = twilightPhases(kos, SUMMER)
+  // Kos 28-07 (verified): sunset 20:21, civil 20:50, nautical 21:25, ASTRO 22:03 EEST.
+  assert('twilight: sunset ~20:21', timeNear(tw.sunset?.hhmm, '20:21', 3), tw.sunset?.hhmm)
+  assert('twilight: civil dusk ~20:50', timeNear(tw.civilDusk?.hhmm, '20:50', 4), tw.civilDusk?.hhmm)
+  assert('twilight: nautical dusk ~21:25', timeNear(tw.nauticalDusk?.hhmm, '21:25', 4), tw.nauticalDusk?.hhmm)
+  assert('twilight: ASTRO dark ~22:03 (the session-start number)', timeNear(tw.astroDusk?.hhmm, '22:03', 5), tw.astroDusk?.hhmm)
+  assert('twilight: astro dawn ~04:31', timeNear(tw.astroDawn?.hhmm, '04:31', 6), tw.astroDawn?.hhmm)
+  // Ladder ordering: dusk phases get progressively later.
+  assert('twilight: dusk ladder ordered', tw.sunset.hhmm < tw.civilDusk.hhmm && tw.civilDusk.hhmm < tw.nauticalDusk.hhmm && tw.nauticalDusk.hhmm < tw.astroDusk.hhmm)
+}
+// High-latitude summer: astro dark can be null — HONEST, must not throw.
+{
+  // Berlin in deep June never reaches -18deg. Use a June instant.
+  const JUNE = new Date('2026-06-21T18:00:00Z')
+  const twB = twilightPhases(berlin, JUNE)
+  assert('Berlin midsummer: astro dark is null (never fully dark)', twB.astroDusk === null, String(twB.astroDusk?.hhmm))
+  // planetsTonight must handle the no-dark case without throwing.
+  const planets = planetsTonight(berlin, JUNE, twB)
+  assert('no-dark night: planets all marked not-visible, no throw', planets.every((p) => p.visible === false))
+}
+
+// ---- NIGHTLY CONDITIONS: planets evaluated DURING dark (the honesty fix) ----
+{
+  const tw = twilightPhases(kos, SUMMER)
+  const planets = planetsTonight(kos, SUMMER, tw)
+  const byName = Object.fromEntries(planets.map((p) => [p.name, p]))
+  // Verified: Saturn ~53deg high before dawn; Jupiter below horizon; Venus too low.
+  assert('Saturn visible during dark (~53deg)', byName.Saturn?.visible === true && byName.Saturn.maxAltitude > 40, `${byName.Saturn?.maxAltitude?.toFixed(0)}`)
+  assert('Saturn line names a direction + best time', /in the \w+/.test(byName.Saturn.summary) && /around \d\d:\d\d/.test(byName.Saturn.summary), byName.Saturn.summary)
+  assert('Jupiter NOT falsely shown (below horizon at night)', byName.Jupiter?.visible === false)
+  assert('Jupiter honest not-up line', /below the horizon|too low/i.test(byName.Jupiter.summary), byName.Jupiter.summary)
+  // The daytime-transit bug would have reported Jupiter ~72deg "high" — guard against regression.
+  assert('no planet claims a daytime-transit altitude (all visible are genuinely up in dark)', planets.filter((p) => p.visible).every((p) => p.maxAltitude >= 15))
+  // Visible sorted before not-visible.
+  const firstNotVisible = planets.findIndex((p) => !p.visible)
+  assert('visible planets sorted before not-up ones', firstNotVisible === -1 || planets.slice(firstNotVisible).every((p) => !p.visible))
+}
+
+// ---- NIGHTLY CONDITIONS: moon during the dark window ----
+{
+  const tw = twilightPhases(kos, SUMMER)
+  const md = moonDuringDark(kos, SUMMER, tw)
+  // 28-07 near-full moon is up most of the night -> "up during the dark window".
+  assert('moon-during-dark verdict present', typeof md.verdict === 'string' && md.verdict.length > 0)
+  assert('near-full moon flagged up-during-dark (not moon-free)', md.moonFreeDark === false, md.verdict)
+  // A near-new-moon night should read moon-free.
+  const NEWISH = new Date('2026-08-12T20:00:00Z')
+  const twN = twilightPhases(kos, NEWISH)
+  const mdN = moonDuringDark(kos, NEWISH, twN)
+  assert('near-new-moon night can be moon-free dark', mdN.moonFreeDark === true, mdN.verdict)
 }
 
 console.log('')

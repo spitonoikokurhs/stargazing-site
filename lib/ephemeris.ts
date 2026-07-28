@@ -20,6 +20,7 @@ import {
   Horizon,
   SearchRiseSet,
   SearchAltitude,
+  Elongation,
   MoonPhase,
   Illumination,
   DefineStar,
@@ -313,6 +314,250 @@ export const NOTABLES: Notable[] = [
   { kind: 'dso', name: 'the Pinwheel Galaxy', raHours: 14.0535, decDeg: 54.3488, distLy: 21000000 }, // M101
   { kind: 'dso', name: 'the Orion Nebula', raHours: 5.5881, decDeg: -5.391, distLy: 1344 }, // M42
 ]
+
+// ============================================================================
+// NIGHTLY SKY-CONDITIONS CARD — twilight phases, planet visibility, moon-in-dark.
+// All server-side, all formatted into the city's own IANA zone (DST-correct).
+// ============================================================================
+
+// A local instant + its "HH:MM" in the city zone, or null when the event doesn't
+// occur (polar day, never-dark summer, planet that never rises, etc.).
+type LocalTime = { hhmm: string; date: Date } | null
+
+function localTime(date: Date | undefined | null, tz: string): LocalTime {
+  return date ? { hhmm: formatLocalHHMM(date, tz), date } : null
+}
+
+// ---- Twilight ----
+// The full darkness ladder for a night: sunset → civil → nautical → astronomical
+// dusk, then astronomical → nautical → civil dawn → sunrise. ASTRONOMICAL dark
+// (sun below -18°) is the one that matters — a session can properly start then.
+// Any phase can be null (high-latitude summer never reaches it — honest, not a bug).
+export type TwilightPhases = {
+  sunset: LocalTime
+  civilDusk: LocalTime // sun -6°
+  nauticalDusk: LocalTime // sun -12°
+  astroDusk: LocalTime // sun -18° — "session can start"
+  astroDawn: LocalTime // sun -18° rising
+  nauticalDawn: LocalTime
+  civilDawn: LocalTime
+  sunrise: LocalTime
+}
+
+export function twilightPhases(city: City, whenUtc: Date): TwilightPhases {
+  const observer = new Observer(city.lat, city.lon, city.height)
+  const localDate = cityLocalDateString(whenUtc, city.tz)
+  const midnight = cityMidnightUtc(localDate, city.tz)
+  const noon = new Date(midnight.getTime() + 12 * 3600_000) // this day's local noon
+  const nextNoon = new Date(noon.getTime() + 24 * 3600_000)
+
+  // Dusk crossings: sun DESCENDING (-1) after noon. Dawn: sun ASCENDING (+1)
+  // before next noon (i.e. searched from just after midnight through morning).
+  const dusk = (deg: number) => localTime(SearchAltitude(Body.Sun, observer, -1, noon, 1, deg)?.date, city.tz)
+  const dawn = (deg: number) =>
+    localTime(SearchAltitude(Body.Sun, observer, +1, new Date(midnight.getTime() + 6 * 3600_000), 1, deg)?.date, city.tz)
+
+  return {
+    sunset: localTime(SearchRiseSet(Body.Sun, observer, -1, noon, 1)?.date, city.tz),
+    civilDusk: dusk(-6),
+    nauticalDusk: dusk(-12),
+    astroDusk: dusk(-18),
+    astroDawn: dawn(-18),
+    nauticalDawn: dawn(-12),
+    civilDawn: dawn(-6),
+    sunrise: localTime(SearchRiseSet(Body.Sun, observer, +1, nextNoon, 1)?.date, city.tz),
+  }
+}
+
+// ---- Moon during the dark window ----
+// The distinction you care about: is the Moon UP during astronomical dark? A
+// moon-free dark window is a deep-sky night; moon-up-all-night is a bright night.
+export type MoonWindow = {
+  moonrise: LocalTime
+  moonset: LocalTime
+  // Plain verdict about the moon vs. the dark window.
+  verdict: string
+  moonFreeDark: boolean // true = dark window has no moon in it (best for deep sky)
+}
+
+export function moonDuringDark(city: City, whenUtc: Date, tw: TwilightPhases): MoonWindow {
+  const observer = new Observer(city.lat, city.lon, city.height)
+  const localDate = cityLocalDateString(whenUtc, city.tz)
+  const midnight = cityMidnightUtc(localDate, city.tz)
+  const mr = SearchRiseSet(Body.Moon, observer, +1, midnight, 1)
+  const ms = SearchRiseSet(Body.Moon, observer, -1, midnight, 1)
+  const moonrise = localTime(mr?.date, city.tz)
+  const moonset = localTime(ms?.date, city.tz)
+
+  // If there's no astronomical dark window at all, say so.
+  if (!tw.astroDusk || !tw.astroDawn) {
+    return { moonrise, moonset, verdict: 'The sky never gets fully dark tonight (northern summer).', moonFreeDark: false }
+  }
+  const darkStart = tw.astroDusk.date.getTime()
+  const darkEnd = tw.astroDawn.date.getTime()
+
+  // Sample the moon's altitude across the dark window; "up" if it's above the
+  // horizon at any point in it. (Cheap and robust vs. juggling rise/set nulls.)
+  const STEPS = 8
+  let moonUpDuringDark = false
+  for (let i = 0; i <= STEPS; i++) {
+    const t = new Date(darkStart + ((darkEnd - darkStart) * i) / STEPS)
+    const eq = Equator(Body.Moon, t, observer, true, true)
+    const hor = Horizon(t, observer, eq.ra, eq.dec, 'normal')
+    if (hor.altitude > 0) {
+      moonUpDuringDark = true
+      break
+    }
+  }
+  const moonFreeDark = !moonUpDuringDark
+  const verdict = moonFreeDark
+    ? moonset
+      ? `Moon-free dark skies${moonset ? ` after it sets at ${moonset.hhmm}` : ''} — ideal for galaxies and nebulae.`
+      : 'Moon-free dark skies tonight — ideal for galaxies and nebulae.'
+    : 'The Moon is up during the dark window — bright skies, best for the Moon, planets and bright targets.'
+  return { moonrise, moonset, verdict, moonFreeDark }
+}
+
+// ---- Planets tonight (the eyepiece experience) ----
+// CRITICAL HONESTY RULE: a planet's visibility and "best time" are evaluated
+// WITHIN the astronomical-dark window, NOT at its raw transit. A planet can
+// culminate at 72° at 1pm and be below the horizon all night — reporting its
+// daytime transit as "high in the south, best around 13:21" would be a flat lie
+// to someone standing at the eyepiece. So we sample each planet's altitude
+// across the dark window and report the best moment IN it (or mark it not-up).
+export type PlanetTonight = {
+  name: string
+  visible: boolean // clears the altitude floor at some point DURING dark
+  rise: LocalTime
+  set: LocalTime
+  bestTime: LocalTime // when it's highest DURING the dark window
+  maxAltitude: number // degrees at that best moment (within dark)
+  direction: string // compass at the best moment
+  // Plain-language line, e.g. "Highest just before dawn — well-placed in the
+  // south." When not up during dark: an honest "not up tonight from <city>".
+  summary: string
+}
+
+const PLANET_BODIES: { name: string; body: Body }[] = [
+  { name: 'Venus', body: Body.Venus },
+  { name: 'Mars', body: Body.Mars },
+  { name: 'Jupiter', body: Body.Jupiter },
+  { name: 'Saturn', body: Body.Saturn },
+]
+
+// A planet is worth showing only if it clears this altitude at its best moment
+// during dark — below it, it's lost in horizon murk / rooftops.
+const MIN_PLANET_ALT_DEG = 15
+
+function altitudeWord(alt: number): string {
+  if (alt >= 45) return 'high'
+  if (alt >= 25) return 'well-placed'
+  return 'low'
+}
+
+// A rough "when" phrase for a best-time relative to the dark window, so the copy
+// reads like a guide, not a clock: "just after dark" / "in the small hours" /
+// "just before dawn" alongside the exact time.
+function whenPhrase(best: Date, darkStart: Date, darkEnd: Date): string {
+  const frac = (best.getTime() - darkStart.getTime()) / (darkEnd.getTime() - darkStart.getTime())
+  if (frac <= 0.15) return 'just after dark'
+  if (frac >= 0.85) return 'just before dawn'
+  if (frac < 0.45) return 'in the evening'
+  if (frac > 0.55) return 'in the small hours'
+  return 'around the middle of the night'
+}
+
+// Sample a body's altitude across [darkStart, darkEnd] and return the highest
+// point + when/where. body is looked up via the shared altAz (Notable) path.
+function bestDuringDark(
+  city: City,
+  target: Notable,
+  darkStart: Date,
+  darkEnd: Date,
+): { alt: number; az: number; when: Date } {
+  const STEPS = 32
+  let best = { alt: -90, az: 0, when: darkStart }
+  for (let i = 0; i <= STEPS; i++) {
+    const when = new Date(darkStart.getTime() + ((darkEnd.getTime() - darkStart.getTime()) * i) / STEPS)
+    const { altitude, azimuth } = altAz(city, target, when)
+    if (altitude > best.alt) best = { alt: altitude, az: azimuth, when }
+  }
+  return best
+}
+
+function planetTonight(
+  city: City,
+  whenUtc: Date,
+  name: string,
+  body: Body,
+  tw: TwilightPhases,
+): PlanetTonight {
+  const observer = new Observer(city.lat, city.lon, city.height)
+  const localDate = cityLocalDateString(whenUtc, city.tz)
+  const midnight = cityMidnightUtc(localDate, city.tz)
+  const rise = localTime(SearchRiseSet(body, observer, +1, midnight, 1)?.date, city.tz)
+  const set = localTime(SearchRiseSet(body, observer, -1, midnight, 1)?.date, city.tz)
+
+  // No dark window (northern summer) → can't be "seen against a dark sky".
+  if (!tw.astroDusk || !tw.astroDawn) {
+    return {
+      name,
+      visible: false,
+      rise,
+      set,
+      bestTime: null,
+      maxAltitude: -90,
+      direction: 'south',
+      summary: 'No fully-dark window tonight (northern summer).',
+    }
+  }
+
+  const best = bestDuringDark(city, { kind: 'body', name, body }, tw.astroDusk.date, tw.astroDawn.date)
+  const direction = azimuthToCompass(best.az)
+  const bestTime = localTime(best.when, city.tz)
+  const visible = best.alt >= MIN_PLANET_ALT_DEG
+
+  let summary: string
+  if (!visible) {
+    summary =
+      best.alt < 0
+        ? `Below the horizon during dark hours from ${city.name} tonight.`
+        : `Too low from ${city.name} tonight — under the tree-and-rooftop line.`
+  } else {
+    const phrase = whenPhrase(best.when, tw.astroDusk.date, tw.astroDawn.date)
+    // e.g. "High just before dawn (around 05:45) — in the south."
+    const word = altitudeWord(best.alt)
+    const lead = word === 'high' ? 'High' : word === 'well-placed' ? 'Well-placed' : 'Low'
+    summary = `${lead} ${phrase}${bestTime ? ` (around ${bestTime.hhmm})` : ''} — in the ${direction}.`
+  }
+  return { name, visible, rise, set, bestTime, maxAltitude: best.alt, direction, summary }
+}
+
+// Mercury: only include when it's genuinely observable this night — a decent
+// elongation from the Sun AND clearing the altitude floor during a dark-ish
+// window. Otherwise omitted entirely (no "not visible" clutter).
+const MERCURY_MIN_ELONGATION_DEG = 12
+
+function mercuryTonight(city: City, whenUtc: Date, tw: TwilightPhases): PlanetTonight | null {
+  const el = Elongation(Body.Mercury, whenUtc)
+  if (el.elongation < MERCURY_MIN_ELONGATION_DEG) return null
+  const p = planetTonight(city, whenUtc, 'Mercury', Body.Mercury, tw)
+  if (!p.visible) return null
+  const endWord = el.visibility === 'morning' ? 'low before dawn' : 'low after sunset'
+  return { ...p, summary: `Just catchable ${endWord} in the ${p.direction} — a tricky one.` }
+}
+
+// All planets worth naming tonight for a city (visible-during-dark first, then
+// the not-up ones with an honest note so nothing is silently missing).
+export function planetsTonight(city: City, whenUtc: Date, tw: TwilightPhases): PlanetTonight[] {
+  const out = PLANET_BODIES.map((p) => planetTonight(city, whenUtc, p.name, p.body, tw))
+  const mercury = mercuryTonight(city, whenUtc, tw)
+  if (mercury) out.push(mercury)
+  return out.sort((a, b) => {
+    if (a.visible !== b.visible) return a.visible ? -1 : 1
+    return b.maxAltitude - a.maxAltitude
+  })
+}
 
 // The notables genuinely up (above MIN_NOTABLE_ALT_DEG) at a city/instant, WITH
 // their compass direction — only meaningful when isDarkEnough is also true. This

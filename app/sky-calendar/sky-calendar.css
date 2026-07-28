@@ -120,66 +120,193 @@
   font-size: 13px;
 }
 
-/* ---- City table ---- */
-.sky-table-wrap {
-  overflow-x: auto;
+/* ---- City switcher ---- */
+.sky-cities-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.sky-city-chip {
+  padding: 8px 16px;
+  border-radius: 999px;
   border: 1px solid var(--edge);
-  border-radius: 14px;
   background: var(--panel);
-}
-.sky-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 15px;
-  min-width: 460px;
-}
-.sky-table th,
-.sky-table td {
-  padding: 12px 14px;
-  text-align: left;
-  border-bottom: 1px solid var(--edge);
-}
-.sky-table thead th {
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
   color: var(--muted);
+  text-decoration: none;
+  font-size: 14px;
+  transition: color 150ms ease, border-color 150ms ease, background 150ms ease;
+}
+.sky-city-chip:hover,
+.sky-city-chip:focus-visible {
+  color: var(--ink);
+  border-color: rgba(150, 180, 220, 0.34);
+}
+.sky-city-chip.is-active {
+  background: var(--gold);
+  border-color: var(--gold);
+  color: #1a1206;
   font-weight: 600;
 }
-.sky-table tbody tr:last-child th,
-.sky-table tbody tr:last-child td {
-  border-bottom: none;
+
+/* ---- The night card ---- */
+.sky-card {
+  background: var(--panel);
+  border: 1px solid var(--edge);
+  border-radius: 16px;
+  padding: 20px 22px;
 }
-.sky-city-name {
+.sky-card-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px 14px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--edge);
+  margin-bottom: 16px;
+}
+.sky-card-title {
+  margin: 0;
+  font-size: 22px;
   font-weight: 600;
-  white-space: nowrap;
 }
 .sky-tz {
   display: inline-block;
-  margin-left: 8px;
-  padding: 1px 7px;
+  margin-left: 10px;
+  padding: 2px 8px;
   border-radius: 999px;
   border: 1px solid var(--edge);
   color: var(--muted);
-  font-size: 10.5px;
+  font-size: 11px;
   font-weight: 500;
   letter-spacing: 0.04em;
   vertical-align: middle;
 }
-.sky-num {
+.sky-card-date {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.sky-block {
+  margin-bottom: 18px;
+}
+.sky-block:last-child {
+  margin-bottom: 0;
+}
+.sky-block-title {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--gold);
+  margin: 0 0 10px;
+  font-weight: 600;
+}
+.sky-block-sub {
+  color: var(--muted);
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 400;
+}
+.sky-block-note {
+  color: var(--muted);
+  font-size: 13px;
+  margin: 8px 0 0;
+  line-height: 1.5;
+}
+
+/* Darkness timeline */
+.sky-timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.sky-tl-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  padding: 7px 0;
+  border-bottom: 1px dashed var(--edge);
+  font-size: 14px;
+}
+.sky-tl-row:last-child {
+  border-bottom: none;
+}
+.sky-tl-row--key {
+  color: var(--dark-accent);
+  font-weight: 600;
+}
+.sky-tl-time {
   font-variant-numeric: tabular-nums;
-  text-align: right;
   white-space: nowrap;
 }
-.sky-num--dark {
-  color: var(--dark-accent);
+
+/* Moon block */
+.sky-moon-verdict {
+  margin: 0;
+  font-size: 15px;
 }
+.sky-raw {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Planets */
+.sky-planets {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.sky-planet {
+  display: grid;
+  grid-template-columns: 84px 1fr;
+  align-items: baseline;
+  gap: 4px 12px;
+}
+.sky-planet-name {
+  font-weight: 600;
+  font-size: 15px;
+}
+.sky-planet-line {
+  font-size: 14px;
+}
+.sky-planet-raw {
+  grid-column: 2;
+  font-size: 12px;
+  color: var(--muted);
+}
+.sky-planet-raw summary {
+  cursor: pointer;
+  color: var(--dark-accent);
+  list-style: none;
+}
+.sky-planet-raw summary::-webkit-details-marker {
+  display: none;
+}
+.sky-planet-raw[open] summary {
+  margin-bottom: 3px;
+}
+.sky-planet-raw span {
+  font-variant-numeric: tabular-nums;
+}
+.sky-planets-hidden {
+  margin: 12px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
 .sky-tz-note,
 .sky-week-hint {
   line-height: 1.55;
 }
 .sky-tz-note {
-  margin: 14px 0 0;
+  margin: 16px 0 0;
   color: var(--muted);
   font-size: 13px;
 }
