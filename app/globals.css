@@ -4,6 +4,15 @@
   box-sizing: border-box;
 }
 
+/* Dark base on the root elements so anything appended straight to <body> (e.g.
+   the cookie-consent "Privacy settings" button) never sits on browser-white —
+   that was the white stripe at the bottom of the sky-calendar page. Every page
+   here is dark, so #0b0f14 (the home site's --bg) is a safe universal base. */
+html,
+body {
+  background: #0b0f14;
+}
+
 body {
   margin: 0;
 }

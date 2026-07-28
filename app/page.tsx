@@ -187,7 +187,6 @@ export default function HomePage() {
             <p className="hero-subnote muted">Now entering its 5th season, hosted across multiple 5-star hotels in Kos.</p>
             <div className="hero-cta">
               <a className="btn primary" href="#contact">Discuss a partnership</a>
-              <a className="btn" href="#gallery">View gallery</a>
               <LiveStatusPill variant="hero" />
             </div>
           </div>

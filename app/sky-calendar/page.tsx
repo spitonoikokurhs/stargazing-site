@@ -102,6 +102,17 @@ export default async function SkyCalendarPage({
   }
   // Which night is currently shown (to mark it active in the strip).
   const shownYmd = localYmdFmt.format(when)
+  // Step the SHOWN date by ±1 day (lets you go further than the 7-night strip).
+  const stepDayHref = (deltaDays: number) => {
+    const target = localYmdFmt.format(new Date(when.getTime() + deltaDays * 86_400_000))
+    const p = new URLSearchParams()
+    p.set('city', city.id)
+    p.set('date', target)
+    return `/sky-calendar?${p.toString()}`
+  }
+  // Don't let "previous" go before today (no point showing a past night).
+  const todayYmd = localYmdFmt.format(now)
+  const canGoPrev = shownYmd > todayYmd
   // Weekday label + the actual date for each strip night.
   const dayLabel = (offset: number) =>
     offset === 0
@@ -188,7 +199,16 @@ export default async function SkyCalendarPage({
             {city.name}
             <span className="sky-tz">{zoneAbbrev(when, city.tz)}</span>
           </h2>
-          <span className="sky-card-date">{fmtDateLabel(when, city.tz)} · all times {zoneAbbrev(when, city.tz)} (local)</span>
+          <div className="sky-card-nav">
+            {canGoPrev ? (
+              <a className="sky-day-step" href={stepDayHref(-1)} aria-label="Previous night">‹</a>
+            ) : (
+              <span className="sky-day-step sky-day-step--off" aria-hidden="true">‹</span>
+            )}
+            <span className="sky-card-date">{fmtDateLabel(when, city.tz)}</span>
+            <a className="sky-day-step" href={stepDayHref(1)} aria-label="Next night">›</a>
+          </div>
+          <span className="sky-card-tznote">all times {zoneAbbrev(when, city.tz)} (local)</span>
         </div>
 
         {/* Darkness timeline */}

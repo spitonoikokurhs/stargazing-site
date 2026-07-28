@@ -244,9 +244,49 @@
   letter-spacing: 0.04em;
   vertical-align: middle;
 }
+/* Day stepper (‹ date ›) — go beyond the 7-night strip, one day at a time. */
+.sky-card-nav {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
 .sky-card-date {
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 600;
+  min-width: 150px;
+  text-align: center;
+}
+.sky-card-tznote {
+  flex-basis: 100%;
+  text-align: right;
   color: var(--muted);
-  font-size: 13px;
+  font-size: 12px;
+  margin-top: 2px;
+}
+.sky-day-step {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  border: 1px solid var(--edge);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--ink);
+  text-decoration: none;
+  font-size: 20px;
+  line-height: 1;
+  transition: border-color 150ms ease, background 150ms ease, color 150ms ease;
+}
+.sky-day-step:hover,
+.sky-day-step:focus-visible {
+  border-color: var(--gold);
+  color: var(--gold);
+}
+.sky-day-step--off {
+  opacity: 0.25;
+  cursor: default;
 }
 
 .sky-block {

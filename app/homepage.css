@@ -135,18 +135,37 @@ nav a{color:var(--text);white-space:nowrap}
 .hero .hero-subnote{animation-delay:3.32s}
 @keyframes heroTextIn{to{opacity:1;transform:translateY(0)}}
 
-.grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
-.grid-2{display:grid;grid-template-columns:repeat(2,1fr);gap:18px}
+.grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:28px}
+.grid-2{display:grid;grid-template-columns:repeat(2,1fr);gap:28px}
 
 .card{
   background:linear-gradient(180deg,var(--panel),var(--panel-2));
   border:1px solid var(--border);
   border-radius:18px;
-  padding:20px;
+  padding:24px;
   box-shadow:var(--shadow);
+  transition:transform .18s ease,border-color .18s ease,box-shadow .18s ease;
+}
+/* Subtle lift so each card reads as its own distinct object, not one block. */
+.grid-3 .card:hover{
+  transform:translateY(-4px);
+  border-color:rgba(150,180,220,.28);
+  box-shadow:0 14px 34px rgba(0,0,0,.4);
 }
 
-.chip{display:inline-block;margin-bottom:10px;padding:4px 10px;border-radius:999px;border:1px solid var(--border);font-size:.8rem;color:var(--muted)}
+/* The category pill — a touch more padding + a hint of tint so it reads as a
+   clean label, with clear separation from the heading below it. */
+.chip{
+  display:inline-block;
+  margin-bottom:14px;
+  padding:5px 13px;
+  border-radius:999px;
+  border:1px solid var(--border);
+  background:rgba(255,255,255,.03);
+  font-size:.78rem;
+  letter-spacing:.02em;
+  color:var(--muted);
+}
 
 .trust-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-top:20px}
 .trust-item{min-height:100px;display:flex;align-items:center;justify-content:center;text-align:center;padding:18px;border-radius:16px;border:1px solid var(--border);background:var(--panel);color:var(--text);box-shadow:var(--shadow);font-size:.95rem}
