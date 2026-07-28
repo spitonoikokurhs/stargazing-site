@@ -163,6 +163,12 @@
 .sky-week-label {
   font-size: 12px;
   color: var(--ink);
+  font-weight: 600;
+}
+.sky-week-date {
+  font-size: 10.5px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
 }
 .sky-week-pct {
   font-size: 11px;

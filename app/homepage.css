@@ -48,8 +48,11 @@ header{
 .nav{position:relative;min-height:72px;display:flex;align-items:center;justify-content:space-between;gap:16px}
 .brand{display:flex;align-items:center;gap:10px;font-weight:700;color:var(--text);text-decoration:none;margin-right:auto}
 .brand-dot{width:10px;height:10px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#fff,var(--accent));box-shadow:0 0 14px var(--accent)}
-nav{display:flex;flex-wrap:wrap;align-items:center;gap:12px}
-nav a{color:var(--text)}
+/* Desktop: single row, NEVER wrap (wrapping made 'Email Michalis' drop to a
+   second line and overlap the live pill on medium widths). Below the mobile
+   breakpoint the nav becomes the dropdown menu, so no-wrap here is safe. */
+nav{display:flex;flex-wrap:nowrap;align-items:center;gap:12px}
+nav a{color:var(--text);white-space:nowrap}
 
 /* Mobile menu toggle (CSS-only, checkbox hack) — hidden on desktop. The full
    nav shows inline; the burger and its checkbox are display:none until the
@@ -213,12 +216,16 @@ footer{padding:28px 0 40px;border-top:1px solid var(--border);color:var(--muted)
   .about-grid,.partnership-columns,.grid-2{grid-template-columns:1fr}
 }
 
-@media (max-width: 700px){
+/* Mobile menu kicks in at 1080px (not 700): between ~700-1080px the full nav
+   (6 links + 2 buttons + the live pill) is too wide and wrapped, dropping
+   'Email Michalis' onto a second line where it overlapped the pill. Below 1080
+   the clean burger dropdown is used instead — no wrap zone. */
+@media (max-width: 1080px){
   .nav{padding:12px 0;gap:12px}
 
   /* The three feature cards (Guest Experience / Content / Coverage) stack one
-     under the other on a phone — was 2-up, leaving Coverage orphaned bottom-left.
-     One-by-one is the readable layout at this width. */
+     under the other — was 2-up, leaving Coverage orphaned bottom-left.
+     One-by-one is the readable layout. */
   .grid-3{grid-template-columns:1fr;gap:14px}
 
   .gallery-grid,.trust-grid,.testimonial-grid,.meta-list,.faq-grid{grid-template-columns:1fr}

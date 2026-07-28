@@ -404,25 +404,49 @@ export function moonDuringDark(city: City, whenUtc: Date, tw: TwilightPhases): M
   const darkStart = tw.astroDusk.date.getTime()
   const darkEnd = tw.astroDawn.date.getTime()
 
-  // Sample the moon's altitude across the dark window; "up" if it's above the
-  // horizon at any point in it. (Cheap and robust vs. juggling rise/set nulls.)
-  const STEPS = 8
-  let moonUpDuringDark = false
+  // How much of the dark window the Moon is actually up (fraction 0..1), and how
+  // bright it is. Both matter: a 19%-lit crescent that sets soon after dark is
+  // effectively a dark night, NOT "bright skies" — the old check flagged ANY
+  // moon-up moment as bright, which was too strict.
+  const STEPS = 24
+  let upSamples = 0
   for (let i = 0; i <= STEPS; i++) {
     const t = new Date(darkStart + ((darkEnd - darkStart) * i) / STEPS)
     const eq = Equator(Body.Moon, t, observer, true, true)
     const hor = Horizon(t, observer, eq.ra, eq.dec, 'normal')
-    if (hor.altitude > 0) {
-      moonUpDuringDark = true
-      break
-    }
+    if (hor.altitude > 0) upSamples++
   }
-  const moonFreeDark = !moonUpDuringDark
-  const verdict = moonFreeDark
-    ? moonset
-      ? `Moon-free dark skies${moonset ? ` after it sets at ${moonset.hhmm}` : ''} — ideal for galaxies and nebulae.`
+  const upFraction = upSamples / (STEPS + 1)
+  const illum = moonInfo(whenUtc).illumPercent // 0..100
+
+  // "Effective moonlight" for the dark window ≈ how much of it the moon is up ×
+  // how bright the moon is. A dark night is: moon down most of the window, OR a
+  // dim crescent even if up. We call it moon-free/good for deep sky when that
+  // product is low.
+  const brightUp = upFraction * (illum / 100)
+
+  let verdict: string
+  let moonFreeDark: boolean
+  if (upFraction < 0.05) {
+    // Moon essentially never up during dark.
+    moonFreeDark = true
+    verdict = moonset
+      ? `Moon-free dark skies (it sets at ${moonset.hhmm}) — ideal for galaxies and nebulae.`
       : 'Moon-free dark skies tonight — ideal for galaxies and nebulae.'
-    : 'The Moon is up during the dark window — bright skies, best for the Moon, planets and bright targets.'
+  } else if (brightUp < 0.15) {
+    // Up for part of the window but dim and/or brief — effectively dark.
+    moonFreeDark = true
+    const setNote = moonset && upFraction < 0.6 ? ` It sets at ${moonset.hhmm}, leaving the rest of the night dark.` : ''
+    verdict = `A ${illum}%-lit moon${upFraction < 0.6 ? ' for part of the night' : ''} — dark enough for galaxies and nebulae.${setNote}`
+  } else if (brightUp < 0.45) {
+    // Some real moonlight for a good chunk of the night.
+    moonFreeDark = false
+    verdict = `A ${illum}%-lit moon is up for some of the dark window — deep-sky objects still show, brightest targets best.`
+  } else {
+    // Bright and up most of the night.
+    moonFreeDark = false
+    verdict = `A bright ${illum}%-lit moon is up through much of the night — best for the Moon, planets and bright targets; faint objects wash out.`
+  }
   return { moonrise, moonset, verdict, moonFreeDark }
 }
 

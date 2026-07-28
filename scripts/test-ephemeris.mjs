@@ -187,6 +187,15 @@ assert('azimuth 225 -> southwest', azimuthToCompass(225) === 'southwest')
   const twN = twilightPhases(kos, NEWISH)
   const mdN = moonDuringDark(kos, NEWISH, twN)
   assert('near-new-moon night can be moon-free dark', mdN.moonFreeDark === true, mdN.verdict)
+
+  // The graded fix: a DIM crescent that sets soon after dark = still a dark
+  // night, NOT "bright skies". 16-08-2026 Kos: ~19% moon, sets ~21:51 just as
+  // dark begins. Must read moon-free / dark-enough, not bright.
+  const CRESC = new Date('2026-08-16T18:00:00Z')
+  const twC = twilightPhases(kos, CRESC)
+  const mdC = moonDuringDark(kos, CRESC, twC)
+  assert('dim crescent that sets early -> dark-enough, not bright', mdC.moonFreeDark === true, mdC.verdict)
+  assert('crescent verdict does NOT claim bright skies', !/bright/i.test(mdC.verdict), mdC.verdict)
 }
 
 console.log('')

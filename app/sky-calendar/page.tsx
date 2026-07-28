@@ -47,10 +47,14 @@ export default async function SkyCalendarPage({
   const dateParam = searchParams.date && DATE_RE.test(searchParams.date) ? searchParams.date : null
   // Anchor at ~evening local so "tonight" means the coming night. For a picked
   // date, use that date's evening; otherwise now.
-  const when = dateParam ? new Date(`${dateParam}T18:00:00Z`) : new Date()
+  const now = new Date()
+  const when = dateParam ? new Date(`${dateParam}T18:00:00Z`) : now
 
   const moon = moonInfo(when)
-  const week = moonWeek(when, 7)
+  // The 7-night strip ALWAYS starts from today (not the selected date), so it's a
+  // stable "next 7 nights" you can navigate freely — picking a future night no
+  // longer strands you unable to get back to tonight.
+  const week = moonWeek(now, 7)
   const tw = twilightPhases(city, when)
   const moonWin = moonDuringDark(city, when, tw)
   const planets = planetsTonight(city, when, tw)
@@ -83,35 +87,28 @@ export default async function SkyCalendarPage({
     if (dateParam) p.set('date', dateParam)
     return `/sky-calendar?${p.toString()}`
   }
-  // Link to a specific night (keeps the current city). Used by the 7-night strip
-  // so tapping a night loads that date's full conditions card — the week-ahead
-  // browse. The date is that night's city-LOCAL calendar date.
+  // The 7-night strip is anchored at TODAY (now), so offsets are days-from-today.
+  const localYmdFmt = new Intl.DateTimeFormat('en-CA', {
+    timeZone: city.tz, year: 'numeric', month: '2-digit', day: '2-digit',
+  })
+  // City-local "YYYY-MM-DD" for a night `offset` days from today.
+  const nightYmd = (offset: number) => localYmdFmt.format(new Date(now.getTime() + offset * 86_400_000))
+  // Link to that night's full card (keeps the current city).
   const dateHrefFor = (offset: number) => {
-    const localYmd = new Intl.DateTimeFormat('en-CA', {
-      timeZone: city.tz,
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-    }).format(new Date(when.getTime() + offset * 86_400_000))
     const p = new URLSearchParams()
     p.set('city', city.id)
-    p.set('date', localYmd)
+    p.set('date', nightYmd(offset))
     return `/sky-calendar?${p.toString()}`
   }
-  // The city-local date currently being shown, to mark the active night.
-  const shownYmd = new Intl.DateTimeFormat('en-CA', {
-    timeZone: city.tz,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).format(when)
+  // Which night is currently shown (to mark it active in the strip).
+  const shownYmd = localYmdFmt.format(when)
+  // Weekday label + the actual date for each strip night.
   const dayLabel = (offset: number) =>
     offset === 0
       ? 'Tonight'
-      : new Date(when.getTime() + offset * 86_400_000).toLocaleDateString('en-GB', {
-          timeZone: city.tz,
-          weekday: 'short',
-        })
+      : new Date(now.getTime() + offset * 86_400_000).toLocaleDateString('en-GB', { timeZone: city.tz, weekday: 'short' })
+  const dayDate = (offset: number) =>
+    new Date(now.getTime() + offset * 86_400_000).toLocaleDateString('en-GB', { timeZone: city.tz, day: 'numeric', month: 'short' })
 
   // The darkness ladder as ordered rows (skip any null phase honestly).
   const twilightRows: { label: string; time: string | null; emphasis?: boolean }[] = [
@@ -155,10 +152,7 @@ export default async function SkyCalendarPage({
         <h2 className="sky-h2">Next 7 nights <span className="sky-h2-sub">— tap a night to see it</span></h2>
         <ol className="sky-week-strip">
           {week.map((d) => {
-            const nightYmd = new Intl.DateTimeFormat('en-CA', {
-              timeZone: city.tz, year: 'numeric', month: '2-digit', day: '2-digit',
-            }).format(new Date(when.getTime() + d.dayOffset * 86_400_000))
-            const isShown = nightYmd === shownYmd
+            const isShown = nightYmd(d.dayOffset) === shownYmd
             return (
               <li key={d.dayOffset}>
                 <a
@@ -166,8 +160,9 @@ export default async function SkyCalendarPage({
                   className={`sky-week-day${d.illumPercent <= 15 ? ' sky-week-day--dark' : ''}${isShown ? ' sky-week-day--active' : ''}`}
                   aria-current={isShown ? 'true' : undefined}
                 >
-                  <span className="sky-week-glyph" aria-hidden="true">{d.glyph}</span>
                   <span className="sky-week-label">{dayLabel(d.dayOffset)}</span>
+                  <span className="sky-week-date">{dayDate(d.dayOffset)}</span>
+                  <span className="sky-week-glyph" aria-hidden="true">{d.glyph}</span>
                   <span className="sky-week-pct">{d.illumPercent}%</span>
                 </a>
               </li>
