@@ -165,6 +165,7 @@ export default function HomePage() {
             <a href="#partnerships">Partnerships</a>
             <a href="#about">About</a>
             <a href="#faq">FAQ</a>
+            <a href="/sky-calendar">Tonight&apos;s Sky</a>
             <a href="/bodrum-hotelleri">Bodrum TR</a>
             <a href="#guest-feedback">Feedback</a>
             <a href="#contact" className="btn">Contact</a>
@@ -486,6 +487,11 @@ export default function HomePage() {
 
       <footer>
         <div className="container">
+          <p className="footer-links">
+            <a href="/sky-calendar">Tonight&apos;s Sky</a>
+            <a href="/bodrum-hotelleri">Bodrum</a>
+            <a href="/privacy">Privacy</a>
+          </p>
           © {new Date().getFullYear()} Michalis Reisis • Stargazing Events
         </div>
       </footer>

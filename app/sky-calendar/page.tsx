@@ -17,7 +17,7 @@ export const metadata: Metadata = {
   description:
     'Tonight’s stargazing conditions for Kos, Athens, Berlin, Rome and London: when the sky gets fully dark, the moon, and which planets are up and where to look. Times in each city’s local timezone.',
   robots: { index: true, follow: true },
-  alternates: { canonical: 'https://www.stargazing.world/sky-calendar' },
+  alternates: { canonical: 'https://www.stargazing.events/sky-calendar' },
 }
 
 // Server-computed, hourly ISR. The astronomy-engine work is all HERE — the
@@ -61,7 +61,7 @@ export default function SkyCalendarPage({
     name: 'Tonight’s Sky — Darkness, Moon & Planets',
     description:
       'Stargazing conditions — darkness window, moon and visible planets — for Kos, Athens, Berlin, Rome and London.',
-    url: 'https://www.stargazing.world/sky-calendar',
+    url: 'https://www.stargazing.events/sky-calendar',
   })
 
   const cityHref = (id: string) => {
