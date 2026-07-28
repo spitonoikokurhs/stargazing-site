@@ -4,7 +4,7 @@
    the other guest pages. */
 
 .sky-root {
-  --bg: #0a0e17;
+  --bg: #0b0f14; /* matches the home site's --bg exactly */
   --panel: #121826;
   --edge: rgba(150, 180, 220, 0.14);
   --ink: #eae7df;
@@ -12,14 +12,50 @@
   --gold: #e8c583;
   --dark-accent: #7ee0c4;
 
+  /* The dark background must fill the WHOLE viewport, not just this centered
+     860px column — otherwise the area left/right of the content showed the
+     browser's default white on wide screens. The gradient is applied full-bleed
+     here; the inner content is centered by .sky-inner. */
   min-height: 100vh;
-  margin: 0 auto;
-  max-width: 860px;
   padding: 40px 20px 72px;
-  background: radial-gradient(1200px 600px at 50% -10%, #16203a 0%, var(--bg) 55%);
+  background: #0b0f14 radial-gradient(1200px 600px at 50% -10%, #16203a 0%, var(--bg) 55%) no-repeat;
   color: var(--ink);
   font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
   line-height: 1.5;
+}
+
+/* Centered content column inside the full-bleed dark background. */
+.sky-inner {
+  max-width: 860px;
+  margin: 0 auto;
+}
+
+/* Top bar with the back-to-home link. */
+.sky-topbar {
+  margin-bottom: 8px;
+}
+.sky-home-link {
+  display: inline-block;
+  padding: 8px 16px;
+  border-radius: 999px;
+  border: 1px solid var(--edge);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--ink);
+  text-decoration: none;
+  font-size: 14px;
+  transition: border-color 150ms ease, background 150ms ease, color 150ms ease;
+}
+.sky-home-link:hover,
+.sky-home-link:focus-visible {
+  border-color: var(--gold);
+  color: var(--gold);
+}
+.sky-footer-home {
+  margin-top: 10px;
+}
+.sky-footer-home a {
+  color: var(--gold);
+  text-decoration: none;
 }
 
 .sky-header {
@@ -96,10 +132,29 @@
   border: 1px solid var(--edge);
   border-radius: 12px;
   text-align: center;
+  text-decoration: none;
+  color: var(--ink);
+  transition: border-color 150ms ease, background 150ms ease, transform 120ms ease;
+}
+.sky-week-day:hover,
+.sky-week-day:focus-visible {
+  border-color: rgba(150, 180, 220, 0.4);
+  transform: translateY(-2px);
 }
 .sky-week-day--dark {
   border-color: rgba(126, 224, 196, 0.4);
   background: rgba(126, 224, 196, 0.08);
+}
+/* The night currently being shown in the card below. */
+.sky-week-day--active {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 1px var(--gold);
+}
+.sky-h2-sub {
+  color: var(--muted);
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 400;
 }
 .sky-week-glyph {
   font-size: 26px;
@@ -293,6 +348,55 @@
   font-size: 10.5px;
   margin-right: 2px;
 }
+/* Coming up — eclipses + meteor showers */
+.sky-events {
+  margin-top: 26px;
+}
+.sky-events-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.sky-event {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  padding: 14px 16px;
+  background: var(--panel);
+  border: 1px solid var(--edge);
+  border-radius: 12px;
+}
+.sky-event--solar-eclipse {
+  border-color: rgba(232, 197, 131, 0.4);
+}
+.sky-event-icon {
+  font-size: 24px;
+  line-height: 1.2;
+}
+.sky-event-body {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.sky-event-title {
+  font-weight: 600;
+  font-size: 15px;
+}
+.sky-event-when {
+  margin-left: 10px;
+  font-weight: 400;
+  font-size: 13px;
+  color: var(--gold);
+}
+.sky-event-detail {
+  font-size: 13.5px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
 /* ISS passes */
 .sky-iss {
   list-style: none;

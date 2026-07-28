@@ -11,6 +11,7 @@ import {
   zoneAbbrev,
 } from '@/lib/ephemeris'
 import { issPasses } from '@/lib/iss'
+import { upcomingCelestialEvents } from '@/lib/celestial-events'
 import './sky-calendar.css'
 
 export const metadata: Metadata = {
@@ -61,6 +62,12 @@ export default async function SkyCalendarPage({
   // stale, so we render "unavailable" rather than anything fabricated.
   const iss = await issPasses(city, when)
 
+  // Upcoming celestial events (eclipses computed, meteor showers from the annual
+  // table) — a season-level "coming up" list, not per-night. Next ~120 days.
+  const events = upcomingCelestialEvents(when, 120)
+  const fmtEventDate = (ymd: string) =>
+    new Date(`${ymd}T12:00:00Z`).toLocaleDateString('en-GB', { day: 'numeric', month: 'long' })
+
   const jsonLd = JSON.stringify({
     '@context': 'https://schema.org',
     '@type': 'WebPage',
@@ -76,6 +83,28 @@ export default async function SkyCalendarPage({
     if (dateParam) p.set('date', dateParam)
     return `/sky-calendar?${p.toString()}`
   }
+  // Link to a specific night (keeps the current city). Used by the 7-night strip
+  // so tapping a night loads that date's full conditions card — the week-ahead
+  // browse. The date is that night's city-LOCAL calendar date.
+  const dateHrefFor = (offset: number) => {
+    const localYmd = new Intl.DateTimeFormat('en-CA', {
+      timeZone: city.tz,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(new Date(when.getTime() + offset * 86_400_000))
+    const p = new URLSearchParams()
+    p.set('city', city.id)
+    p.set('date', localYmd)
+    return `/sky-calendar?${p.toString()}`
+  }
+  // The city-local date currently being shown, to mark the active night.
+  const shownYmd = new Intl.DateTimeFormat('en-CA', {
+    timeZone: city.tz,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(when)
   const dayLabel = (offset: number) =>
     offset === 0
       ? 'Tonight'
@@ -100,10 +129,15 @@ export default async function SkyCalendarPage({
     <main className="sky-root">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd }} />
 
-      <header className="sky-header">
-        <h1>Tonight’s sky</h1>
-        <p className="sky-sub">When it gets dark, what the moon’s doing, and which planets are up — for planning a night under the stars.</p>
-      </header>
+      <div className="sky-inner">
+        <div className="sky-topbar">
+          <a href="/" className="sky-home-link">← Home</a>
+        </div>
+
+        <header className="sky-header">
+          <h1>Tonight’s sky</h1>
+          <p className="sky-sub">When it gets dark, what the moon’s doing, and which planets are up — for planning a night under the stars.</p>
+        </header>
 
       {/* ---- Moon header (shared across cities — the Moon looks the same continent-wide) ---- */}
       <section className="sky-moon" aria-label="Tonight’s moon">
@@ -116,19 +150,31 @@ export default async function SkyCalendarPage({
         </div>
       </section>
 
-      {/* ---- 7-night moon strip: pick a dark night ---- */}
-      <section className="sky-week" aria-label="Moon over the next 7 nights">
-        <h2 className="sky-h2">Next 7 nights</h2>
+      {/* ---- 7-night strip: tap a night to load its full conditions ---- */}
+      <section className="sky-week" aria-label="The next 7 nights">
+        <h2 className="sky-h2">Next 7 nights <span className="sky-h2-sub">— tap a night to see it</span></h2>
         <ol className="sky-week-strip">
-          {week.map((d) => (
-            <li key={d.dayOffset} className={`sky-week-day${d.illumPercent <= 15 ? ' sky-week-day--dark' : ''}`}>
-              <span className="sky-week-glyph" aria-hidden="true">{d.glyph}</span>
-              <span className="sky-week-label">{dayLabel(d.dayOffset)}</span>
-              <span className="sky-week-pct">{d.illumPercent}%</span>
-            </li>
-          ))}
+          {week.map((d) => {
+            const nightYmd = new Intl.DateTimeFormat('en-CA', {
+              timeZone: city.tz, year: 'numeric', month: '2-digit', day: '2-digit',
+            }).format(new Date(when.getTime() + d.dayOffset * 86_400_000))
+            const isShown = nightYmd === shownYmd
+            return (
+              <li key={d.dayOffset}>
+                <a
+                  href={dateHrefFor(d.dayOffset)}
+                  className={`sky-week-day${d.illumPercent <= 15 ? ' sky-week-day--dark' : ''}${isShown ? ' sky-week-day--active' : ''}`}
+                  aria-current={isShown ? 'true' : undefined}
+                >
+                  <span className="sky-week-glyph" aria-hidden="true">{d.glyph}</span>
+                  <span className="sky-week-label">{dayLabel(d.dayOffset)}</span>
+                  <span className="sky-week-pct">{d.illumPercent}%</span>
+                </a>
+              </li>
+            )
+          })}
         </ol>
-        <p className="sky-week-hint">Darker nights (lower %) are best for galaxies and nebulae. A bright moon is still lovely — it’s the star of its own show.</p>
+        <p className="sky-week-hint">Darker nights (lower %) are best for galaxies and nebulae. Tap any night to see its darkness, moon, planets and ISS passes.</p>
       </section>
 
       {/* ---- City switcher ---- */}
@@ -234,6 +280,36 @@ export default async function SkyCalendarPage({
         </div>
       </section>
 
+      {/* ---- Coming up: eclipses + meteor showers (season-level, not per-night) ---- */}
+      {events.length > 0 ? (
+        <section className="sky-events" aria-label="Upcoming celestial events">
+          <h2 className="sky-h2">Coming up</h2>
+          <ul className="sky-events-list">
+            {events.map((e, i) => (
+              <li key={i} className={`sky-event sky-event--${e.kind}`}>
+                <span className="sky-event-icon" aria-hidden="true">
+                  {e.kind === 'meteor-shower' ? '☄️' : e.kind === 'lunar-eclipse' ? '🌕' : '🌑'}
+                </span>
+                <span className="sky-event-body">
+                  <span className="sky-event-title">
+                    {e.title}
+                    <span className="sky-event-when">
+                      {fmtEventDate(e.date)}
+                      {e.daysAway === 0 ? ' · today' : e.daysAway <= 21 ? ` · in ${e.daysAway} days` : ''}
+                    </span>
+                  </span>
+                  <span className="sky-event-detail">{e.detail}</span>
+                </span>
+              </li>
+            ))}
+          </ul>
+          <p className="sky-block-note">
+            Meteor showers are best on a moonless night away from town lights — use the moon panel above to judge.
+            Eclipse and shower dates are worldwide; whether it’s above your horizon depends on your location and time.
+          </p>
+        </section>
+      ) : null}
+
       <p className="sky-tz-note">
         Every time is shown in {city.name}’s own local clock, with daylight saving applied for the date. “—” means the
         event doesn’t occur (for example, some nights the moon doesn’t rise); “stays light” means the sky never reaches
@@ -242,12 +318,14 @@ export default async function SkyCalendarPage({
         high point — so a planet only appears here when you could actually see it.
       </p>
 
-      <footer className="sky-footer">
-        <p>
-          Planning a stargazing night in Greece? <a href="/#contact">Get in touch</a> — we bring the telescope for the
-          deep sky and the eyepiece for the planets, and we check the sky and the moon for you.
-        </p>
-      </footer>
+        <footer className="sky-footer">
+          <p>
+            Planning a stargazing night in Greece? <a href="/#contact">Get in touch</a> — we bring the telescope for the
+            deep sky and the eyepiece for the planets, and we check the sky and the moon for you.
+          </p>
+          <p className="sky-footer-home"><a href="/">← Back to home</a></p>
+        </footer>
+      </div>
     </main>
   )
 }
