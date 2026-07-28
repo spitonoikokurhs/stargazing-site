@@ -276,24 +276,22 @@
 .sky-planet-line {
   font-size: 14px;
 }
-.sky-planet-raw {
+.sky-planet-times {
   grid-column: 2;
-  font-size: 12px;
+  margin-top: 2px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 16px;
+  font-size: 12.5px;
   color: var(--muted);
-}
-.sky-planet-raw summary {
-  cursor: pointer;
-  color: var(--dark-accent);
-  list-style: none;
-}
-.sky-planet-raw summary::-webkit-details-marker {
-  display: none;
-}
-.sky-planet-raw[open] summary {
-  margin-bottom: 3px;
-}
-.sky-planet-raw span {
   font-variant-numeric: tabular-nums;
+}
+.sky-t-label {
+  color: rgba(234, 231, 223, 0.4);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: 10.5px;
+  margin-right: 2px;
 }
 .sky-planets-hidden {
   margin: 12px 0 0;

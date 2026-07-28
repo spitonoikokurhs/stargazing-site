@@ -349,23 +349,31 @@ export function twilightPhases(city: City, whenUtc: Date): TwilightPhases {
   const localDate = cityLocalDateString(whenUtc, city.tz)
   const midnight = cityMidnightUtc(localDate, city.tz)
   const noon = new Date(midnight.getTime() + 12 * 3600_000) // this day's local noon
-  const nextNoon = new Date(noon.getTime() + 24 * 3600_000)
 
-  // Dusk crossings: sun DESCENDING (-1) after noon. Dawn: sun ASCENDING (+1)
-  // before next noon (i.e. searched from just after midnight through morning).
+  // "Tonight" is the night that STARTS this evening: sunset on day D, through to
+  // sunrise the MORNING AFTER (D+1). So:
+  //  - Dusk crossings: sun DESCENDING (-1), searched from this noon → this
+  //    evening's sunset/twilight.
   const dusk = (deg: number) => localTime(SearchAltitude(Body.Sun, observer, -1, noon, 1, deg)?.date, city.tz)
-  const dawn = (deg: number) =>
-    localTime(SearchAltitude(Body.Sun, observer, +1, new Date(midnight.getTime() + 6 * 3600_000), 1, deg)?.date, city.tz)
+  const sunset = SearchRiseSet(Body.Sun, observer, -1, noon, 1)?.date ?? null
+
+  //  - Dawn crossings + sunrise: the FIRST ascending crossing AFTER tonight's
+  //    sunset — i.e. searched forward from just after sunset (not from the next
+  //    calendar noon, which would skip a whole day and land on the morning of
+  //    D+2 — the bug that put planet peaks in daylight). Fall back to this
+  //    evening + 4h if sunset is somehow absent.
+  const afterSunset = new Date((sunset ? sunset.getTime() : midnight.getTime() + 20 * 3600_000) + 60_000)
+  const dawn = (deg: number) => localTime(SearchAltitude(Body.Sun, observer, +1, afterSunset, 1, deg)?.date, city.tz)
 
   return {
-    sunset: localTime(SearchRiseSet(Body.Sun, observer, -1, noon, 1)?.date, city.tz),
+    sunset: localTime(sunset, city.tz),
     civilDusk: dusk(-6),
     nauticalDusk: dusk(-12),
     astroDusk: dusk(-18),
     astroDawn: dawn(-18),
     nauticalDawn: dawn(-12),
     civilDawn: dawn(-6),
-    sunrise: localTime(SearchRiseSet(Body.Sun, observer, +1, nextNoon, 1)?.date, city.tz),
+    sunrise: localTime(SearchRiseSet(Body.Sun, observer, +1, afterSunset, 1)?.date, city.tz),
   }
 }
 
@@ -446,8 +454,12 @@ const PLANET_BODIES: { name: string; body: Body }[] = [
 ]
 
 // A planet is worth showing only if it clears this altitude at its best moment
-// during dark — below it, it's lost in horizon murk / rooftops.
-const MIN_PLANET_ALT_DEG = 15
+// in the observable window — below it, it's genuinely lost in horizon murk. Set
+// to 10°: the bright naked-eye planets (Venus especially) are clearly visible
+// this low against a sea/open horizon, and the operator confirmed seeing Venus
+// at ~14° — a 15° floor wrongly excluded it. 10° keeps out only the truly-lost
+// (a couple of degrees, in the trees).
+const MIN_PLANET_ALT_DEG = 10
 
 function altitudeWord(alt: number): string {
   if (alt >= 45) return 'high'
@@ -457,28 +469,32 @@ function altitudeWord(alt: number): string {
 
 // A rough "when" phrase for a best-time relative to the dark window, so the copy
 // reads like a guide, not a clock: "just after dark" / "in the small hours" /
-// "just before dawn" alongside the exact time.
-function whenPhrase(best: Date, darkStart: Date, darkEnd: Date): string {
-  const frac = (best.getTime() - darkStart.getTime()) / (darkEnd.getTime() - darkStart.getTime())
-  if (frac <= 0.15) return 'just after dark'
-  if (frac >= 0.85) return 'just before dawn'
-  if (frac < 0.45) return 'in the evening'
-  if (frac > 0.55) return 'in the small hours'
+// A plain "when" phrase for a best-time within the OBSERVABLE window (sunset →
+// sunrise). frac is where in that window the peak falls.
+function whenPhrase(frac: number): string {
+  if (frac <= 0.1) return 'in the evening twilight'
+  if (frac < 0.35) return 'in the evening'
+  if (frac >= 0.9) return 'just before dawn'
+  if (frac > 0.65) return 'in the small hours'
   return 'around the middle of the night'
 }
 
-// Sample a body's altitude across [darkStart, darkEnd] and return the highest
-// point + when/where. body is looked up via the shared altAz (Notable) path.
-function bestDuringDark(
+// Sample a body's altitude across an arbitrary [start, end] window; return the
+// highest point + when/where. Used over the whole OBSERVABLE window (sunset →
+// sunrise), not just full dark — a bright planet is very much visible in
+// twilight (Venus, the evening star, is the textbook case: brightest low in the
+// west just after sunset, gone before astronomical dark). Gating only on full
+// dark wrongly declared such objects "not visible".
+function bestInWindow(
   city: City,
   target: Notable,
-  darkStart: Date,
-  darkEnd: Date,
+  start: Date,
+  end: Date,
 ): { alt: number; az: number; when: Date } {
-  const STEPS = 32
-  let best = { alt: -90, az: 0, when: darkStart }
+  const STEPS = 48
+  let best = { alt: -90, az: 0, when: start }
   for (let i = 0; i <= STEPS; i++) {
-    const when = new Date(darkStart.getTime() + ((darkEnd.getTime() - darkStart.getTime()) * i) / STEPS)
+    const when = new Date(start.getTime() + ((end.getTime() - start.getTime()) * i) / STEPS)
     const { altitude, azimuth } = altAz(city, target, when)
     if (altitude > best.alt) best = { alt: altitude, az: azimuth, when }
   }
@@ -498,40 +514,41 @@ function planetTonight(
   const rise = localTime(SearchRiseSet(body, observer, +1, midnight, 1)?.date, city.tz)
   const set = localTime(SearchRiseSet(body, observer, -1, midnight, 1)?.date, city.tz)
 
-  // No dark window (northern summer) → can't be "seen against a dark sky".
-  if (!tw.astroDusk || !tw.astroDawn) {
-    return {
-      name,
-      visible: false,
-      rise,
-      set,
-      bestTime: null,
-      maxAltitude: -90,
-      direction: 'south',
-      summary: 'Not assessable tonight — the sky never gets fully dark (northern summer).',
-    }
-  }
+  // OBSERVABLE WINDOW = sunset → next sunrise. This is when a bright planet can
+  // actually be seen — INCLUDING twilight, not just astronomical dark. (Venus
+  // is the reason: it's an evening/morning-star, visible low in bright twilight
+  // and usually gone before full dark. Gating on dark-only wrongly hid it.)
+  // Fall back to the whole day if sunset/sunrise are somehow absent.
+  const winStart = tw.sunset?.date ?? midnight
+  const winEnd = tw.sunrise?.date ?? new Date(midnight.getTime() + 24 * 3600_000)
 
-  const best = bestDuringDark(city, { kind: 'body', name, body }, tw.astroDusk.date, tw.astroDawn.date)
+  const best = bestInWindow(city, { kind: 'body', name, body }, winStart, winEnd)
   const direction = azimuthToCompass(best.az)
   const bestTime = localTime(best.when, city.tz)
   const visible = best.alt >= MIN_PLANET_ALT_DEG
 
+  // Is the best moment during full astronomical dark, or (for a low evening/
+  // morning object like Venus) in twilight? Honest wording depends on it.
+  const inTwilight =
+    !!tw.astroDusk &&
+    !!tw.astroDawn &&
+    (best.when.getTime() < tw.astroDusk.date.getTime() || best.when.getTime() > tw.astroDawn.date.getTime())
+
   let summary: string
   if (!visible) {
-    // Be explicit that this is about the NIGHT — the whole point is "not visible
-    // during nighttime from this city", never a bare "too low" that could read
-    // as a momentary thing.
     summary =
       best.alt < 0
-        ? `Not visible at night from ${city.name} tonight — it stays below the horizon the whole time it's dark.`
-        : `Not visible at night from ${city.name} tonight — it never climbs clear of the horizon haze while it's dark.`
+        ? `Not up tonight from ${city.name} — it stays below the horizon after dark.`
+        : `Very low from ${city.name} tonight — it never clears the horizon haze, hard to catch.`
   } else {
-    const phrase = whenPhrase(best.when, tw.astroDusk.date, tw.astroDawn.date)
-    // e.g. "High just before dawn (around 05:45) — in the south."
+    const frac = (best.when.getTime() - winStart.getTime()) / (winEnd.getTime() - winStart.getTime())
+    const phrase = whenPhrase(frac)
     const word = altitudeWord(best.alt)
     const lead = word === 'high' ? 'High' : word === 'well-placed' ? 'Well-placed' : 'Low'
-    summary = `${lead} ${phrase}${bestTime ? ` (around ${bestTime.hhmm})` : ''} — in the ${direction}.`
+    // For a genuinely-low twilight object, say so plainly (Venus: "Low in the
+    // evening twilight, around 21:14 — in the west").
+    const tw2 = inTwilight && best.alt < 25 ? ', a bright evening/morning object' : ''
+    summary = `${lead} ${phrase}${bestTime ? ` (around ${bestTime.hhmm})` : ''} — in the ${direction}${tw2}.`
   }
   return { name, visible, rise, set, bestTime, maxAltitude: best.alt, direction, summary }
 }

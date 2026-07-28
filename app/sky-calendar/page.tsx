@@ -178,12 +178,14 @@ export default function SkyCalendarPage({
                 <li key={p.name} className="sky-planet">
                   <span className="sky-planet-name">{p.name}</span>
                   <span className="sky-planet-line">{p.summary}</span>
-                  <details className="sky-planet-raw">
-                    <summary>times</summary>
-                    <span>
-                      Rises {p.rise?.hhmm ?? '—'} · highest {p.bestTime?.hhmm ?? '—'} ({Math.round(p.maxAltitude)}°) · sets {p.set?.hhmm ?? '—'}
-                    </span>
-                  </details>
+                  {/* Raw times shown inline (not hidden behind a click) — a
+                      planner wants them, and a mystery "times" toggle read as
+                      unclear. Compact, muted, so the plain line stays the lead. */}
+                  <span className="sky-planet-times">
+                    <span><span className="sky-t-label">rises</span> {p.rise?.hhmm ?? '—'}</span>
+                    <span><span className="sky-t-label">highest</span> {p.bestTime?.hhmm ?? '—'} ({Math.round(p.maxAltitude)}°)</span>
+                    <span><span className="sky-t-label">sets</span> {p.set?.hhmm ?? '—'}</span>
+                  </span>
                 </li>
               ))}
             </ul>

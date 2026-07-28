@@ -142,24 +142,35 @@ assert('azimuth 225 -> southwest', azimuthToCompass(225) === 'southwest')
   const JUNE = new Date('2026-06-21T18:00:00Z')
   const twB = twilightPhases(berlin, JUNE)
   assert('Berlin midsummer: astro dark is null (never fully dark)', twB.astroDusk === null, String(twB.astroDusk?.hhmm))
-  // planetsTonight must handle the no-dark case without throwing.
+  // planetsTonight must handle the no-dark case without throwing. Planets CAN
+  // still be visible in twilight even when it never gets astronomically dark
+  // (bright planets over Berlin in June) — the observable window is sunset→
+  // sunrise, not dark-only. So we assert it runs and returns a well-formed
+  // list, not that everything is hidden.
   const planets = planetsTonight(berlin, JUNE, twB)
-  assert('no-dark night: planets all marked not-visible, no throw', planets.every((p) => p.visible === false))
+  assert('no-dark night: planetsTonight returns a well-formed list (no throw)', Array.isArray(planets) && planets.length >= 4 && planets.every((p) => typeof p.visible === 'boolean' && typeof p.summary === 'string'))
 }
 
-// ---- NIGHTLY CONDITIONS: planets evaluated DURING dark (the honesty fix) ----
+// ---- NIGHTLY CONDITIONS: planets over the OBSERVABLE window (sunset→sunrise,
+//      incl. twilight — the Venus fix) ----
 {
   const tw = twilightPhases(kos, SUMMER)
+  // The window must be ONE night (~10h), not spill into the next day (~34h) —
+  // the daytime-peak regression this fixed.
+  const winHours = (tw.sunrise.date.getTime() - tw.sunset.date.getTime()) / 3600_000
+  assert('observable window is one night (~8-14h, not 30+)', winHours > 6 && winHours < 16, `${winHours.toFixed(1)}h`)
+
   const planets = planetsTonight(kos, SUMMER, tw)
   const byName = Object.fromEntries(planets.map((p) => [p.name, p]))
-  // Verified: Saturn ~53deg high before dawn; Jupiter below horizon; Venus too low.
-  assert('Saturn visible during dark (~53deg)', byName.Saturn?.visible === true && byName.Saturn.maxAltitude > 40, `${byName.Saturn?.maxAltitude?.toFixed(0)}`)
-  assert('Saturn line names a direction + best time', /in the \w+/.test(byName.Saturn.summary) && /around \d\d:\d\d/.test(byName.Saturn.summary), byName.Saturn.summary)
-  assert('Jupiter NOT falsely shown (below horizon at night)', byName.Jupiter?.visible === false)
-  assert('Jupiter honest not-up line says NOT VISIBLE AT NIGHT', /not visible at night/i.test(byName.Jupiter.summary), byName.Jupiter.summary)
-  // The daytime-transit bug would have reported Jupiter ~72deg "high" — guard against regression.
-  assert('no planet claims a daytime-transit altitude (all visible are genuinely up in dark)', planets.filter((p) => p.visible).every((p) => p.maxAltitude >= 15))
-  // Visible sorted before not-visible.
+  // Verified 28-07 Kos: Saturn high before dawn; Venus VISIBLE low in evening
+  // twilight (~24deg, the operator saw it ~21:14); Jupiter genuinely too low.
+  assert('Saturn visible (~57deg before dawn)', byName.Saturn?.visible === true && byName.Saturn.maxAltitude > 40, `${byName.Saturn?.maxAltitude?.toFixed(0)}`)
+  assert('VENUS now visible (was wrongly hidden — the twilight fix)', byName.Venus?.visible === true, `visible=${byName.Venus?.visible} alt=${byName.Venus?.maxAltitude?.toFixed(0)}`)
+  assert('Venus line reads as an evening-twilight object', /evening/i.test(byName.Venus.summary), byName.Venus.summary)
+  assert('Jupiter honestly not up (very low / not up copy)', byName.Jupiter?.visible === false && /not up|very low/i.test(byName.Jupiter.summary), byName.Jupiter.summary)
+  // Regression guard: every visible planet clears the 10deg floor and has a
+  // best-time (never the old daytime-transit null/garbage).
+  assert('every visible planet clears 10deg + has a best time', planets.filter((p) => p.visible).every((p) => p.maxAltitude >= 10 && p.bestTime !== null))
   const firstNotVisible = planets.findIndex((p) => !p.visible)
   assert('visible planets sorted before not-up ones', firstNotVisible === -1 || planets.slice(firstNotVisible).every((p) => !p.visible))
 }
