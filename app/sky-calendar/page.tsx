@@ -2,10 +2,8 @@ import type { Metadata } from 'next'
 import {
   CITIES,
   cityById,
-  countryFlag,
   moonInfo,
   moonWeek,
-  moonGlyph,
   twilightPhases,
   planetsTonight,
   moonDuringDark,
@@ -13,6 +11,7 @@ import {
 } from '@/lib/ephemeris'
 import { issPasses } from '@/lib/iss'
 import { upcomingCelestialEvents } from '@/lib/celestial-events'
+import { CityFlag, MoonPhaseIcon, PlanetIcon } from './sky-icons'
 import './sky-calendar.css'
 
 export const metadata: Metadata = {
@@ -150,7 +149,9 @@ export default async function SkyCalendarPage({
 
       {/* ---- Moon header (shared across cities — the Moon looks the same continent-wide) ---- */}
       <section className="sky-moon" aria-label="Tonight’s moon">
-        <div className="sky-moon-glyph" aria-hidden="true">{moonGlyph(moon.phaseName)}</div>
+        <div className="sky-moon-glyph" aria-hidden="true">
+          <MoonPhaseIcon fraction={moon.illumFraction} waxing={moon.waxing} size={64} title={moon.phaseName} />
+        </div>
         <div className="sky-moon-text">
           <p className="sky-moon-headline">
             {moon.phaseName.charAt(0).toUpperCase() + moon.phaseName.slice(1)} · {moon.illumPercent}% lit
@@ -174,7 +175,9 @@ export default async function SkyCalendarPage({
                 >
                   <span className="sky-week-label">{dayLabel(d.dayOffset)}</span>
                   <span className="sky-week-date">{dayDate(d.dayOffset)}</span>
-                  <span className="sky-week-glyph" aria-hidden="true">{d.glyph}</span>
+                  <span className="sky-week-glyph" aria-hidden="true">
+                    <MoonPhaseIcon fraction={d.illumFraction} waxing={d.waxing} size={30} title={d.phaseName} />
+                  </span>
                   <span className="sky-week-pct">{d.illumPercent}%</span>
                 </a>
               </li>
@@ -188,7 +191,7 @@ export default async function SkyCalendarPage({
       <nav className="sky-cities-nav" aria-label="Choose a city">
         {CITIES.map((c) => (
           <a key={c.id} href={cityHref(c.id)} className={`sky-city-chip${c.id === city.id ? ' is-active' : ''}`}>
-            <span className="sky-city-flag" aria-hidden="true">{countryFlag(c.country)}</span>
+            <span className="sky-city-flag"><CityFlag country={c.country} /></span>
             {c.name}
           </a>
         ))}
@@ -198,7 +201,7 @@ export default async function SkyCalendarPage({
       <section className="sky-card" aria-label={`Conditions for ${city.name}`}>
         <div className="sky-card-head">
           <h2 className="sky-card-title">
-            <span className="sky-card-flag" aria-hidden="true">{countryFlag(city.country)}</span>
+            <span className="sky-card-flag"><CityFlag country={city.country} /></span>
             {city.name}
             <span className="sky-tz">{zoneAbbrev(when, city.tz)}</span>
           </h2>
@@ -246,7 +249,10 @@ export default async function SkyCalendarPage({
             <ul className="sky-planets">
               {visiblePlanets.map((p) => (
                 <li key={p.name} className="sky-planet">
-                  <span className="sky-planet-name">{p.name}</span>
+                  <span className="sky-planet-name">
+                    <span className="sky-planet-icon" aria-hidden="true"><PlanetIcon name={p.name} /></span>
+                    {p.name}
+                  </span>
                   <span className="sky-planet-line">{p.summary}</span>
                   {/* Raw times shown inline (not hidden behind a click) — a
                       planner wants them, and a mystery "times" toggle read as

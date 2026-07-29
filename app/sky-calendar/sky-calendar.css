@@ -95,9 +95,12 @@
   margin-bottom: 26px;
 }
 .sky-moon-glyph {
-  font-size: 54px;
-  line-height: 1;
-  filter: drop-shadow(0 0 14px rgba(232, 197, 131, 0.25));
+  line-height: 0;
+  /* cool silver glow — the old warm gold read as "cheese" */
+  filter: drop-shadow(0 0 16px rgba(200, 216, 236, 0.28));
+}
+.sky-svg-moon {
+  display: block;
 }
 .sky-moon-headline {
   margin: 0;
@@ -157,8 +160,9 @@
   font-weight: 400;
 }
 .sky-week-glyph {
-  font-size: 26px;
-  line-height: 1;
+  line-height: 0;
+  display: flex;
+  justify-content: center;
 }
 .sky-week-label {
   font-size: 12px;
@@ -201,17 +205,26 @@
   font-size: 14px;
   transition: color 150ms ease, border-color 150ms ease, background 150ms ease;
 }
-/* Emoji flags render slightly large/high against text — nudge size + baseline
-   so the flag sits level with the city name in both the chips and the title. */
+/* SVG flags — small rounded rectangles that sit level with the city name in the
+   chips and the title. Sized explicitly (SVG has no intrinsic font size). */
 .sky-city-flag {
-  font-size: 15px;
-  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+}
+.sky-svg-flag {
+  width: 20px;
+  height: auto;
+  display: block;
+  border-radius: 2.5px;
 }
 .sky-card-flag {
-  font-size: 20px;
-  line-height: 1;
-  margin-right: 9px;
-  vertical-align: -2px;
+  display: inline-flex;
+  align-items: center;
+  margin-right: 10px;
+  vertical-align: -3px;
+}
+.sky-card-flag .sky-svg-flag {
+  width: 28px;
 }
 .sky-city-chip:hover,
 .sky-city-chip:focus-visible {
@@ -381,13 +394,28 @@
 }
 .sky-planet {
   display: grid;
-  grid-template-columns: 84px 1fr;
+  grid-template-columns: 104px 1fr;
   align-items: baseline;
   gap: 4px 12px;
 }
 .sky-planet-name {
   font-weight: 600;
   font-size: 15px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+.sky-planet-icon {
+  display: inline-flex;
+  flex: 0 0 auto;
+}
+.sky-svg-planet {
+  display: block;
+  filter: drop-shadow(0 0 4px rgba(0, 0, 0, 0.35));
+}
+/* Saturn's ring extends past the disc, so give it a touch more room. */
+.sky-svg-planet--saturn {
+  margin: -1px -1px -1px 0;
 }
 .sky-planet-line {
   font-size: 14px;
@@ -527,13 +555,15 @@
   .sky-week-day {
     padding: 8px 2px;
   }
-  .sky-week-glyph {
-    font-size: 20px;
+  .sky-week-glyph .sky-svg-moon {
+    width: 24px;
+    height: 24px;
   }
   .sky-week-label {
     font-size: 10px;
   }
-  .sky-moon-glyph {
-    font-size: 44px;
+  .sky-moon-glyph .sky-svg-moon {
+    width: 52px;
+    height: 52px;
   }
 }

@@ -43,22 +43,6 @@ export function cityById(id: string): City | undefined {
   return CITIES.find((c) => c.id === id)
 }
 
-// Emoji flag for a city, from its `country`. Single source of truth so the
-// switcher chips and the card title stay in sync. Keyed by the exact country
-// strings used in config/cities.json; unknown countries fall back to a neutral
-// globe so a newly-added city never renders a broken/empty glyph.
-const COUNTRY_FLAGS: Record<string, string> = {
-  Greece: '🇬🇷',
-  Turkey: '🇹🇷',
-  Germany: '🇩🇪',
-  Italy: '🇮🇹',
-  'United Kingdom': '🇬🇧',
-}
-
-export function countryFlag(country: string): string {
-  return COUNTRY_FLAGS[country] ?? '🌐'
-}
-
 // ---- Time formatting in a city's own zone (DST-correct) ----
 
 // "HH:MM" wall-clock in the city's zone, 24h (matches the site's EU time
@@ -189,6 +173,11 @@ function darkFrom(observer: Observer, midnightUtc: Date, tz: string): string | n
 export type MoonInfo = {
   phaseName: string // "waxing gibbous", "full moon", ...
   illumPercent: number // 0..100, rounded
+  // 0..1 illuminated fraction (unrounded) + which limb is lit — everything a
+  // renderer needs to draw an accurate moon (see the SVG moon in the calendar).
+  // waxing = right limb lit; waning = left limb lit.
+  illumFraction: number
+  waxing: boolean
   // A one-line, honest stargazing verdict about tonight's moon — a bright moon
   // washes out faint deep-sky; a dark/new moon is ideal for galaxies/nebulae.
   stargazingNote: string
@@ -201,7 +190,14 @@ export function moonInfo(whenUtc: Date): MoonInfo {
   const frac = Illumination(Body.Moon, whenUtc).phase_fraction // 0..1
   const illumPercent = Math.round(frac * 100)
   const phaseName = moonPhaseName(angle, frac)
-  return { phaseName, illumPercent, stargazingNote: moonStargazingNote(illumPercent) }
+  // angle<180 is the waxing half of the cycle (new -> full): right limb lit.
+  return {
+    phaseName,
+    illumPercent,
+    illumFraction: frac,
+    waxing: angle < 180,
+    stargazingNote: moonStargazingNote(illumPercent),
+  }
 }
 
 function moonPhaseName(angle: number, frac: number): string {
@@ -219,42 +215,29 @@ function moonPhaseName(angle: number, frac: number): string {
       : 'waning gibbous'
 }
 
-// A moon-phase glyph for a phase name — a simple, honest visual cue (emoji moon
-// faces render everywhere and need no asset). Waxing = right-lit, waning = left-lit.
-export function moonGlyph(phaseName: string): string {
-  switch (phaseName) {
-    case 'new moon':
-      return '🌑'
-    case 'waxing crescent':
-      return '🌒'
-    case 'first quarter':
-      return '🌓'
-    case 'waxing gibbous':
-      return '🌔'
-    case 'full moon':
-      return '🌕'
-    case 'waning gibbous':
-      return '🌖'
-    case 'last quarter':
-      return '🌗'
-    case 'waning crescent':
-      return '🌘'
-    default:
-      return '🌙'
-  }
-}
-
 // The next `days` nights of moon phase (tonight first) — for the planning strip,
 // so a trip-planner can pick a dark night. `startUtc` anchors "tonight"; each
 // subsequent entry steps +1 day at the same UTC time (phase drifts ~12°/day, so
 // same-UTC-time sampling is plenty accurate for a planning glance).
-export type MoonDay = { dayOffset: number; phaseName: string; illumPercent: number; glyph: string }
+export type MoonDay = {
+  dayOffset: number
+  phaseName: string
+  illumPercent: number
+  illumFraction: number
+  waxing: boolean
+}
 export function moonWeek(startUtc: Date, days = 7): MoonDay[] {
   const out: MoonDay[] = []
   for (let d = 0; d < days; d++) {
     const when = new Date(startUtc.getTime() + d * 86_400_000)
     const info = moonInfo(when)
-    out.push({ dayOffset: d, phaseName: info.phaseName, illumPercent: info.illumPercent, glyph: moonGlyph(info.phaseName) })
+    out.push({
+      dayOffset: d,
+      phaseName: info.phaseName,
+      illumPercent: info.illumPercent,
+      illumFraction: info.illumFraction,
+      waxing: info.waxing,
+    })
   }
   return out
 }
