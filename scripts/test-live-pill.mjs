@@ -6,7 +6,7 @@
 // Front-end-only feature: this covers the /api/status -> pill-state mapping and
 // all the edge cases (cancelled tonight, degraded, next null, null response).
 
-import { deriveLivePillState, buildNextSessionPanel, forcedStatusFromQuery } from '../lib/live-pill.ts'
+import { deriveLivePillState, buildNextSessionPanel, forcedStatusFromQuery, heroPillLabel } from '../lib/live-pill.ts'
 
 let failures = 0
 function assert(label, cond, detail) {
@@ -20,7 +20,8 @@ const NEXT = { date: '2026-07-23', hotelId: 'paralos-kyma-dunes', start: '21:30'
 {
   const s = deriveLivePillState({ live: true, tonight: null, next: NEXT })
   assert('live=true -> kind live', s.kind === 'live', s.kind)
-  assert('live -> label "Watch live now"', s.label === 'Watch live now', s.label)
+  assert('live -> label "Live now"', s.label === 'Live now', s.label)
+  assert('hero label for live -> "Watch live now"', heroPillLabel(s) === 'Watch live now', heroPillLabel(s))
   assert('live -> href /live', s.href === '/live')
 }
 
@@ -28,7 +29,7 @@ const NEXT = { date: '2026-07-23', hotelId: 'paralos-kyma-dunes', start: '21:30'
 {
   const s = deriveLivePillState({ live: false, tonight: { hotelId: 'oku-kos', start: '21:30', end: '22:30' }, next: NEXT })
   assert('tonight -> kind tonight', s.kind === 'tonight', s.kind)
-  assert('tonight -> label "Live telescope tonight, 21:30"', s.label === 'Live telescope tonight, 21:30', s.label)
+  assert('tonight -> label "Live tonight, 21:30"', s.label === 'Live tonight, 21:30', s.label)
   assert('tonight -> href /live', s.href === '/live')
 }
 
@@ -37,7 +38,7 @@ const NEXT = { date: '2026-07-23', hotelId: 'paralos-kyma-dunes', start: '21:30'
   const s = deriveLivePillState({ live: false, tonight: { hotelId: 'oku-kos', start: '21:30', end: '22:30', cancelled: true }, next: NEXT })
   assert('cancelled tonight -> NOT tonight state', s.kind !== 'tonight', s.kind)
   assert('cancelled tonight -> idle (uses next)', s.kind === 'idle', s.kind)
-  assert('cancelled tonight -> label uses next weekday/time', /^Live telescope · next \w+ 21:30$/.test(s.label), s.label)
+  assert('cancelled tonight -> label uses next weekday/time', /^Next event: \w+ 21:30$/.test(s.label), s.label)
 }
 
 // --- idle (no event today) -> panel with schedule anchor ---
@@ -49,7 +50,10 @@ const NEXT = { date: '2026-07-23', hotelId: 'paralos-kyma-dunes', start: '21:30'
   assert('idle -> panel schedule "Thursday 23 July · 21:30 · Paralos Kyma Dunes"',
     s.panel.schedule === 'Thursday 23 July · 21:30 · Paralos Kyma Dunes', s.panel.schedule)
   assert('idle -> resume line known', s.panel.resumeLine === 'The live telescope view returns then.', s.panel.resumeLine)
-  assert('idle -> label "Live telescope · next Thursday 21:30"', s.label === 'Live telescope · next Thursday 21:30', s.label)
+  assert('idle -> label "Next event: Thursday 21:30"', s.label === 'Next event: Thursday 21:30', s.label)
+
+  // Hero variant names by its ACTION (enters the live area), not the schedule.
+  assert('hero label for idle -> "Watch live"', heroPillLabel(s) === 'Watch live', heroPillLabel(s))
 }
 
 // --- idle with next=null -> graceful coming-soon, no empty fields ---

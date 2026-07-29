@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   deriveLivePillState,
   forcedStatusFromQuery,
+  heroPillLabel,
   type LiveStatusResponse,
   type LivePillState,
 } from '@/lib/live-pill'
@@ -100,7 +101,11 @@ export function LiveStatusPill({ variant = 'header' }: { variant?: Variant }) {
   const className = `live-pill live-pill--${variant} live-pill--${dotKind}`
 
   const dot = <span className={`live-pill__dot live-pill__dot--${dotKind}`} aria-hidden="true" />
-  const label = <span className="live-pill__label">{state.label}</span>
+  // Label is named by what THIS placement does: the hero pill enters the live
+  // area ("Watch live"), the header pill surfaces the next event (state.label,
+  // e.g. "Next event: Thu 21:30"). Same pill, two actions, each self-describing.
+  const labelText = variant === 'hero' ? heroPillLabel(state) : state.label
+  const label = <span className="live-pill__label">{labelText}</span>
 
   // Idle state:
   //  - HEADER: a BUTTON that toggles the off-event "next session" panel (the

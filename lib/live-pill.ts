@@ -146,22 +146,28 @@ export function deriveLivePillState(res: LiveStatusResponse | null): LivePillSta
     return { kind: 'fallback', label: NEUTRAL_FALLBACK_LABEL, href: '/live' }
   }
 
-  // 2. Live now. "Watch live" makes the action unmistakable (a first-time
-  //    visitor shouldn't have to guess what the pill does).
+  // 2. Live now.
   if (res.live === true) {
-    return { kind: 'live', label: 'Watch live now', href: '/live' }
+    return { kind: 'live', label: 'Live now', href: '/live' }
   }
 
-  // 3. Event today, not cancelled -> upcoming; still frames it as the live view.
+  // 3. Event today, not cancelled -> upcoming.
   const tonight = res.tonight
   if (tonight && tonight.cancelled !== true) {
-    return { kind: 'tonight', label: `Live telescope tonight, ${tonight.start}`, href: '/live' }
+    return { kind: 'tonight', label: `Live tonight, ${tonight.start}`, href: '/live' }
   }
 
-  // 4. Idle: no event today (or tonight cancelled) -> next-session panel. Lead
-  //    with WHAT it is ("Live telescope") so the date reads as its next session,
-  //    not a mystery countdown.
+  // 4. Idle: no event today (or tonight cancelled) -> next-session panel.
   const next = res.next ?? null
-  const label = next ? `Live telescope · next ${athensWeekday(next.date)} ${next.start}` : NEUTRAL_FALLBACK_LABEL
+  const label = next ? `Next event: ${athensWeekday(next.date)} ${next.start}` : NEUTRAL_FALLBACK_LABEL
   return { kind: 'idle', label, opensPanel: true, panel: buildNextSessionPanel(next) }
+}
+
+// The HERO pill's label is action-oriented — it always takes you into the live
+// area, so it says exactly that ("Watch live" / "Watch live now") regardless of
+// the schedule state. The HEADER pill instead uses state.label above, which
+// describes the NEXT EVENT (its action is to surface that info). Same pill, two
+// placements, each named by what it does — see LiveStatusPill's `variant`.
+export function heroPillLabel(state: LivePillState): string {
+  return state.kind === 'live' ? 'Watch live now' : 'Watch live'
 }
