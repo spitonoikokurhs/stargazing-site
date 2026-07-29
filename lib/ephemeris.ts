@@ -43,6 +43,22 @@ export function cityById(id: string): City | undefined {
   return CITIES.find((c) => c.id === id)
 }
 
+// Emoji flag for a city, from its `country`. Single source of truth so the
+// switcher chips and the card title stay in sync. Keyed by the exact country
+// strings used in config/cities.json; unknown countries fall back to a neutral
+// globe so a newly-added city never renders a broken/empty glyph.
+const COUNTRY_FLAGS: Record<string, string> = {
+  Greece: '🇬🇷',
+  Turkey: '🇹🇷',
+  Germany: '🇩🇪',
+  Italy: '🇮🇹',
+  'United Kingdom': '🇬🇧',
+}
+
+export function countryFlag(country: string): string {
+  return COUNTRY_FLAGS[country] ?? '🌐'
+}
+
 // ---- Time formatting in a city's own zone (DST-correct) ----
 
 // "HH:MM" wall-clock in the city's zone, 24h (matches the site's EU time

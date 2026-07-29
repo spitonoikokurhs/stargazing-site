@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import {
   CITIES,
   cityById,
+  countryFlag,
   moonInfo,
   moonWeek,
   moonGlyph,
@@ -17,7 +18,7 @@ import './sky-calendar.css'
 export const metadata: Metadata = {
   title: 'Tonight’s Sky — Darkness, Moon & Planets | Stargazing Events',
   description:
-    'Tonight’s stargazing conditions for Kos, Athens, Berlin, Rome and London: when the sky gets fully dark, the moon, and which planets are up and where to look. Times in each city’s local timezone.',
+    'Tonight’s stargazing conditions for Kos, Athens, Bodrum, Berlin, Munich, Rome and London: when the sky gets fully dark, the moon, and which planets are up and where to look. Times in each city’s local timezone.',
   robots: { index: true, follow: true },
   alternates: { canonical: 'https://www.stargazing.events/sky-calendar' },
 }
@@ -77,7 +78,7 @@ export default async function SkyCalendarPage({
     '@type': 'WebPage',
     name: 'Tonight’s Sky — Darkness, Moon & Planets',
     description:
-      'Stargazing conditions — darkness window, moon and visible planets — for Kos, Athens, Berlin, Rome and London.',
+      'Stargazing conditions — darkness window, moon and visible planets — for Kos, Athens, Bodrum, Berlin, Munich, Rome and London.',
     url: 'https://www.stargazing.events/sky-calendar',
   })
 
@@ -187,6 +188,7 @@ export default async function SkyCalendarPage({
       <nav className="sky-cities-nav" aria-label="Choose a city">
         {CITIES.map((c) => (
           <a key={c.id} href={cityHref(c.id)} className={`sky-city-chip${c.id === city.id ? ' is-active' : ''}`}>
+            <span className="sky-city-flag" aria-hidden="true">{countryFlag(c.country)}</span>
             {c.name}
           </a>
         ))}
@@ -196,6 +198,7 @@ export default async function SkyCalendarPage({
       <section className="sky-card" aria-label={`Conditions for ${city.name}`}>
         <div className="sky-card-head">
           <h2 className="sky-card-title">
+            <span className="sky-card-flag" aria-hidden="true">{countryFlag(city.country)}</span>
             {city.name}
             <span className="sky-tz">{zoneAbbrev(when, city.tz)}</span>
           </h2>

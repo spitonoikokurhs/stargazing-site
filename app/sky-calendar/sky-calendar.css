@@ -189,6 +189,9 @@
   margin-bottom: 16px;
 }
 .sky-city-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
   padding: 8px 16px;
   border-radius: 999px;
   border: 1px solid var(--edge);
@@ -197,6 +200,18 @@
   text-decoration: none;
   font-size: 14px;
   transition: color 150ms ease, border-color 150ms ease, background 150ms ease;
+}
+/* Emoji flags render slightly large/high against text — nudge size + baseline
+   so the flag sits level with the city name in both the chips and the title. */
+.sky-city-flag {
+  font-size: 15px;
+  line-height: 1;
+}
+.sky-card-flag {
+  font-size: 20px;
+  line-height: 1;
+  margin-right: 9px;
+  vertical-align: -2px;
 }
 .sky-city-chip:hover,
 .sky-city-chip:focus-visible {
