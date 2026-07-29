@@ -163,11 +163,24 @@ export function deriveLivePillState(res: LiveStatusResponse | null): LivePillSta
   return { kind: 'idle', label, opensPanel: true, panel: buildNextSessionPanel(next) }
 }
 
-// The HERO pill's label is action-oriented — it always takes you into the live
-// area, so it says exactly that ("Watch live" / "Watch live now") regardless of
-// the schedule state. The HEADER pill instead uses state.label above, which
-// describes the NEXT EVENT (its action is to surface that info). Same pill, two
-// placements, each named by what it does — see LiveStatusPill's `variant`.
-export function heroPillLabel(state: LivePillState): string {
-  return state.kind === 'live' ? 'Watch live now' : 'Watch live'
+// Two placements, roles SWAPPED per the design:
+//   HERO   (below the service description) -> shows STATUS / next-event info.
+//           Uses state.label above ("Next event: Thu 21:30" when idle, but
+//           "Live now" / "Live tonight, 21:30" when something's actually on, so
+//           a reader is still pulled in when it's live). On idle it does NOT
+//           dump the guest on the dead /live screen — it opens the next-event
+//           panel instead (see the component). This is state.label, used as-is.
+//
+//   HEADER (top menu) -> the LIVE ROOM entry. Framed as "go into the live room",
+//           and it always LINKS to /live. Below.
+export function liveRoomLabel(state: LivePillState): string {
+  switch (state.kind) {
+    case 'live':
+      return 'Live now — enter'
+    case 'tonight':
+      return `Live room · ${(state as { label: string }).label.replace(/^Live tonight, /, '')}`
+    default:
+      // idle / fallback: still the live-room door, no false "now".
+      return 'Live room'
+  }
 }

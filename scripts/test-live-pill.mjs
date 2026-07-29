@@ -6,7 +6,7 @@
 // Front-end-only feature: this covers the /api/status -> pill-state mapping and
 // all the edge cases (cancelled tonight, degraded, next null, null response).
 
-import { deriveLivePillState, buildNextSessionPanel, forcedStatusFromQuery, heroPillLabel } from '../lib/live-pill.ts'
+import { deriveLivePillState, buildNextSessionPanel, forcedStatusFromQuery, liveRoomLabel } from '../lib/live-pill.ts'
 
 let failures = 0
 function assert(label, cond, detail) {
@@ -21,7 +21,8 @@ const NEXT = { date: '2026-07-23', hotelId: 'paralos-kyma-dunes', start: '21:30'
   const s = deriveLivePillState({ live: true, tonight: null, next: NEXT })
   assert('live=true -> kind live', s.kind === 'live', s.kind)
   assert('live -> label "Live now"', s.label === 'Live now', s.label)
-  assert('hero label for live -> "Watch live now"', heroPillLabel(s) === 'Watch live now', heroPillLabel(s))
+  // HEADER = the live-room door: 'Live now — enter' when live.
+  assert('live-room label for live -> "Live now — enter"', liveRoomLabel(s) === 'Live now — enter', liveRoomLabel(s))
   assert('live -> href /live', s.href === '/live')
 }
 
@@ -53,7 +54,8 @@ const NEXT = { date: '2026-07-23', hotelId: 'paralos-kyma-dunes', start: '21:30'
   assert('idle -> label "Next event: Thursday 21:30"', s.label === 'Next event: Thursday 21:30', s.label)
 
   // Hero variant names by its ACTION (enters the live area), not the schedule.
-  assert('hero label for idle -> "Watch live"', heroPillLabel(s) === 'Watch live', heroPillLabel(s))
+  // HEADER (live-room door) on an idle day still reads as the door, not a false "now".
+  assert('live-room label for idle -> "Live room"', liveRoomLabel(s) === 'Live room', liveRoomLabel(s))
 }
 
 // --- idle with next=null -> graceful coming-soon, no empty fields ---

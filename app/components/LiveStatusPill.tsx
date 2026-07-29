@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   deriveLivePillState,
   forcedStatusFromQuery,
-  heroPillLabel,
+  liveRoomLabel,
   type LiveStatusResponse,
   type LivePillState,
 } from '@/lib/live-pill'
@@ -31,6 +31,10 @@ export function LiveStatusPill({ variant = 'header' }: { variant?: Variant }) {
   // fallback IS a valid, clickable state, so the very first paint is usable.
   const [status, setStatus] = useState<LiveStatusResponse | null>(null)
   const [panelOpen, setPanelOpen] = useState(false)
+  // For the HERO panel only: a fixed (viewport-relative) position computed from
+  // the trigger, so the popover escapes the hero's overflow:hidden clip. null =
+  // use the default absolute positioning (header).
+  const [heroPanelPos, setHeroPanelPos] = useState<{ top: number; left: number } | null>(null)
   // Guard against a slow/stale fetch resolving after unmount.
   const mountedRef = useRef(true)
 
@@ -101,29 +105,20 @@ export function LiveStatusPill({ variant = 'header' }: { variant?: Variant }) {
   const className = `live-pill live-pill--${variant} live-pill--${dotKind}`
 
   const dot = <span className={`live-pill__dot live-pill__dot--${dotKind}`} aria-hidden="true" />
-  // Label is named by what THIS placement does: the hero pill enters the live
-  // area ("Watch live"), the header pill surfaces the next event (state.label,
-  // e.g. "Next event: Thu 21:30"). Same pill, two actions, each self-describing.
-  const labelText = variant === 'hero' ? heroPillLabel(state) : state.label
+  // ROLES ARE SWAPPED BY PLACEMENT (see lib/live-pill):
+  //   HERO   -> shows STATUS / next-event info (state.label). On idle it opens
+  //             the next-event panel — it must NOT dump the guest on the dead
+  //             /live screen. On live/tonight it links into /live (there IS
+  //             something to watch).
+  //   HEADER -> the LIVE ROOM door (liveRoomLabel). Always links to /live.
+  const isHero = variant === 'hero'
+  const labelText = isHero ? state.label : liveRoomLabel(state)
   const label = <span className="live-pill__label">{labelText}</span>
 
-  // Idle state:
-  //  - HEADER: a BUTTON that toggles the off-event "next session" panel (the
-  //    header isn't clipped, so the popover shows fine).
-  //  - HERO: a plain LINK to /live instead. The hero has overflow:hidden (for
-  //    its background image/animation), which CLIPPED the popover — a part of it
-  //    was cut off. The label now already carries the next-session date, so a
-  //    link loses no info and just opens /live (which shows the off-event/next
-  //    screen anyway). No popover in the hero = nothing to clip.
-  if (state.kind === 'idle') {
-    if (variant === 'hero') {
-      return (
-        <a href="/live" className={className} aria-label={`${state.label} — open the live telescope view`}>
-          {dot}
-          {label}
-        </a>
-      )
-    }
+  // HERO + idle: open the next-event panel (no dead-screen link). The panel is
+  // position:fixed (see .live-pill__panel--hero) so the hero's overflow:hidden
+  // can't clip it — the earlier clipping bug.
+  if (isHero && state.kind === 'idle') {
     return (
       <span className="live-pill__wrap">
         <button
@@ -132,13 +127,25 @@ export function LiveStatusPill({ variant = 'header' }: { variant?: Variant }) {
           className={className}
           aria-haspopup="dialog"
           aria-expanded={panelOpen}
-          onClick={() => setPanelOpen((o) => !o)}
+          onClick={() => {
+            // Compute the panel's fixed position from the trigger just before
+            // opening, so it sits under the pill but escapes the hero's clip.
+            const r = triggerRef.current?.getBoundingClientRect()
+            if (r) setHeroPanelPos({ top: r.bottom + 10, left: r.left })
+            setPanelOpen((o) => !o)
+          }}
         >
           {dot}
           {label}
         </button>
         {panelOpen && (
-          <div ref={panelRef} className="live-pill__panel" role="dialog" aria-label="Next session">
+          <div
+            ref={panelRef}
+            className="live-pill__panel live-pill__panel--hero"
+            role="dialog"
+            aria-label="Next session"
+            style={heroPanelPos ? { top: heroPanelPos.top, left: heroPanelPos.left } : undefined}
+          >
             <span className="live-pill__panel-title">Next session</span>
             {state.panel.schedule && <span className="live-pill__panel-schedule">{state.panel.schedule}</span>}
             <span className="live-pill__panel-resume">{state.panel.resumeLine}</span>
@@ -148,25 +155,46 @@ export function LiveStatusPill({ variant = 'header' }: { variant?: Variant }) {
     )
   }
 
-  // live / tonight / fallback: a link to /live.
+  // HEADER + idle: the live-room door. It LINKS to /live (that's the header's
+  // job now), but we still surface the next-event detail via title/aria so a
+  // guest isn't surprised by the waiting screen.
+  if (!isHero && state.kind === 'idle') {
+    return (
+      <a
+        href="/live"
+        className={className}
+        title={state.panel.schedule ? `Next session: ${state.panel.schedule}` : undefined}
+        aria-label={state.panel.schedule ? `Enter the live room — next session ${state.panel.schedule}` : 'Enter the live room'}
+      >
+        {dot}
+        {label}
+      </a>
+    )
+  }
+
+  // live / tonight / fallback: a link to /live (both placements). (Both idle
+  // cases returned above; the ?? '/live' just satisfies the type-narrower.)
+  const href = 'href' in state ? state.href : '/live'
   return (
-    <a href={state.href} className={className} aria-label={ariaLabelFor(state)}>
+    <a href={href} className={className} aria-label={ariaLabelFor(state, isHero)}>
       {dot}
       {label}
     </a>
   )
 }
 
-// A fuller label for assistive tech — the visible text is terse ("Live now"),
-// but a screen reader benefits from naming the destination.
-function ariaLabelFor(state: LivePillState): string {
+// A fuller label for assistive tech — the visible text is terse, but a screen
+// reader benefits from naming the destination. isHero picks the wording for the
+// placement (the hero frames status; the header frames "enter the live room").
+function ariaLabelFor(state: LivePillState, isHero: boolean): string {
+  const dest = isHero ? 'open the live telescope view' : 'enter the live room'
   switch (state.kind) {
     case 'live':
-      return 'Live now — open the live telescope view'
+      return `Live now — ${dest}`
     case 'tonight':
-      return `${state.label} — open the live telescope view`
+      return `${state.label} — ${dest}`
     case 'fallback':
-      return 'Open the live telescope view'
+      return isHero ? 'Open the live telescope view' : 'Enter the live room'
     default:
       return state.label
   }
