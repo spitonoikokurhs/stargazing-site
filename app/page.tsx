@@ -161,12 +161,18 @@ export default function HomePage() {
           </label>
 
           <nav>
+            {/* Grouped by purpose, with separators between groups:
+                (1) the service, (2) informative/night-sky, (3) Turkey
+                collaborations, (4) guest feedback. */}
             <a href="#gallery">Gallery</a>
             <a href="#partnerships">Partnerships</a>
             <a href="#about">About</a>
             <a href="#faq">FAQ</a>
+            <span className="nav-sep" aria-hidden="true"></span>
             <a href="/sky-calendar">Tonight&apos;s Sky</a>
+            <span className="nav-sep" aria-hidden="true"></span>
             <a href="/bodrum-hotelleri">Bodrum TR</a>
+            <span className="nav-sep" aria-hidden="true"></span>
             <a href="#guest-feedback">Feedback</a>
             <a href="#contact" className="btn primary">Contact</a>
           </nav>

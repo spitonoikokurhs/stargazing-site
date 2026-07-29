@@ -54,6 +54,18 @@ header{
 nav{display:flex;flex-wrap:nowrap;align-items:center;gap:12px}
 nav a{color:var(--text);white-space:nowrap}
 
+/* Group separators in the top nav — a thin vertical divider between the four
+   purpose groups (service · night-sky · Turkey · feedback) so the menu reads as
+   grouped rather than one long undifferentiated row. Restyled as a horizontal
+   rule inside the mobile dropdown (see the mobile breakpoint). */
+.nav-sep{
+  align-self:center;
+  width:1px;
+  height:20px;
+  background:var(--border);
+  flex:0 0 auto;
+}
+
 /* Mobile menu toggle (CSS-only, checkbox hack) — hidden on desktop. The full
    nav shows inline; the burger and its checkbox are display:none until the
    mobile breakpoint below flips them on. */
@@ -252,6 +264,26 @@ footer{padding:28px 0 40px;border-top:1px solid var(--border);color:var(--muted)
   .hero-inner{padding:96px 0 60px}
   .form-grid{grid-template-columns:1fr}
 
+  /* Mobile hero fit: on desktop the hero pins its content to the bottom of a
+     84vh band (align-items:end) which reads well there, but on a phone the
+     taller stacked copy + the live pill then overflowed the first fold — the
+     "Next event" pill was cut off until you scrolled. Let the hero grow to its
+     content and center it instead, so everything (pill included) lands within
+     the first screen. min-height uses svh where supported so the mobile URL bar
+     doesn't eat the fold. */
+  .hero{min-height:auto;align-items:center;padding:0}
+  @supports (min-height:100svh){ .hero{min-height:88svh} }
+  .hero-inner{padding:104px 0 44px}
+
+  /* The pillar (the hero subject) is horizontally centred in this wide panorama,
+     so keep the focal point centred left-to-right; center/center already does.
+     The crop that bit was VERTICAL — on a tall portrait viewport `cover` scales
+     the wide image up so much that the pillar's capital (top) drifts out of the
+     visible band. Bias the vertical focal point upward (35%) so the capital and
+     the arch of sky above it stay framed on first load. */
+  .hero-media{background-position:50% 35%}
+  .hero::before{background-position:50% 35%}
+
   /* ---- Mobile menu: burger toggles a full-width dropdown ---- */
   .nav-burger{
     display:inline-flex;
@@ -302,6 +334,28 @@ footer{padding:28px 0 40px;border-top:1px solid var(--border);color:var(--muted)
     font-size:1.05rem;
   }
   header nav a:last-child{border-bottom:none}
+  /* In the stacked dropdown the vertical divider makes no sense — turn each
+     separator into a slim spacer with a short centred accent tick, so the four
+     groups read as distinct blocks rather than one long list (the per-row
+     borders alone were too uniform to signal grouping). */
+  .nav-sep{
+    width:auto;
+    height:14px;
+    background:transparent;
+    position:relative;
+  }
+  .nav-sep::after{
+    content:"";
+    position:absolute;
+    left:0;
+    top:50%;
+    width:26px;
+    height:2px;
+    border-radius:2px;
+    background:var(--accent);
+    opacity:.55;
+    transform:translateY(-50%);
+  }
   /* The CTA button goes full-width at the end of the menu. */
   header nav .btn{
     margin-top:10px;
@@ -310,6 +364,15 @@ footer{padding:28px 0 40px;border-top:1px solid var(--border);color:var(--muted)
     border-bottom:none;
   }
   header nav .btn.primary{margin-top:8px}
+}
+
+/* Short phones (e.g. 360x740 and below): the headline + lead + CTA is a tall
+   stack. Trim the hero's top padding and headline leading so the "Next event"
+   pill still lands within the first fold rather than just under it. */
+@media (max-width:1080px) and (max-height:760px){
+  .hero-inner{padding:80px 0 32px}
+  .hero h1{font-size:clamp(1.5rem,5.4vw,2rem);line-height:1.08}
+  .hero-cta{margin-top:18px}
 }
 
 @media (prefers-reduced-motion: reduce){

@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import {
   deriveLivePillState,
   forcedStatusFromQuery,
@@ -35,6 +36,10 @@ export function LiveStatusPill({ variant = 'header' }: { variant?: Variant }) {
   // the trigger, so the popover escapes the hero's overflow:hidden clip. null =
   // use the default absolute positioning (header).
   const [heroPanelPos, setHeroPanelPos] = useState<{ top: number; left: number } | null>(null)
+  // Client-mounted flag: the hero panel is portaled to document.body (to escape
+  // the hero's transformed ancestor, which would otherwise trap position:fixed),
+  // and createPortal needs document — so it must be false during SSR/first paint.
+  const [mounted, setMounted] = useState(false)
   // Guard against a slow/stale fetch resolving after unmount.
   const mountedRef = useRef(true)
 
@@ -54,6 +59,7 @@ export function LiveStatusPill({ variant = 'header' }: { variant?: Variant }) {
 
   useEffect(() => {
     mountedRef.current = true
+    setMounted(true)
     // ?pill-demo=live|tonight|idle (review-only, see forcedStatusFromQuery):
     // pin a synthetic status and skip polling entirely, so a reviewer can hold
     // a state still. Resolved in the effect (not during render) so the server
@@ -128,29 +134,49 @@ export function LiveStatusPill({ variant = 'header' }: { variant?: Variant }) {
           aria-haspopup="dialog"
           aria-expanded={panelOpen}
           onClick={() => {
-            // Compute the panel's fixed position from the trigger just before
-            // opening, so it sits under the pill but escapes the hero's clip.
+            // Position the fixed panel from the trigger's viewport rect (so it
+            // escapes the hero's overflow:hidden). Flip ABOVE the pill when there
+            // isn't room below — the hero pill sits low on the page, so a
+            // below-panel would open off the bottom of the screen and look like
+            // "nothing happened" (the bug this fixes).
             const r = triggerRef.current?.getBoundingClientRect()
-            if (r) setHeroPanelPos({ top: r.bottom + 10, left: r.left })
+            if (r) {
+              const PANEL_H = 150 // approx; enough to decide above/below
+              const below = r.bottom + 10
+              const roomBelow = window.innerHeight - r.bottom
+              const openAbove = roomBelow < PANEL_H + 20
+              // Clamp left so a wide panel never runs off the right edge.
+              const left = Math.min(r.left, window.innerWidth - 260)
+              setHeroPanelPos({
+                top: openAbove ? Math.max(10, r.top - PANEL_H - 10) : below,
+                left: Math.max(10, left),
+              })
+            }
             setPanelOpen((o) => !o)
           }}
         >
           {dot}
           {label}
         </button>
-        {panelOpen && (
-          <div
-            ref={panelRef}
-            className="live-pill__panel live-pill__panel--hero"
-            role="dialog"
-            aria-label="Next session"
-            style={heroPanelPos ? { top: heroPanelPos.top, left: heroPanelPos.left } : undefined}
-          >
-            <span className="live-pill__panel-title">Next session</span>
-            {state.panel.schedule && <span className="live-pill__panel-schedule">{state.panel.schedule}</span>}
-            <span className="live-pill__panel-resume">{state.panel.resumeLine}</span>
-          </div>
-        )}
+        {panelOpen &&
+          mounted &&
+          createPortal(
+            // Portaled to <body> so no transformed hero ancestor traps the
+            // position:fixed panel (a transform/filter ancestor makes `fixed`
+            // relative to IT, not the viewport — that put the panel off-screen).
+            <div
+              ref={panelRef}
+              className="live-pill__panel live-pill__panel--hero"
+              role="dialog"
+              aria-label="Next session"
+              style={heroPanelPos ? { top: heroPanelPos.top, left: heroPanelPos.left } : undefined}
+            >
+              <span className="live-pill__panel-title">Next session</span>
+              {state.panel.schedule && <span className="live-pill__panel-schedule">{state.panel.schedule}</span>}
+              <span className="live-pill__panel-resume">{state.panel.resumeLine}</span>
+            </div>,
+            document.body,
+          )}
       </span>
     )
   }
