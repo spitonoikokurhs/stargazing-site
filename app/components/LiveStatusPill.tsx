@@ -102,10 +102,23 @@ export function LiveStatusPill({ variant = 'header' }: { variant?: Variant }) {
   const dot = <span className={`live-pill__dot live-pill__dot--${dotKind}`} aria-hidden="true" />
   const label = <span className="live-pill__label">{state.label}</span>
 
-  // Idle state: the pill is a BUTTON that toggles the off-event panel (it does
-  // NOT navigate to /live — there's no live view to show). Every other state is
-  // a LINK straight to /live.
+  // Idle state:
+  //  - HEADER: a BUTTON that toggles the off-event "next session" panel (the
+  //    header isn't clipped, so the popover shows fine).
+  //  - HERO: a plain LINK to /live instead. The hero has overflow:hidden (for
+  //    its background image/animation), which CLIPPED the popover — a part of it
+  //    was cut off. The label now already carries the next-session date, so a
+  //    link loses no info and just opens /live (which shows the off-event/next
+  //    screen anyway). No popover in the hero = nothing to clip.
   if (state.kind === 'idle') {
+    if (variant === 'hero') {
+      return (
+        <a href="/live" className={className} aria-label={`${state.label} — open the live telescope view`}>
+          {dot}
+          {label}
+        </a>
+      )
+    }
     return (
       <span className="live-pill__wrap">
         <button

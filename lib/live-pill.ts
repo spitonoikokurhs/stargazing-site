@@ -56,7 +56,7 @@ export type NextSessionPanel = {
   resumeLine: string
 }
 
-const NEUTRAL_FALLBACK_LABEL = 'Live'
+const NEUTRAL_FALLBACK_LABEL = 'Watch live'
 const RESUME_KNOWN = 'The live telescope view returns then.'
 const RESUME_UNKNOWN = 'Next session coming soon.'
 
@@ -146,19 +146,22 @@ export function deriveLivePillState(res: LiveStatusResponse | null): LivePillSta
     return { kind: 'fallback', label: NEUTRAL_FALLBACK_LABEL, href: '/live' }
   }
 
-  // 2. Live now.
+  // 2. Live now. "Watch live" makes the action unmistakable (a first-time
+  //    visitor shouldn't have to guess what the pill does).
   if (res.live === true) {
-    return { kind: 'live', label: 'Live now', href: '/live' }
+    return { kind: 'live', label: 'Watch live now', href: '/live' }
   }
 
-  // 3. Event today, not cancelled -> upcoming countdown to its start time.
+  // 3. Event today, not cancelled -> upcoming; still frames it as the live view.
   const tonight = res.tonight
   if (tonight && tonight.cancelled !== true) {
-    return { kind: 'tonight', label: `Live at ${tonight.start}`, href: '/live' }
+    return { kind: 'tonight', label: `Live telescope tonight, ${tonight.start}`, href: '/live' }
   }
 
-  // 4. Idle: no event today (or tonight cancelled) -> next-session panel.
+  // 4. Idle: no event today (or tonight cancelled) -> next-session panel. Lead
+  //    with WHAT it is ("Live telescope") so the date reads as its next session,
+  //    not a mystery countdown.
   const next = res.next ?? null
-  const label = next ? `Next: ${athensWeekday(next.date)} ${next.start}` : NEUTRAL_FALLBACK_LABEL
+  const label = next ? `Live telescope · next ${athensWeekday(next.date)} ${next.start}` : NEUTRAL_FALLBACK_LABEL
   return { kind: 'idle', label, opensPanel: true, panel: buildNextSessionPanel(next) }
 }

@@ -20,7 +20,7 @@ const NEXT = { date: '2026-07-23', hotelId: 'paralos-kyma-dunes', start: '21:30'
 {
   const s = deriveLivePillState({ live: true, tonight: null, next: NEXT })
   assert('live=true -> kind live', s.kind === 'live', s.kind)
-  assert('live -> label "Live now"', s.label === 'Live now', s.label)
+  assert('live -> label "Watch live now"', s.label === 'Watch live now', s.label)
   assert('live -> href /live', s.href === '/live')
 }
 
@@ -28,7 +28,7 @@ const NEXT = { date: '2026-07-23', hotelId: 'paralos-kyma-dunes', start: '21:30'
 {
   const s = deriveLivePillState({ live: false, tonight: { hotelId: 'oku-kos', start: '21:30', end: '22:30' }, next: NEXT })
   assert('tonight -> kind tonight', s.kind === 'tonight', s.kind)
-  assert('tonight -> label "Live at 21:30"', s.label === 'Live at 21:30', s.label)
+  assert('tonight -> label "Live telescope tonight, 21:30"', s.label === 'Live telescope tonight, 21:30', s.label)
   assert('tonight -> href /live', s.href === '/live')
 }
 
@@ -37,7 +37,7 @@ const NEXT = { date: '2026-07-23', hotelId: 'paralos-kyma-dunes', start: '21:30'
   const s = deriveLivePillState({ live: false, tonight: { hotelId: 'oku-kos', start: '21:30', end: '22:30', cancelled: true }, next: NEXT })
   assert('cancelled tonight -> NOT tonight state', s.kind !== 'tonight', s.kind)
   assert('cancelled tonight -> idle (uses next)', s.kind === 'idle', s.kind)
-  assert('cancelled tonight -> label uses next weekday/time', /^Next: \w+ 21:30$/.test(s.label), s.label)
+  assert('cancelled tonight -> label uses next weekday/time', /^Live telescope · next \w+ 21:30$/.test(s.label), s.label)
 }
 
 // --- idle (no event today) -> panel with schedule anchor ---
@@ -49,14 +49,14 @@ const NEXT = { date: '2026-07-23', hotelId: 'paralos-kyma-dunes', start: '21:30'
   assert('idle -> panel schedule "Thursday 23 July · 21:30 · Paralos Kyma Dunes"',
     s.panel.schedule === 'Thursday 23 July · 21:30 · Paralos Kyma Dunes', s.panel.schedule)
   assert('idle -> resume line known', s.panel.resumeLine === 'The live telescope view returns then.', s.panel.resumeLine)
-  assert('idle -> label "Next: Thursday 21:30"', s.label === 'Next: Thursday 21:30', s.label)
+  assert('idle -> label "Live telescope · next Thursday 21:30"', s.label === 'Live telescope · next Thursday 21:30', s.label)
 }
 
 // --- idle with next=null -> graceful coming-soon, no empty fields ---
 {
   const s = deriveLivePillState({ live: false, tonight: null, next: null })
   assert('no next -> kind idle', s.kind === 'idle', s.kind)
-  assert('no next -> label neutral "Live"', s.label === 'Live', s.label)
+  assert('no next -> label neutral "Watch live"', s.label === 'Watch live', s.label)
   assert('no next -> panel schedule null', s.panel.schedule === null, String(s.panel.schedule))
   assert('no next -> resume "Next session coming soon."', s.panel.resumeLine === 'Next session coming soon.', s.panel.resumeLine)
 }
@@ -65,7 +65,7 @@ const NEXT = { date: '2026-07-23', hotelId: 'paralos-kyma-dunes', start: '21:30'
 {
   const s = deriveLivePillState({ live: false, tonight: null, next: NEXT, degraded: true })
   assert('degraded -> kind fallback', s.kind === 'fallback', s.kind)
-  assert('degraded -> label "Live"', s.label === 'Live', s.label)
+  assert('degraded -> label "Watch live"', s.label === 'Watch live', s.label)
   assert('degraded -> href /live', s.href === '/live')
 }
 
@@ -73,7 +73,7 @@ const NEXT = { date: '2026-07-23', hotelId: 'paralos-kyma-dunes', start: '21:30'
 {
   const s = deriveLivePillState(null)
   assert('null response -> kind fallback', s.kind === 'fallback', s.kind)
-  assert('null response -> label "Live"', s.label === 'Live', s.label)
+  assert('null response -> label "Watch live"', s.label === 'Watch live', s.label)
   assert('null response -> href /live (never broken pill)', s.href === '/live')
 }
 
@@ -110,7 +110,7 @@ const NEXT = { date: '2026-07-23', hotelId: 'paralos-kyma-dunes', start: '21:30'
   assert('sequence: first shows live', live.kind === 'live')
   const afterFail = deriveLivePillState(null) // the failed poll cleared status to null
   assert('sequence: fetch-fail AFTER live -> neutral fallback (not stale live)', afterFail.kind === 'fallback', afterFail.kind)
-  assert('sequence: fetch-fail AFTER live -> label "Live" (not "Live now")', afterFail.label === 'Live', afterFail.label)
+  assert('sequence: fetch-fail AFTER live -> label "Watch live" (not "Watch live now")', afterFail.label === 'Watch live', afterFail.label)
   assert('sequence: fetch-fail AFTER live -> still links to /live', afterFail.href === '/live')
 }
 
@@ -122,7 +122,7 @@ const NEXT = { date: '2026-07-23', hotelId: 'paralos-kyma-dunes', start: '21:30'
   // the realistic production shape always has start, but assert no throw + a
   // string label.
   const s = deriveLivePillState({ live: false, tonight: null, next: null })
-  assert('malformed/empty payload -> never throws, idle w/ neutral label', s.kind === 'idle' && s.label === 'Live')
+  assert('malformed/empty payload -> never throws, idle w/ neutral label', s.kind === 'idle' && s.label === 'Watch live')
   // next:null must never render "Next: undefined"
   assert('next:null -> label has no "undefined"', !/undefined/.test(s.label), s.label)
 }
