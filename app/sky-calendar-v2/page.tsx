@@ -5,14 +5,14 @@ import {
   twilightPhases,
   nightSummary,
   planetsTonight,
-  altitudeCurves,
+  nightCurves,
   moonWeek,
   zoneAbbrev,
   type Interval,
 } from '@/lib/ephemeris'
 import { upcomingCelestialEvents } from '@/lib/celestial-events'
 import { MoonPhaseIcon, PlanetIcon, EventIcon, RiseSetArrow, TwilightIcon, type TwilightRowKind } from '../sky-calendar/sky-icons'
-import { AltitudeChart, DayNightBar } from '../sky-calendar/sky-chart'
+import { NightAltitudeChart, NightBar } from './sky-v2-chart'
 import { verdictHeadline, moonlessPhrase, howWedPlayIt } from './verdict'
 import './sky-v2.css'
 
@@ -56,7 +56,7 @@ export default async function SkyCalendarV2({
   const planets = planetsTonight(city, when, tw)
   const visible = planets.filter((p) => p.visible)
   const hidden = planets.filter((p) => !p.visible)
-  const curves = altitudeCurves(city, when, now)
+  const curves = nightCurves(city, when, tw, now)
   const week = moonWeek(now, 7)
   const events = upcomingCelestialEvents(when, 120)
 
@@ -64,6 +64,15 @@ export default async function SkyCalendarV2({
   const headline = verdictHeadline(night)
   const moonless = moonlessPhrase(night)
   const play = howWedPlayIt(night, planets)
+
+  // Is the shown date actually today in the city's zone? Drives "Tonight in Kos"
+  // vs. a dated eyebrow like "Fri 14 Aug · Kos" — the eyebrow must not say
+  // "tonight" when the guest has stepped to another night.
+  const localYmdFmt = new Intl.DateTimeFormat('en-CA', { timeZone: city.tz, year: 'numeric', month: '2-digit', day: '2-digit' })
+  const isToday = localYmdFmt.format(now) === localYmdFmt.format(when)
+  const eyebrowLabel = isToday
+    ? `Tonight in ${city.name}`
+    : `${new Date(when).toLocaleDateString('en-GB', { timeZone: city.tz, weekday: 'short', day: 'numeric', month: 'long' })} · ${city.name}`
 
   // City + date hrefs preserve the other params (and the detail flag).
   const hrefWith = (over: Partial<{ city: string; date: string; detail: string }>) => {
@@ -76,9 +85,8 @@ export default async function SkyCalendarV2({
     return `/sky-calendar-v2?${p.toString()}`
   }
 
-  const localYmd = new Intl.DateTimeFormat('en-CA', { timeZone: city.tz, year: 'numeric', month: '2-digit', day: '2-digit' })
-  const nightYmd = (offset: number) => localYmd.format(new Date(now.getTime() + offset * 86_400_000))
-  const shownYmd = localYmd.format(when)
+  const nightYmd = (offset: number) => localYmdFmt.format(new Date(now.getTime() + offset * 86_400_000))
+  const shownYmd = localYmdFmt.format(when)
   const dayLabel = (offset: number) =>
     offset === 0 ? 'Tonight' : new Date(now.getTime() + offset * 86_400_000).toLocaleDateString('en-GB', { timeZone: city.tz, weekday: 'short' })
 
@@ -117,9 +125,9 @@ export default async function SkyCalendarV2({
         </div>
 
         {/* HERO — the verdict, not the controls. */}
-        <section className="v2-hero" aria-label="Tonight’s verdict">
+        <section className="v2-hero" aria-label="Sky verdict">
           <div className="v2-hero-main">
-            <p className="v2-eyebrow">Tonight in {city.name}</p>
+            <p className="v2-eyebrow">{eyebrowLabel}</p>
             <h1 className="v2-headline">{headline}</h1>
             <p className="v2-moonless">
               {night.grade !== 'no-dark' && night.darkStart && night.darkEnd ? (
@@ -138,9 +146,10 @@ export default async function SkyCalendarV2({
           </div>
         </section>
 
-        {/* Day/night bar — the single time visualisation on the default view. */}
+        {/* Night bar — cropped to the night (sunset−2h → sunrise+2h), so the
+            dark hours fill the bar instead of being crushed by daytime. */}
         <div className="v2-bar">
-          <DayNightBar curves={curves} tw={tw} />
+          <NightBar curves={curves} tz={city.tz} />
         </div>
 
         {/* How we'd play it -> CTA (commercial as conclusion). */}
@@ -202,9 +211,9 @@ export default async function SkyCalendarV2({
         {/* Altitude chart — FULL DETAIL ONLY (handoff: not on the default view). */}
         {full && (
           <details className="v2-disclosure" open>
-            <summary>Sun &amp; Moon altitude <span className="v2-plus">+</span></summary>
-            <div className="v2-chart-wrap"><AltitudeChart curves={curves} /></div>
-            <p className="v2-muted">Altitude over 24h ({tz}). A target is easy to observe when its curve is high during the shaded dark band.</p>
+            <summary>Sun, Moon &amp; planet altitude <span className="v2-plus">+</span></summary>
+            <div className="v2-chart-wrap"><NightAltitudeChart curves={curves} tz={city.tz} /></div>
+            <p className="v2-muted">Altitude across the night ({tz}), sunset to sunrise. A target is easy to observe when its curve is high during the shaded dark band. Tap “show planets” to overlay them.</p>
           </details>
         )}
 

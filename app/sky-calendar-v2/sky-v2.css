@@ -128,39 +128,64 @@
 .v2-grade-bright .v2-accent,
 .v2-grade-mixed .v2-accent { color: var(--gold); }
 
-/* ---- day/night bar ---- */
-/* The shared DayNightBar component (app/sky-calendar/sky-chart.tsx) uses
-   .sky-daynight* class names; v2 doesn't import sky-calendar.css, so those
-   styles are restated here (scoped under .v2-bar) or the hour labels render as
-   a run-together string with no bar. */
+/* ---- night bar (cropped to sunset−2h → sunrise+2h) ---- */
 .v2-bar { margin: 20px 0 0; }
-.v2-bar .sky-daynight-bar {
+.v2-nightbar-track {
   position: relative;
-  height: 20px;
+  height: 22px;
   border-radius: 6px;
-  background: linear-gradient(180deg, rgba(232, 197, 131, 0.32), rgba(232, 197, 131, 0.14));
+  /* the padding on each side is the near-day 'shoulder'; twilight bands sit on top */
+  background: linear-gradient(180deg, rgba(232, 197, 131, 0.22), rgba(232, 197, 131, 0.1));
   border: 1px solid var(--edge);
   overflow: hidden;
 }
-.v2-bar .sky-daynight-tw { position: absolute; top: 0; bottom: 0; }
-.v2-bar .sky-daynight-tw--civil { background: rgba(40, 58, 96, 0.55); }
-.v2-bar .sky-daynight-tw--nautical { background: rgba(30, 44, 78, 0.75); }
-.v2-bar .sky-daynight-tw--astronomical { background: rgba(22, 32, 60, 0.88); }
-.v2-bar .sky-daynight-tw--dark { background: rgba(14, 20, 40, 0.96); }
-.v2-bar .sky-daynight-mark { position: absolute; top: -2px; bottom: -2px; width: 2px; transform: translateX(-1px); z-index: 1; }
-.v2-bar .sky-daynight-mark--set { background: #d98a54; }
-.v2-bar .sky-daynight-now {
+.v2-nightbar-tw { position: absolute; top: 0; bottom: 0; }
+.v2-nightbar-tw--civil { background: rgba(40, 58, 96, 0.55); }
+.v2-nightbar-tw--nautical { background: rgba(30, 44, 78, 0.75); }
+.v2-nightbar-tw--astronomical { background: rgba(22, 32, 60, 0.9); }
+.v2-nightbar-tw--dark { background: rgba(12, 18, 36, 0.97); }
+.v2-nightbar-now {
   position: absolute; top: 50%; width: 9px; height: 9px; border-radius: 50%;
-  background: var(--teal); box-shadow: 0 0 8px rgba(126, 224, 196, 0.8);
+  background: var(--teal); box-shadow: 0 0 8px rgba(126, 224, 196, 0.85);
   transform: translate(-50%, -50%); z-index: 2;
 }
-.v2-bar .sky-daynight-hours { position: relative; height: 16px; margin-top: 3px; }
-.v2-bar .sky-daynight-hours span {
+.v2-nightbar-hours { position: relative; height: 16px; margin-top: 3px; }
+.v2-nightbar-hours span {
   position: absolute; transform: translateX(-50%);
   font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums;
 }
-.v2-bar .sky-daynight-hours span:first-child { transform: translateX(0); }
-.v2-bar .sky-daynight-hours span:last-child { transform: translateX(-100%); }
+
+/* ---- night altitude chart + planet toggle ---- */
+.v2-nightchart { margin-top: 6px; }
+.v2-planet-check { position: absolute; opacity: 0; pointer-events: none; }
+.v2-chart-legend {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 8px 16px;
+  margin-bottom: 10px; font-size: 12.5px; color: var(--muted);
+}
+.v2-leg { display: inline-flex; align-items: center; gap: 7px; }
+.v2-leg-line { width: 16px; height: 3px; border-radius: 2px; }
+.v2-leg-line--sun { background: #e8c583; }
+.v2-leg-line--moon { background: #c7d2e0; }
+.v2-planet-toggle-btn {
+  margin-left: auto;
+  padding: 5px 12px;
+  border: 1px solid var(--edge);
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  user-select: none;
+}
+.v2-planet-toggle-btn:hover { color: var(--ink); border-color: rgba(150, 180, 220, 0.3); }
+/* planet curves hidden until the checkbox is checked */
+.v2-planet-curves { display: none; }
+.v2-planet-check:checked ~ .v2-nightchart-svg .v2-planet-curves { display: inline; }
+.v2-planet-check:checked ~ .v2-chart-legend .v2-planet-toggle-btn {
+  color: var(--ink); border-color: rgba(126, 224, 196, 0.4); background: rgba(126, 224, 196, 0.08);
+}
+.v2-nightchart-svg { display: block; width: 100%; min-width: 320px; height: auto; }
+.v2-chart-axis { fill: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
 
 /* ---- how we'd play it ---- */
 .v2-play {
@@ -244,11 +269,7 @@
 .v2-ladder-label { display: inline-flex; align-items: center; gap: 9px; }
 .v2-ladder-ic { display: inline-flex; line-height: 0; }
 .v2-ladder-time { font-variant-numeric: tabular-nums; white-space: nowrap; }
-.v2-chart-wrap { margin-top: 14px; overflow-x: auto; }
-/* AltitudeChart uses .sky-altchart* — restate the minimum here (v2 doesn't
-   import sky-calendar.css). */
-.v2-chart-wrap .sky-altchart { display: block; width: 100%; min-width: 460px; height: auto; }
-.v2-chart-wrap .sky-altchart-axis { fill: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+.v2-chart-wrap { margin-top: 14px; }
 
 /* ---- week strip ---- */
 .v2-week { margin: 30px 0 0; }

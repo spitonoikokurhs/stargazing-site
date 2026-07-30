@@ -378,6 +378,74 @@ export function altitudeCurves(city: City, whenUtc: Date, nowUtc: Date): AltCurv
   }
 }
 
+// ---- Night-windowed curves (v2 chart) ----------------------------------------
+// Same idea as altitudeCurves, but the x-axis is the NIGHT — from ~2h before
+// sunset to ~2h after sunrise — instead of a full calendar day. A 24h axis
+// spends half its width on daylight nobody is outside for (see handoff §10);
+// cropping to the night makes the important part fill the chart and reads far
+// better on a phone. The window can cross midnight, so x is ABSOLUTE epoch-ms
+// mapped to [winStart, winEnd] by the renderer. Planets are included so the
+// chart can offer a "show planets" toggle.
+export type NightCurve = { t: number; altitude: number } // t = epoch ms
+export type NightPlanetCurve = { name: string; samples: NightCurve[] }
+export type NightCurves = {
+  winStart: number // epoch ms — ~2h before sunset
+  winEnd: number // epoch ms — ~2h after sunrise
+  sun: NightCurve[]
+  moon: NightCurve[]
+  planets: NightPlanetCurve[]
+  // Graded twilight bands as absolute-time spans within the window.
+  twilightBands: { start: number; end: number; level: TwilightLevel }[]
+  nowMs: number | null // epoch ms of "now" if the shown night is current, else null
+}
+
+const NIGHT_PAD_MS = 2 * 3600_000 // 2h padding each side of sunset/sunrise
+
+export function nightCurves(city: City, whenUtc: Date, tw: TwilightPhases, nowUtc: Date): NightCurves {
+  const localDate = cityLocalDateString(whenUtc, city.tz)
+  const midnight = cityMidnightUtc(localDate, city.tz)
+  // Fall back to 20:00→06:00 local if sunset/sunrise are absent (never-dark edge).
+  const sunset = tw.sunset?.date ?? new Date(midnight.getTime() + 20 * 3600_000)
+  const sunrise = tw.sunrise?.date ?? new Date(midnight.getTime() + 30 * 3600_000)
+  const winStart = sunset.getTime() - NIGHT_PAD_MS
+  const winEnd = sunrise.getTime() + NIGHT_PAD_MS
+  const stepMs = ALT_SAMPLE_STEP_MIN * 60_000
+
+  const altOf = (target: Notable, t: number) => altAz(city, target, new Date(t)).altitude
+  const sun: NightCurve[] = []
+  const moon: NightCurve[] = []
+  for (let t = winStart; t <= winEnd; t += stepMs) {
+    sun.push({ t, altitude: altOf({ kind: 'body', name: 'Sun', body: Body.Sun }, t) })
+    moon.push({ t, altitude: altOf({ kind: 'body', name: 'the Moon', body: Body.Moon }, t) })
+  }
+
+  const planets: NightPlanetCurve[] = PLANET_BODIES.map(({ name, body }) => {
+    const samples: NightCurve[] = []
+    for (let t = winStart; t <= winEnd; t += stepMs) samples.push({ t, altitude: altOf({ kind: 'body', name, body }, t) })
+    return { name, samples }
+  })
+
+  // Graded twilight bands from the sun samples, as absolute-time spans.
+  const levelForSun = (alt: number): TwilightLevel =>
+    alt >= 0 ? 'day' : alt >= -6 ? 'civil' : alt >= -12 ? 'nautical' : alt >= -18 ? 'astronomical' : 'dark'
+  const twilightBands: { start: number; end: number; level: TwilightLevel }[] = []
+  let bandLevel: TwilightLevel | null = null
+  let bandStart = winStart
+  for (const s of sun) {
+    const lvl = levelForSun(s.altitude)
+    if (lvl !== bandLevel) {
+      if (bandLevel !== null && bandLevel !== 'day') twilightBands.push({ start: bandStart, end: s.t, level: bandLevel })
+      bandLevel = lvl
+      bandStart = s.t
+    }
+  }
+  if (bandLevel !== null && bandLevel !== 'day') twilightBands.push({ start: bandStart, end: winEnd, level: bandLevel })
+
+  const nowMs = cityLocalDateString(nowUtc, city.tz) === localDate ? nowUtc.getTime() : null
+
+  return { winStart, winEnd, sun, moon, planets, twilightBands, nowMs }
+}
+
 // Is it dark enough at this city/instant to bother naming sky objects? Gate the
 // flavor lines on the Sun being below civil-ish dusk so we never say "Saturn's
 // up" in daylight.
