@@ -1,10 +1,12 @@
 // Night-windowed altitude chart + day/night bar for /sky-calendar-v2. Unlike the
 // shared sky-chart (a full 00:00..24:00 axis), these crop to the NIGHT — ~2h
 // before sunset to ~2h after sunrise — so the important hours fill the width and
-// it reads well on a phone (handoff §10). Pure SVG, server-rendered. A planet
-// overlay is toggled with a CSS-only checkbox so the page stays zero-JS.
+// it reads well on a phone (handoff §10). The altitude chart precomputes all
+// SVG geometry HERE (server) and hands ready-made path strings to a small client
+// component that only manages series visibility (so ephemeris stays server-side).
 
 import type { NightCurves, NightCurve } from '@/lib/ephemeris'
+import { NightChartClient, type ChartGeometry } from './NightChartClient'
 
 const W = 720
 const H = 240
@@ -19,11 +21,14 @@ const ALT_MAX = 90
 
 // Per-planet stroke colour (off-white tints + the two accents only would collide,
 // so planets get muted distinct hues but stay subordinate to sun/moon).
+// Distinct from the Sun's gold (#e8c583), the Moon's silver (#c7d2e0) AND the
+// teal (#7ee0c4, reserved for darkness/now). Only one planet shows at a time, so
+// each needs to separate from Sun/Moon/teal, not from the other planets.
 const PLANET_COLORS: Record<string, string> = {
-  Venus: '#f2d999',
-  Mars: '#e2724f',
-  Jupiter: '#d8c39a',
-  Saturn: '#cbb98f',
+  Venus: '#8fc4e6', // pale blue
+  Mars: '#e2724f', // rust
+  Jupiter: '#c79be0', // soft violet
+  Saturn: '#e39ab8', // dusty rose
 }
 
 const TWILIGHT_FILL: Record<string, string> = {
@@ -40,80 +45,31 @@ export function NightAltitudeChart({ curves, tz }: { curves: NightCurves; tz: st
   const path = (samples: NightCurve[]) =>
     samples.map((s, i) => `${i === 0 ? 'M' : 'L'} ${xFor(s.t).toFixed(1)} ${yFor(s.altitude).toFixed(1)}`).join(' ')
 
-  // Hour ticks: every 2h across the window, labelled 24h local.
-  const ticks: { x: number; label: string }[] = []
   const twoH = 2 * 3600_000
   const firstTick = Math.ceil(curves.winStart / twoH) * twoH
+  const hourTicks: { x: number; label: string }[] = []
   for (let t = firstTick; t <= curves.winEnd; t += twoH) {
     const hh = new Intl.DateTimeFormat('en-GB', { timeZone: tz, hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date(t))
-    ticks.push({ x: xFor(t), label: hh.slice(0, 2) })
+    hourTicks.push({ x: xFor(t), label: hh.slice(0, 2) })
   }
-  const altTicks = [60, 30, 0, -30]
-  const nowX = curves.nowMs != null && curves.nowMs >= curves.winStart && curves.nowMs <= curves.winEnd ? xFor(curves.nowMs) : null
 
-  return (
-    <div className="v2-nightchart">
-      {/* CSS-only planet selector: a radio group shows ONE planet at a time
-          (all four at once was a tangle). Each radio reveals only its own curve
-          via a body class on the SVG. Radios live before the SVG so the sibling
-          selectors reach it. "Off" is the default. */}
-      <input type="radio" name="v2-planet-sel" id="v2-pl-off" className="v2-plsel v2-plsel--off" defaultChecked />
-      {curves.planets.map((pl) => (
-        <input key={pl.name} type="radio" name="v2-planet-sel" id={`v2-pl-${pl.name}`} className={`v2-plsel v2-plsel--${pl.name}`} />
-      ))}
-      <div className="v2-chart-legend">
-        <span className="v2-leg"><span className="v2-leg-line v2-leg-line--sun" />Sun</span>
-        <span className="v2-leg"><span className="v2-leg-line v2-leg-line--moon" />Moon</span>
-        <span className="v2-plseg" role="group" aria-label="Overlay a planet">
-          <label htmlFor="v2-pl-off" className="v2-plseg-btn v2-plseg-btn--off">Off</label>
-          {curves.planets.map((pl) => (
-            <label key={pl.name} htmlFor={`v2-pl-${pl.name}`} className="v2-plseg-btn" style={{ ['--pl' as string]: PLANET_COLORS[pl.name] ?? '#c7ced8' }}>
-              {pl.name}
-            </label>
-          ))}
-        </span>
-      </div>
-      <svg viewBox={`0 0 ${W} ${H}`} className="v2-nightchart-svg" role="img" aria-label="Sun, Moon and planet altitude across the night" preserveAspectRatio="xMidYMid meet">
-        {/* graded twilight shading */}
-        {curves.twilightBands.map((b, i) => (
-          <rect key={i} x={xFor(b.start)} y={PAD_T} width={Math.max(0, xFor(b.end) - xFor(b.start))} height={PLOT_H} fill={TWILIGHT_FILL[b.level] ?? TWILIGHT_FILL.dark} />
-        ))}
-        {/* altitude gridlines */}
-        {altTicks.map((a) => (
-          <g key={a}>
-            <line x1={PAD_L} x2={W - PAD_R} y1={yFor(a)} y2={yFor(a)} stroke={a === 0 ? 'rgba(234,231,223,0.34)' : 'rgba(150,180,220,0.12)'} strokeWidth={a === 0 ? 1.2 : 1} strokeDasharray={a === 0 ? undefined : '3 4'} />
-            <text x={PAD_L - 6} y={yFor(a) + 3.5} textAnchor="end" className="v2-chart-axis">{a > 0 ? `+${a}°` : `${a}°`}</text>
-          </g>
-        ))}
-        {/* hour ticks */}
-        {ticks.map((tk, i) => (
-          <text key={i} x={tk.x} y={H - 9} textAnchor="middle" className="v2-chart-axis">{tk.label}</text>
-        ))}
-        {/* one planet curve per group, each hidden unless its radio is checked */}
-        {curves.planets.map((pl) => (
-          <path
-            key={pl.name}
-            className={`v2-plcurve v2-plcurve--${pl.name}`}
-            d={path(pl.samples)}
-            fill="none"
-            stroke={PLANET_COLORS[pl.name] ?? '#c7ced8'}
-            strokeWidth={1.8}
-            strokeLinejoin="round"
-          />
-        ))}
-        {/* moon (silver), then sun (gold) on top */}
-        <path d={path(curves.moon)} fill="none" stroke="#c7d2e0" strokeWidth={2} strokeLinejoin="round" opacity={0.9} />
-        <path d={path(curves.sun)} fill="none" stroke="#e8c583" strokeWidth={2.4} strokeLinejoin="round" />
-        {/* now marker */}
-        {nowX != null && (
-          <g>
-            <line x1={nowX} x2={nowX} y1={PAD_T} y2={PAD_T + PLOT_H} stroke="#7ee0c4" strokeWidth={1.4} strokeDasharray="2 3" />
-            <circle cx={nowX} cy={PAD_T} r={2.6} fill="#7ee0c4" />
-          </g>
-        )}
-      </svg>
-    </div>
-  )
+  // All geometry precomputed server-side; the client component only toggles.
+  const geo: ChartGeometry = {
+    viewBox: `0 0 ${W} ${H}`,
+    padT: PAD_T,
+    plotH: PLOT_H,
+    plotL: PAD_L,
+    plotR: W - PAD_R,
+    sunPath: path(curves.sun),
+    moonPath: path(curves.moon),
+    planets: curves.planets.map((pl) => ({ name: pl.name, color: PLANET_COLORS[pl.name] ?? '#c7ced8', path: path(pl.samples) })),
+    twilight: curves.twilightBands.map((b) => ({ x: xFor(b.start), w: Math.max(0, xFor(b.end) - xFor(b.start)), fill: TWILIGHT_FILL[b.level] ?? TWILIGHT_FILL.dark })),
+    altTicks: [60, 30, 0, -30].map((a) => ({ a, y: yFor(a), label: a > 0 ? `+${a}°` : `${a}°` })),
+    hourTicks,
+    nowX: curves.nowMs != null && curves.nowMs >= curves.winStart && curves.nowMs <= curves.winEnd ? xFor(curves.nowMs) : null,
+  }
+
+  return <NightChartClient geo={geo} />
 }
 
 // Compact night bar: the twilight bands across the same night window, with a

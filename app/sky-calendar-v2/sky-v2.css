@@ -155,21 +155,35 @@
   font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums;
 }
 
-/* ---- night altitude chart + one-at-a-time planet selector ---- */
+/* ---- night altitude chart + series toggles ---- */
 .v2-nightchart { margin-top: 6px; }
-.v2-plsel { position: absolute; opacity: 0; pointer-events: none; }
 .v2-chart-legend {
-  display: flex; align-items: center; flex-wrap: wrap; gap: 8px 16px;
-  margin-bottom: 10px; font-size: 12.5px; color: var(--muted);
+  display: flex; align-items: center; flex-wrap: wrap; gap: 8px 10px;
+  margin-bottom: 10px; font-size: 12.5px;
 }
-.v2-leg { display: inline-flex; align-items: center; gap: 7px; }
-.v2-leg-line { width: 16px; height: 3px; border-radius: 2px; }
+.v2-leg-line { width: 16px; height: 3px; border-radius: 2px; flex: 0 0 auto; }
 .v2-leg-line--sun { background: #e8c583; }
 .v2-leg-line--moon { background: #c7d2e0; }
 
-/* Segmented planet selector — Off · Venus · Mars · Jupiter · Saturn. Only one
-   planet shows at a time (four at once was a tangle). The active chip tints to
-   its planet's colour (--pl set inline). */
+/* Sun / Moon: independent on-off toggles (both on by default). Dim when off. */
+.v2-toggle {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 5px 12px;
+  border: 1px solid var(--edge);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.v2-toggle:hover { color: var(--ink); }
+.v2-toggle.is-on { color: var(--ink); border-color: rgba(150, 180, 220, 0.28); background: rgba(150, 180, 220, 0.06); }
+.v2-toggle:not(.is-on) .v2-leg-line { opacity: 0.35; }
+
+/* Planets: one-at-a-time segmented buttons; tapping the active one turns it off
+   (handled in JS). The active chip tints to that planet's colour (--pl inline). */
 .v2-plseg {
   margin-left: auto;
   display: inline-flex;
@@ -179,38 +193,19 @@
 }
 .v2-plseg-btn {
   padding: 5px 11px;
+  border: none;
+  border-left: 1px solid var(--edge);
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
   font-size: 11.5px;
   font-weight: 600;
-  color: var(--muted);
   cursor: pointer;
-  user-select: none;
-  border-left: 1px solid var(--edge);
   white-space: nowrap;
 }
-.v2-plseg-btn--off { border-left: none; }
+.v2-plseg-btn:first-child { border-left: none; }
 .v2-plseg-btn:hover { color: var(--ink); }
-
-/* All planet curves hidden by default; the checked radio reveals its own. */
-.v2-plcurve { display: none; }
-.v2-plsel--Venus:checked ~ .v2-nightchart-svg .v2-plcurve--Venus,
-.v2-plsel--Mars:checked ~ .v2-nightchart-svg .v2-plcurve--Mars,
-.v2-plsel--Jupiter:checked ~ .v2-nightchart-svg .v2-plcurve--Jupiter,
-.v2-plsel--Saturn:checked ~ .v2-nightchart-svg .v2-plcurve--Saturn {
-  display: inline;
-}
-/* Highlight the active chip (tinted to the planet) + Off. */
-.v2-plsel--off:checked ~ .v2-chart-legend .v2-plseg-btn--off,
-.v2-plsel--Venus:checked ~ .v2-chart-legend label[for="v2-pl-Venus"],
-.v2-plsel--Mars:checked ~ .v2-chart-legend label[for="v2-pl-Mars"],
-.v2-plsel--Jupiter:checked ~ .v2-chart-legend label[for="v2-pl-Jupiter"],
-.v2-plsel--Saturn:checked ~ .v2-chart-legend label[for="v2-pl-Saturn"] {
-  color: #10151d;
-  background: var(--pl, var(--ink));
-}
-.v2-plsel--off:checked ~ .v2-chart-legend .v2-plseg-btn--off {
-  color: var(--ink);
-  background: rgba(150, 180, 220, 0.12);
-}
+.v2-plseg-btn.is-on { color: #10151d; background: var(--pl, var(--ink)); }
 
 .v2-nightchart-svg { display: block; width: 100%; min-width: 320px; height: auto; }
 .v2-chart-axis { fill: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
