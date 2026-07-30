@@ -558,6 +558,160 @@ export function moonDuringDark(city: City, whenUtc: Date, tw: TwilightPhases): M
   return { moonrise, moonset, verdict, moonFreeDark }
 }
 
+// ============================================================================
+// V2 NIGHT SUMMARY — the verdict-first model (see /sky-calendar-v2).
+// Kept SEPARATE from the live-page functions above so v2 can iterate without
+// touching production. The headline metric is MOONLESS DARK: the dark window
+// intersected with the moon being below the horizon — the number that actually
+// decides a night (a 99% moon up all night makes 6h of "dark" worth ~nothing).
+// ============================================================================
+
+// Half-open time interval as epoch-ms [start, end).
+export type Interval = [number, number]
+
+// Subtract b-intervals from a-intervals (a \ b). Both need not be sorted; result
+// is sorted, gaps < 1 min dropped. Used for dark \ moon-up = moonless.
+function subtractIntervals(a: Interval[], b: Interval[]): Interval[] {
+  let cur = a.map((x) => [...x] as Interval)
+  for (const [bs, be] of b) {
+    const next: Interval[] = []
+    for (const [s, e] of cur) {
+      if (be <= s || bs >= e) {
+        next.push([s, e])
+        continue
+      }
+      if (bs > s) next.push([s, Math.min(bs, e)])
+      if (be < e) next.push([Math.max(be, s), e])
+    }
+    cur = next
+  }
+  return cur.filter(([s, e]) => e - s > 60_000).sort((x, y) => x[0] - y[0])
+}
+
+function totalMinutes(intervals: Interval[]): number {
+  return intervals.reduce((sum, [s, e]) => sum + (e - s) / 60_000, 0)
+}
+
+// The moon's above-horizon intervals within [winStart, winEnd], found by
+// sampling + refining at the sign changes (astronomy-engine has no direct
+// interval API). 2-min sampling is ample for a bar drawn to the minute.
+function moonUpIntervals(city: City, winStart: Date, winEnd: Date): Interval[] {
+  const observer = new Observer(city.lat, city.lon, city.height)
+  const moonAlt = (t: number) => {
+    const eq = Equator(Body.Moon, new Date(t), observer, true, true)
+    return Horizon(new Date(t), observer, eq.ra, eq.dec, 'normal').altitude
+  }
+  const s = winStart.getTime()
+  const e = winEnd.getTime()
+  const step = 2 * 60_000
+  const out: Interval[] = []
+  let runStart: number | null = moonAlt(s) > 0 ? s : null
+  let prevT = s
+  let prevUp = moonAlt(s) > 0
+  for (let t = s + step; t <= e; t += step) {
+    const up = moonAlt(t) > 0
+    if (up !== prevUp) {
+      // bisect the crossing between prevT and t
+      let lo = prevT
+      let hi = t
+      for (let k = 0; k < 18; k++) {
+        const mid = (lo + hi) / 2
+        if (moonAlt(mid) > 0 === prevUp) lo = mid
+        else hi = mid
+      }
+      const cross = (lo + hi) / 2
+      if (up) runStart = cross
+      else if (runStart !== null) {
+        out.push([runStart, cross])
+        runStart = null
+      }
+    }
+    prevT = t
+    prevUp = up
+  }
+  if (runStart !== null) out.push([runStart, e])
+  return out
+}
+
+export type NightGrade = 'dark' | 'mixed' | 'bright' | 'no-dark'
+
+export type NightSummary = {
+  // The astronomical-dark window as intervals (usually one, but modelled as an
+  // array so high-latitude / edge cases render honestly).
+  darkIntervals: Interval[]
+  darkMinutes: number
+  darkStart: LocalTime // first dark interval start
+  darkEnd: LocalTime // last dark interval end
+  // Dark ∩ moon-below-horizon — the metric the hero leads with.
+  moonlessIntervals: Interval[]
+  moonlessMinutes: number
+  // 'dark' ≥120 moonless min, 'mixed' 1–119, 'bright' 0, 'no-dark' never dark.
+  grade: NightGrade
+  moonIllumPct: number
+  moonPhase: string
+  moonWaxing: boolean
+  moonIllumFraction: number
+  moonrise: LocalTime
+  moonset: LocalTime
+}
+
+// Compute the v2 night summary for a city + evening instant. `when` should be an
+// evening instant on the target local date (same convention as the other card
+// functions). Reuses twilightPhases for the dark boundaries.
+export function nightSummary(city: City, when: Date, tw: TwilightPhases): NightSummary {
+  const moon = moonInfo(when)
+  const observer = new Observer(city.lat, city.lon, city.height)
+  const localDate = cityLocalDateString(when, city.tz)
+  const midnight = cityMidnightUtc(localDate, city.tz)
+  const noon = new Date(midnight.getTime() + 12 * 3600_000)
+  const mr = SearchRiseSet(Body.Moon, observer, +1, noon, 1)
+  const moonrise = localTime(mr?.date, city.tz)
+  const setFrom = mr?.date ? new Date(mr.date.getTime() + 60_000) : noon
+  const moonset = localTime(SearchRiseSet(Body.Moon, observer, -1, setFrom, 1)?.date, city.tz)
+
+  // No astronomical dark at all (high-latitude summer) — a state, not a null (§4).
+  if (!tw.astroDusk || !tw.astroDawn) {
+    return {
+      darkIntervals: [],
+      darkMinutes: 0,
+      darkStart: null,
+      darkEnd: null,
+      moonlessIntervals: [],
+      moonlessMinutes: 0,
+      grade: 'no-dark',
+      moonIllumPct: moon.illumPercent,
+      moonPhase: moon.phaseName,
+      moonWaxing: moon.waxing,
+      moonIllumFraction: moon.illumFraction,
+      moonrise,
+      moonset,
+    }
+  }
+
+  const darkIntervals: Interval[] = [[tw.astroDusk.date.getTime(), tw.astroDawn.date.getTime()]]
+  const moonUp = moonUpIntervals(city, tw.astroDusk.date, tw.astroDawn.date)
+  const moonlessIntervals = subtractIntervals(darkIntervals, moonUp)
+  const darkMinutes = totalMinutes(darkIntervals)
+  const moonlessMinutes = totalMinutes(moonlessIntervals)
+  const grade: NightGrade = moonlessMinutes >= 120 ? 'dark' : moonlessMinutes >= 1 ? 'mixed' : 'bright'
+
+  return {
+    darkIntervals,
+    darkMinutes,
+    darkStart: tw.astroDusk,
+    darkEnd: tw.astroDawn,
+    moonlessIntervals,
+    moonlessMinutes,
+    grade,
+    moonIllumPct: moon.illumPercent,
+    moonPhase: moon.phaseName,
+    moonWaxing: moon.waxing,
+    moonIllumFraction: moon.illumFraction,
+    moonrise,
+    moonset,
+  }
+}
+
 // ---- Planets tonight (the eyepiece experience) ----
 // CRITICAL HONESTY RULE: a planet's visibility and "best time" are evaluated
 // WITHIN the astronomical-dark window, NOT at its raw transit. A planet can
