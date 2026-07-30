@@ -7,11 +7,13 @@ import {
   twilightPhases,
   planetsTonight,
   moonDuringDark,
+  altitudeCurves,
   zoneAbbrev,
 } from '@/lib/ephemeris'
 import { issPasses } from '@/lib/iss'
 import { upcomingCelestialEvents } from '@/lib/celestial-events'
-import { CityFlag, MoonPhaseIcon, PlanetIcon } from './sky-icons'
+import { CityFlag, EventIcon, MoonPhaseIcon, PlanetIcon } from './sky-icons'
+import { AltitudeChart, DayNightBar } from './sky-chart'
 import './sky-calendar.css'
 
 export const metadata: Metadata = {
@@ -27,6 +29,26 @@ export const metadata: Metadata = {
 export const revalidate = 3600
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
+
+// Heavens-Above's skychart `tz` param wants its own zone code, not an IANA name.
+// Map the IANA zones our cities use to the closest Heavens-Above code. (Their
+// codes carry the DST rule themselves, e.g. CET => CET/CEST.) Unknown -> UCT so
+// the link still resolves rather than 500ing on their side.
+function heavensAboveTz(iana: string): string {
+  switch (iana) {
+    case 'Europe/Athens':
+      return 'EET' // Greece — EET/EEST
+    case 'Europe/Istanbul':
+      return 'GST2' // Turkey — fixed UTC+3, no DST
+    case 'Europe/Berlin':
+    case 'Europe/Rome':
+      return 'CET' // Central Europe — CET/CEST
+    case 'Europe/London':
+      return 'GMT' // UK — GMT/BST
+    default:
+      return 'UCT'
+  }
+}
 
 // Date/weekday labels must read in the SELECTED CITY's local zone, not the
 // server's (Vercel runs UTC — without the timeZone a Kos guest just past midnight
@@ -56,6 +78,10 @@ export default async function SkyCalendarPage({
   // longer strands you unable to get back to tonight.
   const week = moonWeek(now, 7)
   const tw = twilightPhases(city, when)
+  // Sun + Moon altitude across the selected local day, for the 24h arc chart +
+  // timeline bar. `now` drives the "now" marker (shown only when the picked day
+  // is today in the city's zone).
+  const curves = altitudeCurves(city, when, now)
   const moonWin = moonDuringDark(city, when, tw)
   const planets = planetsTonight(city, when, tw)
   const visiblePlanets = planets.filter((p) => p.visible)
@@ -69,8 +95,17 @@ export default async function SkyCalendarPage({
   // Upcoming celestial events (eclipses computed, meteor showers from the annual
   // table) — a season-level "coming up" list, not per-night. Next ~120 days.
   const events = upcomingCelestialEvents(when, 120)
+  // "Wed 12 August" — weekday + day + month, so an event is plannable at a glance.
   const fmtEventDate = (ymd: string) =>
-    new Date(`${ymd}T12:00:00Z`).toLocaleDateString('en-GB', { day: 'numeric', month: 'long' })
+    new Date(`${ymd}T12:00:00Z`).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'long' })
+  // A short human countdown for the pill: Tonight / Tomorrow / in N days / in N
+  // weeks. Weeks past ~3 so a distant event doesn't read as a huge day count.
+  const countdownLabel = (days: number): string => {
+    if (days <= 0) return 'Tonight'
+    if (days === 1) return 'Tomorrow'
+    if (days <= 21) return `in ${days} days`
+    return `in ${Math.round(days / 7)} weeks`
+  }
 
   const jsonLd = JSON.stringify({
     '@context': 'https://schema.org',
@@ -87,6 +122,20 @@ export default async function SkyCalendarPage({
     if (dateParam) p.set('date', dateParam)
     return `/sky-calendar?${p.toString()}`
   }
+
+  // Interactive sky map: rather than build our own star chart, link out to
+  // Heavens-Above's skychart, pre-set to the selected city's coordinates. Their
+  // page renders the live constellations/planets for that lat/lon; we just hand
+  // it the location so the guest lands on THEIR sky, not a default one.
+  const skyMapHref = (() => {
+    const p = new URLSearchParams()
+    p.set('lat', city.lat.toFixed(4))
+    p.set('lng', city.lon.toFixed(4))
+    p.set('loc', city.name)
+    p.set('alt', String(city.height))
+    p.set('tz', heavensAboveTz(city.tz))
+    return `https://www.heavens-above.com/skychart.aspx?${p.toString()}`
+  })()
   // The 7-night strip is anchored at TODAY (now), so offsets are days-from-today.
   const localYmdFmt = new Intl.DateTimeFormat('en-CA', {
     timeZone: city.tz, year: 'numeric', month: '2-digit', day: '2-digit',
@@ -147,19 +196,6 @@ export default async function SkyCalendarPage({
           <p className="sky-sub">When it gets dark, what the moon’s doing, and which planets are up — for planning a night under the stars.</p>
         </header>
 
-      {/* ---- Moon header (shared across cities — the Moon looks the same continent-wide) ---- */}
-      <section className="sky-moon" aria-label="Tonight’s moon">
-        <div className="sky-moon-glyph" aria-hidden="true">
-          <MoonPhaseIcon fraction={moon.illumFraction} waxing={moon.waxing} size={64} title={moon.phaseName} />
-        </div>
-        <div className="sky-moon-text">
-          <p className="sky-moon-headline">
-            {moon.phaseName.charAt(0).toUpperCase() + moon.phaseName.slice(1)} · {moon.illumPercent}% lit
-          </p>
-          <p className="sky-moon-note">{moon.stargazingNote}</p>
-        </div>
-      </section>
-
       {/* ---- 7-night strip: tap a night to load its full conditions ---- */}
       <section className="sky-week" aria-label="The next 7 nights">
         <h2 className="sky-h2">Next 7 nights <span className="sky-h2-sub">— tap a night to see it</span></h2>
@@ -217,6 +253,23 @@ export default async function SkyCalendarPage({
           <span className="sky-card-tznote">all times {zoneAbbrev(when, city.tz)} (local)</span>
         </div>
 
+        {/* Moon — the single moon home: phase + % lit, the viewing verdict, and
+            this city/date's moonrise & moonset. Sits at the top of the card. */}
+        <div className="sky-block sky-moon-block">
+          <div className="sky-moon-glyph" aria-hidden="true">
+            <MoonPhaseIcon fraction={moon.illumFraction} waxing={moon.waxing} size={72} title={moon.phaseName} />
+          </div>
+          <div className="sky-moon-text">
+            <p className="sky-moon-headline">
+              {moon.phaseName.charAt(0).toUpperCase() + moon.phaseName.slice(1)} · {moon.illumPercent}% lit
+            </p>
+            <p className="sky-moon-verdict">{moonWin.verdict}</p>
+            <p className="sky-raw">
+              Rises {moonWin.moonrise?.hhmm ?? '—'} · sets {moonWin.moonset?.hhmm ?? '—'}
+            </p>
+          </div>
+        </div>
+
         {/* Darkness timeline */}
         <div className="sky-block">
           <h3 className="sky-block-title">Darkness tonight</h3>
@@ -233,18 +286,9 @@ export default async function SkyCalendarPage({
           ) : null}
         </div>
 
-        {/* Moon during dark */}
+        {/* Planets */}
         <div className="sky-block">
-          <h3 className="sky-block-title">Moon</h3>
-          <p className="sky-moon-verdict">{moonWin.verdict}</p>
-          <p className="sky-raw">
-            Rises {moonWin.moonrise?.hhmm ?? '—'} · sets {moonWin.moonset?.hhmm ?? '—'}
-          </p>
-        </div>
-
-        {/* Planets — the eyepiece experience */}
-        <div className="sky-block">
-          <h3 className="sky-block-title">Planets tonight <span className="sky-block-sub">(the eyepiece)</span></h3>
+          <h3 className="sky-block-title">Planets tonight</h3>
           {visiblePlanets.length > 0 ? (
             <ul className="sky-planets">
               {visiblePlanets.map((p) => (
@@ -259,8 +303,8 @@ export default async function SkyCalendarPage({
                       unclear. Compact, muted, so the plain line stays the lead. */}
                   <span className="sky-planet-times">
                     <span><span className="sky-t-label">rises</span> {p.rise?.hhmm ?? '—'}</span>
-                    <span><span className="sky-t-label">highest</span> {p.bestTime?.hhmm ?? '—'} ({Math.round(p.maxAltitude)}°)</span>
                     <span><span className="sky-t-label">sets</span> {p.set?.hhmm ?? '—'}</span>
+                    <span><span className="sky-t-label">highest</span> {p.bestTime?.hhmm ?? '—'} ({Math.round(p.maxAltitude)}°)</span>
                   </span>
                 </li>
               ))}
@@ -302,6 +346,29 @@ export default async function SkyCalendarPage({
             <p className="sky-block-note">ISS pass times are unavailable right now — {iss.reason}</p>
           )}
         </div>
+
+        {/* Sun + Moon altitude across the 24h + a compact day/night timeline —
+            the "how high, and when" planning view. */}
+        <div className="sky-block">
+          <h3 className="sky-block-title">Sun &amp; Moon path <span className="sky-block-sub">(altitude over 24h)</span></h3>
+          <div className="sky-chart-legend" aria-hidden="true">
+            <span className="sky-legend-item"><span className="sky-legend-swatch sky-legend-swatch--sun" />Sun{curves.sunTransit ? ` · highest ${curves.sunTransit.hhmm} (${Math.round(curves.sunTransit.altitude)}°)` : ''}</span>
+            <span className="sky-legend-item"><span className="sky-legend-swatch sky-legend-swatch--moon" />Moon{curves.moonTransit ? ` · highest ${curves.moonTransit.hhmm} (${Math.round(curves.moonTransit.altitude)}°)` : ''}</span>
+          </div>
+          <div className="sky-chart-wrap">
+            <AltitudeChart curves={curves} />
+          </div>
+          <DayNightBar curves={curves} tw={tw} />
+          <p className="sky-block-note">
+            The shaded band is the genuinely-dark part of the night. A target is easy to observe when its curve is high
+            (above ~30°) during that band; low on the horizon means haze and rooftops. Times are {zoneAbbrev(when, city.tz)} (local).
+          </p>
+          <p className="sky-skymap-link">
+            <a href={skyMapHref} target="_blank" rel="noopener noreferrer">
+              Open an interactive sky map for {city.name} ↗
+            </a>
+          </p>
+        </div>
       </section>
 
       {/* ---- Coming up: eclipses + meteor showers (season-level, not per-night) ---- */}
@@ -310,19 +377,17 @@ export default async function SkyCalendarPage({
           <h2 className="sky-h2">Coming up</h2>
           <ul className="sky-events-list">
             {events.map((e, i) => (
-              <li key={i} className={`sky-event sky-event--${e.kind}`}>
+              <li key={i} className={`sky-event sky-event--${e.kind}${e.daysAway <= 2 ? ' sky-event--soon' : ''}`}>
                 <span className="sky-event-icon" aria-hidden="true">
-                  {e.kind === 'meteor-shower' ? '☄️' : e.kind === 'lunar-eclipse' ? '🌕' : '🌑'}
+                  <EventIcon kind={e.kind} />
                 </span>
                 <span className="sky-event-body">
-                  <span className="sky-event-title">
-                    {e.title}
-                    <span className="sky-event-when">
-                      {fmtEventDate(e.date)}
-                      {e.daysAway === 0 ? ' · today' : e.daysAway <= 21 ? ` · in ${e.daysAway} days` : ''}
-                    </span>
-                  </span>
+                  <span className="sky-event-title">{e.title}</span>
+                  <span className="sky-event-when">{fmtEventDate(e.date)}</span>
                   <span className="sky-event-detail">{e.detail}</span>
+                </span>
+                <span className={`sky-event-countdown${e.daysAway <= 2 ? ' sky-event-countdown--soon' : ''}`}>
+                  {countdownLabel(e.daysAway)}
                 </span>
               </li>
             ))}

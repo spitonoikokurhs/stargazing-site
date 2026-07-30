@@ -83,34 +83,28 @@
   font-weight: 600;
 }
 
-/* ---- Moon header ---- */
-.sky-moon {
+/* ---- Moon block (first block inside the city card) ---- */
+.sky-moon-block {
   display: flex;
   align-items: center;
   gap: 18px;
-  padding: 20px 22px;
-  background: var(--panel);
-  border: 1px solid var(--edge);
-  border-radius: 16px;
-  margin-bottom: 26px;
 }
 .sky-moon-glyph {
   line-height: 0;
+  flex: 0 0 auto;
   /* cool silver glow — the old warm gold read as "cheese" */
   filter: drop-shadow(0 0 16px rgba(200, 216, 236, 0.28));
 }
 .sky-svg-moon {
   display: block;
 }
+.sky-moon-text {
+  min-width: 0;
+}
 .sky-moon-headline {
   margin: 0;
   font-size: 20px;
   font-weight: 600;
-}
-.sky-moon-note {
-  margin: 4px 0 0;
-  color: var(--muted);
-  font-size: 14px;
 }
 
 /* ---- 7-night strip ---- */
@@ -344,6 +338,127 @@
   line-height: 1.5;
 }
 
+/* ---- Sun & Moon altitude chart + day/night timeline ---- */
+.sky-chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  margin: 2px 0 10px;
+  font-size: 12.5px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.sky-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+.sky-legend-swatch {
+  width: 16px;
+  height: 3px;
+  border-radius: 2px;
+  flex: 0 0 auto;
+}
+.sky-legend-swatch--sun {
+  background: #e8c583;
+}
+.sky-legend-swatch--moon {
+  background: #c7d2e0;
+}
+.sky-chart-wrap {
+  width: 100%;
+  overflow-x: auto; /* never force the page body to scroll sideways on a phone */
+}
+.sky-altchart {
+  display: block;
+  width: 100%;
+  min-width: 460px; /* below this the hour labels crowd; the wrap scrolls instead */
+  height: auto;
+}
+.sky-altchart-axis {
+  fill: var(--muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.sky-daynight {
+  margin-top: 16px;
+}
+.sky-daynight-bar {
+  position: relative;
+  height: 20px;
+  border-radius: 6px;
+  /* daylight ground — night is overlaid where the sky is astro-dark */
+  background: linear-gradient(180deg, rgba(232, 197, 131, 0.34), rgba(232, 197, 131, 0.16));
+  border: 1px solid var(--edge);
+  overflow: hidden;
+}
+.sky-daynight-dark {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: rgba(14, 20, 40, 0.92);
+}
+.sky-daynight-mark {
+  position: absolute;
+  top: -2px;
+  bottom: -2px;
+  width: 2px;
+  transform: translateX(-1px);
+  z-index: 1;
+}
+.sky-daynight-mark--set {
+  background: #d98a54;
+}
+.sky-daynight-now {
+  position: absolute;
+  top: 50%;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--dark-accent);
+  box-shadow: 0 0 8px rgba(126, 224, 196, 0.8);
+  transform: translate(-50%, -50%);
+}
+.sky-daynight-hours {
+  position: relative;
+  height: 16px;
+  margin-top: 3px;
+}
+.sky-daynight-hours span {
+  position: absolute;
+  transform: translateX(-50%);
+  font-size: 11px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.sky-daynight-hours span:first-child {
+  transform: translateX(0);
+}
+.sky-daynight-hours span:last-child {
+  transform: translateX(-100%);
+}
+
+.sky-skymap-link {
+  margin: 12px 0 0;
+}
+.sky-skymap-link a {
+  display: inline-block;
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--edge);
+  color: var(--dark-accent);
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 600;
+  transition: border-color 150ms ease, background 150ms ease;
+}
+.sky-skymap-link a:hover,
+.sky-skymap-link a:focus-visible {
+  border-color: rgba(126, 224, 196, 0.45);
+  background: rgba(126, 224, 196, 0.08);
+}
+
 /* Darkness timeline */
 .sky-timeline {
   list-style: none;
@@ -373,7 +488,7 @@
 
 /* Moon block */
 .sky-moon-verdict {
-  margin: 0;
+  margin: 5px 0 0;
   font-size: 15px;
 }
 .sky-raw {
@@ -452,38 +567,64 @@
 .sky-event {
   display: flex;
   gap: 14px;
-  align-items: flex-start;
+  align-items: center;
   padding: 14px 16px;
   background: var(--panel);
   border: 1px solid var(--edge);
   border-radius: 12px;
 }
-.sky-event--solar-eclipse {
-  border-color: rgba(232, 197, 131, 0.4);
+/* An imminent event (tonight/tomorrow) gets a soft accent lift so it stands out
+   from the season list. */
+.sky-event--soon {
+  border-color: rgba(126, 224, 196, 0.42);
+  background: linear-gradient(180deg, rgba(126, 224, 196, 0.06), var(--panel));
 }
 .sky-event-icon {
-  font-size: 24px;
-  line-height: 1.2;
+  line-height: 0;
+  flex: 0 0 auto;
+}
+.sky-svg-event {
+  display: block;
 }
 .sky-event-body {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 2px;
+  min-width: 0;
+  flex: 1 1 auto;
 }
 .sky-event-title {
   font-weight: 600;
   font-size: 15px;
 }
 .sky-event-when {
-  margin-left: 10px;
-  font-weight: 400;
   font-size: 13px;
   color: var(--gold);
+  font-variant-numeric: tabular-nums;
 }
 .sky-event-detail {
+  margin-top: 2px;
   font-size: 13.5px;
   color: var(--muted);
   line-height: 1.5;
+}
+/* Countdown pill on the right — the "when, relative to now" a planner scans for. */
+.sky-event-countdown {
+  flex: 0 0 auto;
+  align-self: flex-start;
+  padding: 4px 11px;
+  border-radius: 999px;
+  border: 1px solid var(--edge);
+  background: rgba(150, 180, 220, 0.06);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.sky-event-countdown--soon {
+  border-color: rgba(126, 224, 196, 0.5);
+  background: rgba(126, 224, 196, 0.12);
+  color: var(--dark-accent);
 }
 
 /* ISS passes */

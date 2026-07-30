@@ -217,6 +217,75 @@ export function PlanetIcon({ name, size = 26 }: { name: string; size?: number })
 }
 
 // ---------------------------------------------------------------------------
+// Celestial-event icons for the "Coming up" list — meteor shower, lunar
+// eclipse (coppery "blood" moon), solar eclipse. SVG, not emoji (the emoji
+// ☄️🌕🌑 rendered inconsistently — the same reason the moon looked like cheese).
+// ---------------------------------------------------------------------------
+export function EventIcon({ kind, size = 30 }: { kind: string; size?: number }) {
+  const frame = (children: React.ReactNode, label: string) => (
+    <svg viewBox="0 0 40 40" width={size} height={size} role="img" aria-label={label} className="sky-svg-event">
+      {children}
+    </svg>
+  )
+  switch (kind) {
+    case 'meteor-shower':
+      return frame(
+        <>
+          <defs>
+            <linearGradient id="ev-meteor" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stopColor="#fff3d6" stopOpacity="0" />
+              <stop offset="100%" stopColor="#ffd98a" />
+            </linearGradient>
+          </defs>
+          {/* two streaks + heads */}
+          <path d="M6 8 L24 26" stroke="url(#ev-meteor)" strokeWidth="2.4" strokeLinecap="round" />
+          <circle cx="25" cy="27" r="3" fill="#fff0cf" />
+          <path d="M16 6 L28 18" stroke="url(#ev-meteor)" strokeWidth="1.6" strokeLinecap="round" opacity="0.8" />
+          <circle cx="29" cy="19" r="2" fill="#ffe4ad" />
+          {/* a couple of static stars */}
+          <circle cx="10" cy="30" r="1" fill="#cfd8e6" />
+          <circle cx="33" cy="9" r="1.2" fill="#cfd8e6" />
+        </>,
+        'Meteor shower',
+      )
+    case 'lunar-eclipse':
+      return frame(
+        <>
+          <defs>
+            <radialGradient id="ev-blood" cx="40%" cy="36%" r="70%">
+              <stop offset="0%" stopColor="#e08a6a" />
+              <stop offset="70%" stopColor="#a83c2a" />
+              <stop offset="100%" stopColor="#6e2417" />
+            </radialGradient>
+          </defs>
+          <circle cx="20" cy="20" r="14" fill="url(#ev-blood)" />
+          <ellipse cx="16" cy="17" rx="4" ry="3" fill="#8a3020" opacity="0.5" />
+          <ellipse cx="24" cy="24" rx="3.5" ry="3" fill="#8a3020" opacity="0.5" />
+        </>,
+        'Lunar eclipse',
+      )
+    case 'solar-eclipse':
+      return frame(
+        <>
+          <defs>
+            <radialGradient id="ev-corona" cx="50%" cy="50%" r="50%">
+              <stop offset="55%" stopColor="#fff4cf" />
+              <stop offset="100%" stopColor="#fff4cf" stopOpacity="0" />
+            </radialGradient>
+          </defs>
+          <circle cx="20" cy="20" r="17" fill="url(#ev-corona)" opacity="0.7" />
+          <circle cx="20" cy="20" r="11" fill="#ffd98a" />
+          {/* the Moon's dark disc sliding across */}
+          <circle cx="24.5" cy="17.5" r="10" fill="#12161e" />
+        </>,
+        'Solar eclipse',
+      )
+    default:
+      return frame(<circle cx="20" cy="20" r="12" fill="#c7ced8" />, 'Celestial event')
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Flags — small geometric SVG flags for the switcher chips + card title, keyed
 // by the country strings in config/cities.json. Simple constructions (stripes /
 // crescent / cross) so they render crisply at chip size on every platform, no

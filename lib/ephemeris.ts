@@ -280,6 +280,92 @@ export function altAz(city: City, target: Notable, whenUtc: Date): { altitude: n
   return { altitude: hor.altitude, azimuth: hor.azimuth }
 }
 
+// ---- Sun/Moon altitude curves (for the 24-hour arc chart) ----
+//
+// Samples the Sun's and Moon's altitude across the SELECTED LOCAL DAY (local
+// midnight -> next local midnight), so the chart's x-axis is that city's own
+// 00:00..24:00 clock. Server-side only (astronomy-engine); the page ships just
+// the resulting numbers as SVG path points. Also returns each body's transit
+// (culmination) — the sampled peak — since a planner wants "highest at HH:MM".
+export type AltSample = { minute: number; altitude: number } // minute 0..1440 from local midnight
+export type AltTransit = { hhmm: string; altitude: number } | null
+export type AltCurves = {
+  dayStartUtc: Date // the local-midnight instant the samples are measured from
+  sun: AltSample[]
+  moon: AltSample[]
+  sunTransit: AltTransit
+  moonTransit: AltTransit
+  // Fractional position (0..1 across the 24h) of "now", or null when the shown
+  // day isn't today in the city's zone (so the marker only appears for today).
+  nowFraction: number | null
+  // Minutes-from-local-midnight where the Sun is below -18° (astronomical dark),
+  // as [start,end) spans WITHIN this calendar day. Derived from the sun samples
+  // themselves, so the chart's shaded night always matches its own x-axis (a
+  // full calendar day shows TWO dark spans: after-midnight tail + evening).
+  darkSpans: { startMin: number; endMin: number }[]
+}
+
+// 5-minute sampling = 289 points/curve — smooth enough for a chart, cheap enough
+// for hourly ISR. Higher-res buys nothing at chart scale.
+const ALT_SAMPLE_STEP_MIN = 5
+
+export function altitudeCurves(city: City, whenUtc: Date, nowUtc: Date): AltCurves {
+  const localDate = cityLocalDateString(whenUtc, city.tz)
+  const dayStartUtc = cityMidnightUtc(localDate, city.tz)
+  const sun: AltSample[] = []
+  const moon: AltSample[] = []
+  let sunTransit: { minute: number; altitude: number } | null = null
+  let moonTransit: { minute: number; altitude: number } | null = null
+
+  for (let minute = 0; minute <= 1440; minute += ALT_SAMPLE_STEP_MIN) {
+    const at = new Date(dayStartUtc.getTime() + minute * 60_000)
+    const sAlt = altAz(city, { kind: 'body', name: 'Sun', body: Body.Sun }, at).altitude
+    const mAlt = altAz(city, { kind: 'body', name: 'the Moon', body: Body.Moon }, at).altitude
+    sun.push({ minute, altitude: sAlt })
+    moon.push({ minute, altitude: mAlt })
+    if (!sunTransit || sAlt > sunTransit.altitude) sunTransit = { minute, altitude: sAlt }
+    if (!moonTransit || mAlt > moonTransit.altitude) moonTransit = { minute, altitude: mAlt }
+  }
+
+  const transitToLocal = (t: { minute: number; altitude: number } | null): AltTransit =>
+    t && t.altitude > 0
+      ? { hhmm: formatLocalHHMM(new Date(dayStartUtc.getTime() + t.minute * 60_000), city.tz), altitude: t.altitude }
+      : null
+
+  // Astronomical-dark spans: contiguous runs where the sampled Sun altitude is
+  // below -18°. Reads straight off the sun samples so it can't drift from the
+  // chart (unlike the night-based twilightPhases, whose dawn belongs to the NEXT
+  // calendar day). Naturally yields the after-midnight tail AND the evening span.
+  const ASTRO_DARK_DEG = -18
+  const darkSpans: { startMin: number; endMin: number }[] = []
+  let runStart: number | null = null
+  for (const s of sun) {
+    const dark = s.altitude < ASTRO_DARK_DEG
+    if (dark && runStart === null) runStart = s.minute
+    if (!dark && runStart !== null) {
+      darkSpans.push({ startMin: runStart, endMin: s.minute })
+      runStart = null
+    }
+  }
+  if (runStart !== null) darkSpans.push({ startMin: runStart, endMin: 1440 })
+
+  // "now" marker only when the shown day IS today in the city's zone.
+  const showsToday = cityLocalDateString(nowUtc, city.tz) === localDate
+  const nowFraction = showsToday
+    ? Math.min(1, Math.max(0, (nowUtc.getTime() - dayStartUtc.getTime()) / (1440 * 60_000)))
+    : null
+
+  return {
+    dayStartUtc,
+    sun,
+    moon,
+    sunTransit: transitToLocal(sunTransit),
+    moonTransit: transitToLocal(moonTransit),
+    nowFraction,
+    darkSpans,
+  }
+}
+
 // Is it dark enough at this city/instant to bother naming sky objects? Gate the
 // flavor lines on the Sun being below civil-ish dusk so we never say "Saturn's
 // up" in daylight.
