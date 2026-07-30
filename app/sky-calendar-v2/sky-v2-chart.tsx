@@ -53,12 +53,25 @@ export function NightAltitudeChart({ curves, tz }: { curves: NightCurves; tz: st
 
   return (
     <div className="v2-nightchart">
-      {/* CSS-only planet toggle: the checkbox flips a class that reveals the planet group */}
-      <input type="checkbox" id="v2-planet-toggle" className="v2-planet-check" />
+      {/* CSS-only planet selector: a radio group shows ONE planet at a time
+          (all four at once was a tangle). Each radio reveals only its own curve
+          via a body class on the SVG. Radios live before the SVG so the sibling
+          selectors reach it. "Off" is the default. */}
+      <input type="radio" name="v2-planet-sel" id="v2-pl-off" className="v2-plsel v2-plsel--off" defaultChecked />
+      {curves.planets.map((pl) => (
+        <input key={pl.name} type="radio" name="v2-planet-sel" id={`v2-pl-${pl.name}`} className={`v2-plsel v2-plsel--${pl.name}`} />
+      ))}
       <div className="v2-chart-legend">
         <span className="v2-leg"><span className="v2-leg-line v2-leg-line--sun" />Sun</span>
         <span className="v2-leg"><span className="v2-leg-line v2-leg-line--moon" />Moon</span>
-        <label htmlFor="v2-planet-toggle" className="v2-planet-toggle-btn">Show planets</label>
+        <span className="v2-plseg" role="group" aria-label="Overlay a planet">
+          <label htmlFor="v2-pl-off" className="v2-plseg-btn v2-plseg-btn--off">Off</label>
+          {curves.planets.map((pl) => (
+            <label key={pl.name} htmlFor={`v2-pl-${pl.name}`} className="v2-plseg-btn" style={{ ['--pl' as string]: PLANET_COLORS[pl.name] ?? '#c7ced8' }}>
+              {pl.name}
+            </label>
+          ))}
+        </span>
       </div>
       <svg viewBox={`0 0 ${W} ${H}`} className="v2-nightchart-svg" role="img" aria-label="Sun, Moon and planet altitude across the night" preserveAspectRatio="xMidYMid meet">
         {/* graded twilight shading */}
@@ -76,12 +89,18 @@ export function NightAltitudeChart({ curves, tz }: { curves: NightCurves; tz: st
         {ticks.map((tk, i) => (
           <text key={i} x={tk.x} y={H - 9} textAnchor="middle" className="v2-chart-axis">{tk.label}</text>
         ))}
-        {/* planet overlays — hidden until the toggle is checked (CSS) */}
-        <g className="v2-planet-curves">
-          {curves.planets.map((pl) => (
-            <path key={pl.name} d={path(pl.samples)} fill="none" stroke={PLANET_COLORS[pl.name] ?? '#c7ced8'} strokeWidth={1.4} strokeDasharray="4 3" opacity={0.85} />
-          ))}
-        </g>
+        {/* one planet curve per group, each hidden unless its radio is checked */}
+        {curves.planets.map((pl) => (
+          <path
+            key={pl.name}
+            className={`v2-plcurve v2-plcurve--${pl.name}`}
+            d={path(pl.samples)}
+            fill="none"
+            stroke={PLANET_COLORS[pl.name] ?? '#c7ced8'}
+            strokeWidth={1.8}
+            strokeLinejoin="round"
+          />
+        ))}
         {/* moon (silver), then sun (gold) on top */}
         <path d={path(curves.moon)} fill="none" stroke="#c7d2e0" strokeWidth={2} strokeLinejoin="round" opacity={0.9} />
         <path d={path(curves.sun)} fill="none" stroke="#e8c583" strokeWidth={2.4} strokeLinejoin="round" />
