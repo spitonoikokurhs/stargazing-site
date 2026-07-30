@@ -80,6 +80,7 @@
    a transition rather than either snapping instantly (the original jump)
    or staying permanently reserved (the empty-gap regression). */
 .topbar {
+  position: relative;
   min-height: 20px;
   display: flex;
   flex-direction: column;
@@ -94,13 +95,70 @@
   text-align: center;
 }
 
+/* Follow-us advert — pinned top-right of the topbar, subtle so it reads as
+   "follow" without competing with the centered live status. */
+.topbar-follow {
+  position: absolute;
+  top: 50%;
+  right: 10px;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border: 1px solid rgba(237, 234, 227, 0.18);
+  border-radius: 999px;
+  color: rgba(237, 234, 227, 0.68);
+  text-decoration: none;
+  text-transform: none;
+  letter-spacing: 0.01em;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+  transition: color 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+}
+.topbar-follow:hover,
+.topbar-follow:focus-visible {
+  color: rgba(237, 234, 227, 0.95);
+  border-color: rgba(237, 234, 227, 0.34);
+  background: rgba(237, 234, 227, 0.06);
+}
+.topbar-follow svg {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
+}
+.topbar-follow-handle {
+  font-variant-numeric: tabular-nums;
+}
+/* On narrow phones the centered status needs the width — drop to an icon-only
+   follow button so it never collides with the LIVE · UPDATED · STACKED row. */
+@media (max-width: 430px) {
+  .topbar-follow-handle {
+    display: none;
+  }
+  .topbar-follow {
+    padding: 6px;
+    right: 8px;
+  }
+  /* icon-only chip is narrow — reserve less so the status keeps its width */
+  .topbar__live {
+    padding: 0 40px;
+  }
+}
+
 .topbar__live {
   display: flex;
   align-items: center;
   gap: 7px;
   justify-content: center;
   flex-wrap: wrap;
+  /* Reserve room on BOTH sides for the follow chip (pinned top-right) so the
+     status stays centred AND never runs under the chip. Equal padding keeps it
+     visually centred; the chip lives in the right gap. */
+  padding: 0 132px;
   max-width: 100%;
+  box-sizing: border-box;
   color: rgba(237, 234, 227, 0.78);
 }
 

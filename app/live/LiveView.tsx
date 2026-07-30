@@ -3537,6 +3537,20 @@ function LiveFrameView({
             .rim-brand below), repeating it here read redundantly. Just the
             live/updated status remains. */}
         <header className="topbar" aria-label="Live page status">
+          {/* Follow-us advert — subtle Instagram glyph + handle, pinned top-right
+              of the topbar so it sits on the same band as the status pills
+              without crowding the centered status. Opens the account in a new
+              tab; utm tags attribute follows to the live screen. */}
+          <a
+            className="topbar-follow"
+            href="https://instagram.com/mixalre?utm_source=live_screen&utm_medium=website&utm_campaign=live_follow"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Follow @mixalre on Instagram"
+          >
+            <InstagramIcon />
+            <span className="topbar-follow-handle">@mixalre</span>
+          </a>
           {/* Two-line structure, ALWAYS (line 2 just renders empty/absent
               when not browsing) — line 1 is status/badge, line 2 is
               reserved for Back to Live. Phone testing found that rendering
