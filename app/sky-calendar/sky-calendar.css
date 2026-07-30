@@ -365,6 +365,31 @@
 .sky-legend-swatch--moon {
   background: #c7d2e0;
 }
+/* Twilight-shading legend (small filled squares matching the chart bands). */
+.sky-chart-legend--tw {
+  margin-top: -4px;
+  margin-bottom: 12px;
+  font-size: 11.5px;
+}
+.sky-legend-box {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  flex: 0 0 auto;
+  border: 1px solid var(--edge);
+}
+.sky-legend-box--civil {
+  background: #2b3a5e;
+}
+.sky-legend-box--nautical {
+  background: #212e4c;
+}
+.sky-legend-box--astro {
+  background: #18223c;
+}
+.sky-legend-box--dark {
+  background: #10182a;
+}
 .sky-chart-wrap {
   width: 100%;
   overflow-x: auto; /* never force the page body to scroll sideways on a phone */
@@ -393,11 +418,24 @@
   border: 1px solid var(--edge);
   overflow: hidden;
 }
-.sky-daynight-dark {
+/* Graded twilight overlay bands on the day/night bar — progressively darker,
+   mirroring the chart's shading and the darkness ladder. */
+.sky-daynight-tw {
   position: absolute;
   top: 0;
   bottom: 0;
-  background: rgba(14, 20, 40, 0.92);
+}
+.sky-daynight-tw--civil {
+  background: rgba(40, 58, 96, 0.55);
+}
+.sky-daynight-tw--nautical {
+  background: rgba(30, 44, 78, 0.75);
+}
+.sky-daynight-tw--astronomical {
+  background: rgba(22, 32, 60, 0.88);
+}
+.sky-daynight-tw--dark {
+  background: rgba(14, 20, 40, 0.96);
 }
 .sky-daynight-mark {
   position: absolute;
@@ -468,11 +506,24 @@
 .sky-tl-row {
   display: flex;
   justify-content: space-between;
-  align-items: baseline;
+  align-items: center;
   gap: 12px;
   padding: 7px 0;
   border-bottom: 1px dashed var(--edge);
   font-size: 14px;
+}
+.sky-tl-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+}
+.sky-tl-icon {
+  display: inline-flex;
+  flex: 0 0 auto;
+  line-height: 0;
+}
+.sky-svg-tw {
+  display: block;
 }
 .sky-tl-row:last-child {
   border-bottom: none;
@@ -551,6 +602,39 @@
   letter-spacing: 0.05em;
   font-size: 10.5px;
   margin-right: 2px;
+}
+.sky-planet-times > span {
+  display: inline-flex;
+  align-items: center;
+}
+/* Rise/set arrows — green for rise (coming up), amber for set (going down),
+   tinted via currentColor which the arrow SVG inherits. */
+.sky-t-icon {
+  display: inline-flex;
+  line-height: 0;
+  margin-right: 4px;
+}
+.sky-t-icon--rise {
+  color: #7ed3a8;
+}
+.sky-t-icon--set {
+  color: #e0a05a;
+}
+.sky-svg-arrow {
+  display: block;
+}
+.sky-raw--moon {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0 2px;
+}
+.sky-raw--moon .sky-t-icon {
+  margin-right: 3px;
+}
+.sky-raw-sep {
+  margin: 0 7px;
+  opacity: 0.6;
 }
 /* Coming up — eclipses + meteor showers */
 .sky-events {

@@ -36,15 +36,28 @@ function minuteOf(date: Date | undefined, dayStartUtc: Date): number | null {
   return m >= 0 && m <= 1440 ? m : null
 }
 
-export function AltitudeChart({ curves }: { curves: AltCurves }) {
-  // Night shading straight from the sun samples (curves.darkSpans) — always
-  // matches the chart's own 00:00..24:00 axis, so a full calendar day correctly
-  // shows both the after-midnight dark tail and the evening dark span.
-  const nightBands = curves.darkSpans.map((s) => ({ x1: xForMinute(s.startMin), x2: xForMinute(s.endMin) }))
+// Progressively darker blue per twilight level, so the shaded night reads as a
+// gradient from dusk (civil) through to full dark — matching the darkness ladder
+// above the chart.
+const TWILIGHT_FILL: Record<string, string> = {
+  civil: 'rgba(40,58,96,0.34)',
+  nautical: 'rgba(32,46,80,0.5)',
+  astronomical: 'rgba(24,34,62,0.66)',
+  dark: 'rgba(16,24,46,0.82)',
+}
 
-  // Hour gridlines/labels every 3h (00,03,...,24) to stay legible on mobile.
+export function AltitudeChart({ curves }: { curves: AltCurves }) {
+  // Graded twilight shading from the sun samples — always matches the chart's own
+  // 00:00..24:00 axis, and distinguishes civil / nautical / astronomical / dark.
+  const bands = curves.twilightBands.map((b) => ({
+    x1: xForMinute(b.startMin),
+    x2: xForMinute(b.endMin),
+    fill: TWILIGHT_FILL[b.level] ?? TWILIGHT_FILL.dark,
+  }))
+
+  // 24-hour hour labels every 3h (00,03,...,24).
   const hourTicks = [0, 3, 6, 9, 12, 15, 18, 21, 24]
-  const hourLabel = (h: number) => (h === 0 ? '12a' : h < 12 ? `${h}a` : h === 12 ? '12p' : h === 24 ? '12a' : `${h - 12}p`)
+  const hourLabel = (h: number) => (h === 24 ? '24' : String(h).padStart(2, '0'))
 
   // Altitude gridlines at -60,-30,0,30,60.
   const altTicks = [60, 30, 0, -30, -60]
@@ -59,9 +72,9 @@ export function AltitudeChart({ curves }: { curves: AltCurves }) {
       aria-label="Sun and Moon altitude across the day"
       preserveAspectRatio="xMidYMid meet"
     >
-      {/* night shading */}
-      {nightBands.map((b, i) => (
-        <rect key={i} x={b.x1} y={PAD_T} width={b.x2 - b.x1} height={PLOT_H} fill="rgba(30,42,74,0.55)" />
+      {/* graded twilight shading (civil -> nautical -> astronomical -> dark) */}
+      {bands.map((b, i) => (
+        <rect key={i} x={b.x1} y={PAD_T} width={b.x2 - b.x1} height={PLOT_H} fill={b.fill} />
       ))}
 
       {/* altitude gridlines + labels */}
@@ -152,20 +165,24 @@ export function DayNightBar({ curves, tw }: { curves: AltCurves; tw: TwilightPha
   // Sunrise/sunset markers come from twilightPhases (their hhmm is the labelled
   // time a guest reads), but they belong to the night STARTING this evening, so
   // only the sunset reliably lands within this calendar day; guard each with
-  // minuteOf and simply omit any that fall outside. The dark BANDS come from the
-  // sun samples (curves.darkSpans), which always fit the 00:00..24:00 axis.
+  // minuteOf and simply omit any that fall outside. The twilight BANDS come from
+  // the sun samples (curves.twilightBands), which always fit the 00:00..24:00 axis.
   const sunsetM = minuteOf(tw.sunset?.date, curves.dayStartUtc)
 
   const pct = (m: number) => `${(m / 1440) * 100}%`
   const hourTicks = [0, 6, 12, 18, 24]
-  const hourLabel = (h: number) => (h === 0 || h === 24 ? '12a' : h === 12 ? '12p' : h < 12 ? `${h}a` : `${h - 12}p`)
+  const hourLabel = (h: number) => (h === 24 ? '24' : String(h).padStart(2, '0'))
 
   return (
     <div className="sky-daynight" aria-label="24-hour day and night">
       <div className="sky-daynight-bar">
-        {/* full-dark band(s) from the sun samples — both after-midnight + evening */}
-        {curves.darkSpans.map((s, i) => (
-          <div key={i} className="sky-daynight-dark" style={{ left: pct(s.startMin), width: pct(s.endMin - s.startMin) }} />
+        {/* graded twilight bands (civil -> dark), both after-midnight + evening */}
+        {curves.twilightBands.map((b, i) => (
+          <div
+            key={i}
+            className={`sky-daynight-tw sky-daynight-tw--${b.level}`}
+            style={{ left: pct(b.startMin), width: pct(b.endMin - b.startMin) }}
+          />
         ))}
 
         {/* sunset marker */}

@@ -138,10 +138,19 @@ export function PlanetIcon({ name, size = 26 }: { name: string; size?: number })
               <stop offset="65%" stopColor="#e2572f" />
               <stop offset="100%" stopColor="#a63417" />
             </radialGradient>
+            <clipPath id="pl-mars-clip">
+              <circle cx="20" cy="20" r="15" />
+            </clipPath>
           </defs>
           <circle cx="20" cy="20" r="15" fill="url(#pl-mars)" />
-          <ellipse cx="24" cy="15" rx="4" ry="3" fill="#c1401f" opacity="0.6" />
-          <circle cx="20" cy="6" r="2.4" fill="#ffe9dc" opacity="0.85" />
+          {/* dark surface markings (Syrtis-like), clipped to the disc */}
+          <g clipPath="url(#pl-mars-clip)" fill="#a5391c" opacity="0.55">
+            <ellipse cx="24" cy="16" rx="4.5" ry="3.2" />
+            <ellipse cx="15" cy="25" rx="3.5" ry="2.4" />
+          </g>
+          {/* polar ice cap: a thin frost cap hugging the top of the disc, not a
+              floating dot */}
+          <path d="M12 8.5 A 15 15 0 0 1 28 8.5 A 9 4 0 0 0 12 8.5 Z" clipPath="url(#pl-mars-clip)" fill="#f3ede6" opacity="0.9" />
         </>,
       )
     case 'jupiter':
@@ -166,36 +175,34 @@ export function PlanetIcon({ name, size = 26 }: { name: string; size?: number })
         </>,
       )
     case 'saturn':
+      // One continuous ring around the planet: the FULL ring ellipse is drawn
+      // first (so its far side shows above the planet's top), the planet disc is
+      // drawn over it (occluding the ring's rear-behind portion), then the ring's
+      // NEAR arc is drawn again on top so it crosses in front of the lower body.
+      // Same ellipse geometry + same transform for every piece, so it always
+      // reads as a single ring, not two mismatched ones.
       return svg(
-        <>
+        <g transform="rotate(-20 20 20)">
           <defs>
-            <radialGradient id="pl-sat" cx="36%" cy="32%" r="78%">
+            <radialGradient id="pl-sat" cx="38%" cy="32%" r="80%">
               <stop offset="0%" stopColor="#f7edcf" />
-              <stop offset="100%" stopColor="#d3b779" />
+              <stop offset="100%" stopColor="#cdaf72" />
             </radialGradient>
+            <linearGradient id="pl-sat-ring" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stopColor="#c9b17e" />
+              <stop offset="50%" stopColor="#f0e2b4" />
+              <stop offset="100%" stopColor="#c9b17e" />
+            </linearGradient>
           </defs>
-          {/* ring behind */}
-          <ellipse
-            cx="20"
-            cy="21"
-            rx="18"
-            ry="6"
-            fill="none"
-            stroke="#e6d3a0"
-            strokeWidth="2.2"
-            transform="rotate(-18 20 21)"
-          />
-          <circle cx="20" cy="20" r="12" fill="url(#pl-sat)" />
-          {/* ring front (over the planet's lower half) */}
-          <path
-            d="M 3 25 A 18 6 -18 0 0 37 17"
-            fill="none"
-            stroke="#f0dead"
-            strokeWidth="2.2"
-            transform="rotate(-18 20 21)"
-            opacity="0.95"
-          />
-        </>,
+          {/* full ring (its top half will show above the planet) */}
+          <ellipse cx="20" cy="20" rx="18.5" ry="6.4" fill="none" stroke="url(#pl-sat-ring)" strokeWidth="3" />
+          {/* inner gap so the ring reads as a band, not a wire */}
+          <ellipse cx="20" cy="20" rx="14.5" ry="4.6" fill="none" stroke="#0f1420" strokeWidth="1.1" opacity="0.5" />
+          {/* the planet, occluding the ring's rear-behind section */}
+          <circle cx="20" cy="20" r="11.5" fill="url(#pl-sat)" />
+          {/* the ring's NEAR arc, crossing in front of the lower body */}
+          <path d="M 1.7 21.6 A 18.5 6.4 0 0 0 38.3 21.6" fill="none" stroke="url(#pl-sat-ring)" strokeWidth="3" />
+        </g>,
         'sky-svg-planet--saturn',
       )
     case 'mercury':
@@ -282,6 +289,114 @@ export function EventIcon({ kind, size = 30 }: { kind: string; size?: number }) 
       )
     default:
       return frame(<circle cx="20" cy="20" r="12" fill="#c7ced8" />, 'Celestial event')
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Rise / set arrows — a small up/down chevron over a horizon line, for the
+// "rises"/"sets" labels beside planets (and anywhere a rise/set is shown).
+// ---------------------------------------------------------------------------
+export function RiseSetArrow({ dir, size = 13 }: { dir: 'rise' | 'set'; size?: number }) {
+  const up = dir === 'rise'
+  return (
+    <svg viewBox="0 0 16 16" width={size} height={size} role="img" aria-label={up ? 'rises' : 'sets'} className="sky-svg-arrow">
+      {/* horizon */}
+      <line x1="2" y1="12.5" x2="14" y2="12.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" opacity="0.7" />
+      {up ? (
+        <path d="M8 2.5 L8 9.5 M5 5.5 L8 2.5 L11 5.5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+      ) : (
+        <path d="M8 2.5 L8 9.5 M5 6.5 L8 9.5 L11 6.5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+      )}
+    </svg>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Darkness-ladder icons — one distinctive glyph per twilight stage, so the
+// "Darkness tonight" rows are scannable. Sun sinks lower (and the sky darkens)
+// down the ladder: sunset -> civil -> nautical -> astronomical dark -> (dawn
+// mirrors back up) -> sunrise. Keyed by an explicit `kind`, not the label text.
+// ---------------------------------------------------------------------------
+export type TwilightRowKind =
+  | 'sunset'
+  | 'civil-dusk'
+  | 'nautical-dusk'
+  | 'astro-dusk'
+  | 'astro-dawn'
+  | 'nautical-dawn'
+  | 'civil-dawn'
+  | 'sunrise'
+
+export function TwilightIcon({ kind, size = 22 }: { kind: TwilightRowKind; size?: number }) {
+  const frame = (children: React.ReactNode, label: string) => (
+    <svg viewBox="0 0 32 32" width={size} height={size} role="img" aria-label={label} className="sky-svg-tw">
+      {children}
+    </svg>
+  )
+  // A sun sitting at/behind a horizon, with rays, in a warmth that cools as the
+  // sky darkens. dusk arrow points down, dawn up.
+  const sunDisc = (cx: number, cy: number, r: number, fill: string, rays = true) => (
+    <>
+      {rays && (
+        <g stroke={fill} strokeWidth="1.4" strokeLinecap="round" opacity="0.85">
+          <line x1={cx} y1={cy - r - 4} x2={cx} y2={cy - r - 1.5} />
+          <line x1={cx - r - 3.5} y1={cy} x2={cx - r - 1.2} y2={cy} />
+          <line x1={cx + r + 1.2} y1={cy} x2={cx + r + 3.5} y2={cy} />
+          <line x1={cx - r - 2.6} y1={cy - r - 2.6} x2={cx - r - 1} y2={cy - r - 1} />
+          <line x1={cx + r + 1} y1={cy - r - 1} x2={cx + r + 2.6} y2={cy - r - 2.6} />
+        </g>
+      )}
+      <circle cx={cx} cy={cy} r={r} fill={fill} />
+    </>
+  )
+  const horizon = (color = '#7c8794') => (
+    <line x1="4" y1="21" x2="28" y2="21" stroke={color} strokeWidth="1.6" strokeLinecap="round" />
+  )
+  const arrow = (down: boolean, color: string) =>
+    down ? (
+      <path d="M26 8 L26 14 M23.5 11.5 L26 14 L28.5 11.5" fill="none" stroke={color} strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+    ) : (
+      <path d="M26 14 L26 8 M23.5 10.5 L26 8 L28.5 10.5" fill="none" stroke={color} strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+    )
+
+  switch (kind) {
+    case 'sunset':
+      return frame(<>{sunDisc(15, 18, 5, '#f2b25a')}{horizon('#caa15f')}{arrow(true, '#e6a24f')}</>, 'Sunset')
+    case 'sunrise':
+      return frame(<>{sunDisc(15, 18, 5, '#f7c877')}{horizon('#caa15f')}{arrow(false, '#f2c96b')}</>, 'Sunrise')
+    case 'civil-dusk':
+      return frame(<>{sunDisc(15, 22, 4.5, '#d98a54', false)}{horizon('#8794a6')}{arrow(true, '#b98a5c')}</>, 'Civil twilight (dusk)')
+    case 'civil-dawn':
+      return frame(<>{sunDisc(15, 22, 4.5, '#d9a06a', false)}{horizon('#8794a6')}{arrow(false, '#c99a6a')}</>, 'Civil twilight (dawn)')
+    case 'nautical-dusk':
+      return frame(<>{horizon('#6b7a8f')}<path d="M11 26 A 4.2 4.2 0 0 1 19 26 Z" fill="#5f74a6" opacity="0.9" />{arrow(true, '#6f82ad')}</>, 'Nautical twilight (dusk)')
+    case 'nautical-dawn':
+      return frame(<>{horizon('#6b7a8f')}<path d="M11 26 A 4.2 4.2 0 0 1 19 26 Z" fill="#6a80b4" opacity="0.9" />{arrow(false, '#7a8ec0')}</>, 'Nautical twilight (dawn)')
+    case 'astro-dusk':
+      // full dark begins: stars over a dark horizon, down arrow
+      return frame(
+        <>
+          <circle cx="10" cy="11" r="1.4" fill="#dfe6f0" />
+          <circle cx="18" cy="8" r="1.1" fill="#c7d2e0" />
+          <circle cx="22" cy="15" r="1.3" fill="#eef2f8" />
+          <circle cx="13" cy="16" r="0.9" fill="#aeb8c6" />
+          {horizon('#3a4658')}
+          {arrow(true, '#7ee0c4')}
+        </>,
+        'Fully dark begins',
+      )
+    case 'astro-dawn':
+      // dark ends: stars fading, up arrow
+      return frame(
+        <>
+          <circle cx="10" cy="11" r="1.2" fill="#aeb8c6" opacity="0.8" />
+          <circle cx="18" cy="8" r="1" fill="#9aa6b6" opacity="0.7" />
+          <circle cx="22" cy="15" r="1.2" fill="#cfd8e6" />
+          {horizon('#3a4658')}
+          {arrow(false, '#7ee0c4')}
+        </>,
+        'Dark ends (first light)',
+      )
   }
 }
 

@@ -298,12 +298,15 @@ export type AltCurves = {
   // Fractional position (0..1 across the 24h) of "now", or null when the shown
   // day isn't today in the city's zone (so the marker only appears for today).
   nowFraction: number | null
-  // Minutes-from-local-midnight where the Sun is below -18° (astronomical dark),
-  // as [start,end) spans WITHIN this calendar day. Derived from the sun samples
-  // themselves, so the chart's shaded night always matches its own x-axis (a
-  // full calendar day shows TWO dark spans: after-midnight tail + evening).
-  darkSpans: { startMin: number; endMin: number }[]
+  // Graded twilight bands across the day, so the chart can distinguish civil /
+  // nautical / astronomical twilight vs. full dark (not just "dark or not").
+  // Each band is a contiguous run at one level; 'day' runs are omitted (the
+  // chart's base is day). Same sun-sample source as darkSpans.
+  twilightBands: { startMin: number; endMin: number; level: TwilightLevel }[]
 }
+
+// Sun-altitude twilight levels, brightest (day) to darkest (astro-dark).
+export type TwilightLevel = 'day' | 'civil' | 'nautical' | 'astronomical' | 'dark'
 
 // 5-minute sampling = 289 points/curve — smooth enough for a chart, cheap enough
 // for hourly ISR. Higher-res buys nothing at chart scale.
@@ -332,22 +335,31 @@ export function altitudeCurves(city: City, whenUtc: Date, nowUtc: Date): AltCurv
       ? { hhmm: formatLocalHHMM(new Date(dayStartUtc.getTime() + t.minute * 60_000), city.tz), altitude: t.altitude }
       : null
 
-  // Astronomical-dark spans: contiguous runs where the sampled Sun altitude is
-  // below -18°. Reads straight off the sun samples so it can't drift from the
-  // chart (unlike the night-based twilightPhases, whose dawn belongs to the NEXT
-  // calendar day). Naturally yields the after-midnight tail AND the evening span.
-  const ASTRO_DARK_DEG = -18
-  const darkSpans: { startMin: number; endMin: number }[] = []
-  let runStart: number | null = null
+  // Graded twilight: classify each sun sample by altitude, then run-length-
+  // encode consecutive same-level samples into bands. Reads straight off the sun
+  // samples so it can't drift from the chart (unlike night-based twilightPhases,
+  // whose dawn belongs to the NEXT calendar day). Yields the after-midnight tail
+  // AND the evening span. 'day' runs are dropped (the chart base is day).
+  // Thresholds are the standard twilight definitions.
+  const levelForSun = (alt: number): TwilightLevel => {
+    if (alt >= 0) return 'day'
+    if (alt >= -6) return 'civil'
+    if (alt >= -12) return 'nautical'
+    if (alt >= -18) return 'astronomical'
+    return 'dark'
+  }
+  const twilightBands: { startMin: number; endMin: number; level: TwilightLevel }[] = []
+  let bandLevel: TwilightLevel | null = null
+  let bandStart = 0
   for (const s of sun) {
-    const dark = s.altitude < ASTRO_DARK_DEG
-    if (dark && runStart === null) runStart = s.minute
-    if (!dark && runStart !== null) {
-      darkSpans.push({ startMin: runStart, endMin: s.minute })
-      runStart = null
+    const lvl = levelForSun(s.altitude)
+    if (lvl !== bandLevel) {
+      if (bandLevel !== null && bandLevel !== 'day') twilightBands.push({ startMin: bandStart, endMin: s.minute, level: bandLevel })
+      bandLevel = lvl
+      bandStart = s.minute
     }
   }
-  if (runStart !== null) darkSpans.push({ startMin: runStart, endMin: 1440 })
+  if (bandLevel !== null && bandLevel !== 'day') twilightBands.push({ startMin: bandStart, endMin: 1440, level: bandLevel })
 
   // "now" marker only when the shown day IS today in the city's zone.
   const showsToday = cityLocalDateString(nowUtc, city.tz) === localDate
@@ -362,7 +374,7 @@ export function altitudeCurves(city: City, whenUtc: Date, nowUtc: Date): AltCurv
     sunTransit: transitToLocal(sunTransit),
     moonTransit: transitToLocal(moonTransit),
     nowFraction,
-    darkSpans,
+    twilightBands,
   }
 }
 

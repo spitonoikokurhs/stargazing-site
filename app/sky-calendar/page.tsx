@@ -12,7 +12,7 @@ import {
 } from '@/lib/ephemeris'
 import { issPasses } from '@/lib/iss'
 import { upcomingCelestialEvents } from '@/lib/celestial-events'
-import { CityFlag, EventIcon, MoonPhaseIcon, PlanetIcon } from './sky-icons'
+import { CityFlag, EventIcon, MoonPhaseIcon, PlanetIcon, RiseSetArrow, TwilightIcon, type TwilightRowKind } from './sky-icons'
 import { AltitudeChart, DayNightBar } from './sky-chart'
 import './sky-calendar.css'
 
@@ -31,15 +31,16 @@ export const revalidate = 3600
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
 
 // Heavens-Above's skychart `tz` param wants its own zone code, not an IANA name.
-// Map the IANA zones our cities use to the closest Heavens-Above code. (Their
-// codes carry the DST rule themselves, e.g. CET => CET/CEST.) Unknown -> UCT so
-// the link still resolves rather than 500ing on their side.
+// Map the IANA zones our cities use to a Heavens-Above code KNOWN to be valid
+// (an unknown code silently falls back to UCT, which is what broke the Bodrum
+// link). The star positions are driven by lat/lon/time regardless, so the tz
+// only sets the displayed clock; Turkey (UTC+3, no DST) uses EET as the closest
+// valid Eastern-European code.
 function heavensAboveTz(iana: string): string {
   switch (iana) {
     case 'Europe/Athens':
-      return 'EET' // Greece — EET/EEST
     case 'Europe/Istanbul':
-      return 'GST2' // Turkey — fixed UTC+3, no DST
+      return 'EET' // Eastern Europe — EET/EEST
     case 'Europe/Berlin':
     case 'Europe/Rome':
       return 'CET' // Central Europe — CET/CEST
@@ -47,6 +48,21 @@ function heavensAboveTz(iana: string): string {
       return 'GMT' // UK — GMT/BST
     default:
       return 'UCT'
+  }
+}
+
+// Heavens-Above language (`cul`) per city, per the requested convention:
+// Greek cities -> English, Bodrum (Turkey) -> Turkish, German cities -> German,
+// UK -> English. Keyed by country so a new city inherits the right language.
+function heavensAboveLang(country: string): string {
+  switch (country) {
+    case 'Turkey':
+      return 'tr'
+    case 'Germany':
+      return 'de'
+    default:
+      // Greece, United Kingdom, Italy, and anything else -> English.
+      return 'en'
   }
 }
 
@@ -134,6 +150,7 @@ export default async function SkyCalendarPage({
     p.set('loc', city.name)
     p.set('alt', String(city.height))
     p.set('tz', heavensAboveTz(city.tz))
+    p.set('cul', heavensAboveLang(city.country))
     return `https://www.heavens-above.com/skychart.aspx?${p.toString()}`
   })()
   // The 7-night strip is anchored at TODAY (now), so offsets are days-from-today.
@@ -170,16 +187,17 @@ export default async function SkyCalendarPage({
   const dayDate = (offset: number) =>
     new Date(now.getTime() + offset * 86_400_000).toLocaleDateString('en-GB', { timeZone: city.tz, day: 'numeric', month: 'short' })
 
-  // The darkness ladder as ordered rows (skip any null phase honestly).
-  const twilightRows: { label: string; time: string | null; emphasis?: boolean }[] = [
-    { label: 'Sunset', time: tw.sunset?.hhmm ?? null },
-    { label: 'Civil twilight ends', time: tw.civilDusk?.hhmm ?? null },
-    { label: 'Nautical twilight ends', time: tw.nauticalDusk?.hhmm ?? null },
-    { label: 'Fully dark — a session can start', time: tw.astroDusk?.hhmm ?? null, emphasis: true },
-    { label: 'First light — dark ends', time: tw.astroDawn?.hhmm ?? null, emphasis: true },
-    { label: 'Nautical twilight (dawn)', time: tw.nauticalDawn?.hhmm ?? null },
-    { label: 'Civil twilight (dawn)', time: tw.civilDawn?.hhmm ?? null },
-    { label: 'Sunrise', time: tw.sunrise?.hhmm ?? null },
+  // The darkness ladder as ordered rows (skip any null phase honestly). `kind`
+  // selects the row's icon (see TwilightIcon).
+  const twilightRows: { label: string; time: string | null; kind: TwilightRowKind; emphasis?: boolean }[] = [
+    { label: 'Sunset', time: tw.sunset?.hhmm ?? null, kind: 'sunset' },
+    { label: 'Civil twilight ends', time: tw.civilDusk?.hhmm ?? null, kind: 'civil-dusk' },
+    { label: 'Nautical twilight ends', time: tw.nauticalDusk?.hhmm ?? null, kind: 'nautical-dusk' },
+    { label: 'Fully dark — a session can start', time: tw.astroDusk?.hhmm ?? null, kind: 'astro-dusk', emphasis: true },
+    { label: 'First light — dark ends', time: tw.astroDawn?.hhmm ?? null, kind: 'astro-dawn', emphasis: true },
+    { label: 'Nautical twilight (dawn)', time: tw.nauticalDawn?.hhmm ?? null, kind: 'nautical-dawn' },
+    { label: 'Civil twilight (dawn)', time: tw.civilDawn?.hhmm ?? null, kind: 'civil-dawn' },
+    { label: 'Sunrise', time: tw.sunrise?.hhmm ?? null, kind: 'sunrise' },
   ]
 
   return (
@@ -264,8 +282,12 @@ export default async function SkyCalendarPage({
               {moon.phaseName.charAt(0).toUpperCase() + moon.phaseName.slice(1)} · {moon.illumPercent}% lit
             </p>
             <p className="sky-moon-verdict">{moonWin.verdict}</p>
-            <p className="sky-raw">
-              Rises {moonWin.moonrise?.hhmm ?? '—'} · sets {moonWin.moonset?.hhmm ?? '—'}
+            <p className="sky-raw sky-raw--moon">
+              <span className="sky-t-icon sky-t-icon--rise" aria-hidden="true"><RiseSetArrow dir="rise" /></span>
+              Rises {moonWin.moonrise?.hhmm ?? '—'}
+              <span className="sky-raw-sep">·</span>
+              <span className="sky-t-icon sky-t-icon--set" aria-hidden="true"><RiseSetArrow dir="set" /></span>
+              sets {moonWin.moonset?.hhmm ?? '—'}
             </p>
           </div>
         </div>
@@ -276,7 +298,10 @@ export default async function SkyCalendarPage({
           <ul className="sky-timeline">
             {twilightRows.map((r) => (
               <li key={r.label} className={`sky-tl-row${r.emphasis ? ' sky-tl-row--key' : ''}`}>
-                <span className="sky-tl-label">{r.label}</span>
+                <span className="sky-tl-label">
+                  <span className="sky-tl-icon" aria-hidden="true"><TwilightIcon kind={r.kind} /></span>
+                  {r.label}
+                </span>
                 <span className="sky-tl-time">{r.time ?? 'stays light'}</span>
               </li>
             ))}
@@ -302,8 +327,8 @@ export default async function SkyCalendarPage({
                       planner wants them, and a mystery "times" toggle read as
                       unclear. Compact, muted, so the plain line stays the lead. */}
                   <span className="sky-planet-times">
-                    <span><span className="sky-t-label">rises</span> {p.rise?.hhmm ?? '—'}</span>
-                    <span><span className="sky-t-label">sets</span> {p.set?.hhmm ?? '—'}</span>
+                    <span><span className="sky-t-icon sky-t-icon--rise" aria-hidden="true"><RiseSetArrow dir="rise" /></span><span className="sky-t-label">rises</span> {p.rise?.hhmm ?? '—'}</span>
+                    <span><span className="sky-t-icon sky-t-icon--set" aria-hidden="true"><RiseSetArrow dir="set" /></span><span className="sky-t-label">sets</span> {p.set?.hhmm ?? '—'}</span>
                     <span><span className="sky-t-label">highest</span> {p.bestTime?.hhmm ?? '—'} ({Math.round(p.maxAltitude)}°)</span>
                   </span>
                 </li>
@@ -354,6 +379,12 @@ export default async function SkyCalendarPage({
           <div className="sky-chart-legend" aria-hidden="true">
             <span className="sky-legend-item"><span className="sky-legend-swatch sky-legend-swatch--sun" />Sun{curves.sunTransit ? ` · highest ${curves.sunTransit.hhmm} (${Math.round(curves.sunTransit.altitude)}°)` : ''}</span>
             <span className="sky-legend-item"><span className="sky-legend-swatch sky-legend-swatch--moon" />Moon{curves.moonTransit ? ` · highest ${curves.moonTransit.hhmm} (${Math.round(curves.moonTransit.altitude)}°)` : ''}</span>
+          </div>
+          <div className="sky-chart-legend sky-chart-legend--tw" aria-hidden="true">
+            <span className="sky-legend-item"><span className="sky-legend-box sky-legend-box--civil" />Civil</span>
+            <span className="sky-legend-item"><span className="sky-legend-box sky-legend-box--nautical" />Nautical</span>
+            <span className="sky-legend-item"><span className="sky-legend-box sky-legend-box--astro" />Astronomical</span>
+            <span className="sky-legend-item"><span className="sky-legend-box sky-legend-box--dark" />Full dark</span>
           </div>
           <div className="sky-chart-wrap">
             <AltitudeChart curves={curves} />
