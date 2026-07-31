@@ -3537,20 +3537,13 @@ function LiveFrameView({
             .rim-brand below), repeating it here read redundantly. Just the
             live/updated status remains. */}
         <header className="topbar" aria-label="Live page status">
-          {/* Follow-us advert — subtle Instagram glyph + handle, pinned top-right
-              of the topbar so it sits on the same band as the status pills
-              without crowding the centered status. Opens the account in a new
-              tab; utm tags attribute follows to the live screen. */}
-          <a
-            className="topbar-follow"
-            href="https://instagram.com/mixalre?utm_source=live_screen&utm_medium=website&utm_campaign=live_follow"
-            target="_blank"
-            rel="noopener noreferrer"
-            aria-label="Follow @mixalre on Instagram"
-          >
-            <InstagramIcon />
-            <span className="topbar-follow-handle">@mixalre</span>
-          </a>
+          {/* Status row is a 3-column grid: a balanced spacer (same width as the
+              follow chip) on the left, the status centered, the Instagram
+              follow-advert on the right. The spacer keeps the status DEAD-CENTRE
+              regardless of the chip's width, and the chip can never collide with
+              (or wrap) the LIVE · UPDATED · STACKED row. */}
+          <div className="topbar__row">
+            <span className="topbar__spacer" aria-hidden="true" />
           {/* Two-line structure, ALWAYS (line 2 just renders empty/absent
               when not browsing) — line 1 is status/badge, line 2 is
               reserved for Back to Live. Phone testing found that rendering
@@ -3600,6 +3593,20 @@ function LiveFrameView({
               // frame for the current feed.
               <span className="viewing-earlier-badge">VIEWING AN EARLIER FRAME · NOT LIVE</span>
             )}
+          </div>
+            {/* Follow-us advert — subtle Instagram glyph + handle, right column
+                of the status grid. Opens the account in a new tab; utm tags
+                attribute follows to the live screen. */}
+            <a
+              className="topbar-follow"
+              href="https://instagram.com/mixalre?utm_source=live_screen&utm_medium=website&utm_campaign=live_follow"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Follow @mixalre on Instagram"
+            >
+              <InstagramIcon />
+              <span className="topbar-follow-handle">@mixalre</span>
+            </a>
           </div>
           {/* Always rendered (not conditionally mounted) so the grid-rows
               CSS transition (see .topbar__actions in styles.css) has stable

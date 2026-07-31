@@ -95,9 +95,14 @@ export function formatNextSessionLines(
   if (!next) return null
   const weekday = athensWeekday(next.date) // shared Athens-weekday mechanism (see lib/schedule.ts)
   const venue = hotelDisplayName(next.hotelId)
+  // `next` is the NEXT scheduled event, which is often at a DIFFERENT venue than
+  // the one that just finished (e.g. finishing Thursday's Paralos Kyma Dunes ->
+  // next is Friday's Caravia Beach). So the copy must NOT say "here at <venue>"
+  // — "here" wrongly implies the guest's current venue. It reads as a forward
+  // invitation to wherever the next session is.
   return {
     lead: pickNextSessionLeadLine(seed),
-    schedule: `${weekday}, ${next.start}–${next.end} here at ${venue}.`,
+    schedule: `Next: ${weekday}, ${next.start}–${next.end} at ${venue}.`,
     logoSrc: hotelLogoSrc(next.hotelId),
   }
 }

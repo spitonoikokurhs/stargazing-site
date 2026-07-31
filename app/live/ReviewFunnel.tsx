@@ -1,8 +1,27 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { REVIEW_URL, whatsappUrl, FUNNEL_COPY } from '@/lib/review-funnel'
+import { REVIEW_URL, whatsappUrl, FUNNEL_COPY, INSTAGRAM_URL, LINKEDIN_URL } from '@/lib/review-funnel'
 import type { InteractionKey } from '@/lib/interaction-events'
+
+// Small monochrome social glyphs (currentColor, no icon library — same pattern
+// as the share-dock icons in LiveView).
+function IgGlyph() {
+  return (
+    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true">
+      <rect x="3" y="3" width="18" height="18" rx="5" />
+      <circle cx="12" cy="12" r="4.2" />
+      <circle cx="17.2" cy="6.8" r="1" fill="currentColor" stroke="none" />
+    </svg>
+  )
+}
+function LiGlyph() {
+  return (
+    <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true">
+      <path d="M4.98 3.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5ZM3 9h4v12H3zM9 9h3.8v1.7h.05c.53-.95 1.83-1.95 3.77-1.95C20.3 8.75 21 11 21 14v7h-4v-6.2c0-1.48-.03-3.38-2.06-3.38-2.06 0-2.38 1.6-2.38 3.27V21H9z" />
+    </svg>
+  )
+}
 
 // The review/testimonial funnel reveal — a calm invitation shown on the
 // farewell screen. Two variants (see lib/review-funnel):
@@ -205,6 +224,32 @@ export function ReviewFunnel({
           }}
         >
           {c.review}
+        </a>
+      </div>
+      {/* Follow / connect — Instagram for guests, LinkedIn for collaboration
+          (hotels/venues). Quiet icon+label row under the main actions. */}
+      <div className="review-funnel-socials">
+        <a
+          className="review-funnel-social"
+          href={INSTAGRAM_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={markInteracted}
+          aria-label="Follow @mixalre on Instagram"
+        >
+          <IgGlyph />
+          <span>Follow</span>
+        </a>
+        <a
+          className="review-funnel-social"
+          href={LINKEDIN_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={markInteracted}
+          aria-label="Connect on LinkedIn for collaborations"
+        >
+          <LiGlyph />
+          <span>Collaborate</span>
         </a>
       </div>
     </div>

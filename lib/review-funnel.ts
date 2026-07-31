@@ -16,6 +16,14 @@ import { hotelDisplayName } from '@/lib/live-copy'
 // reviews land).
 export const REVIEW_URL = 'https://g.page/r/CQMsZrOvq_kLEBI/review'
 
+// Social follow links shown on the farewell funnel. Instagram = follow-for-more
+// (guests); LinkedIn = collaboration/partnership proposals (hotels, venues).
+// utm tags attribute the follow to the live farewell screen specifically.
+export const INSTAGRAM_URL =
+  'https://instagram.com/mixalre?utm_source=live_farewell&utm_medium=website&utm_campaign=farewell_follow'
+export const LINKEDIN_URL =
+  'https://www.linkedin.com/in/michalis-reisis-stargazing/?utm_source=live_farewell&utm_medium=website&utm_campaign=farewell_connect'
+
 // WhatsApp lead-capture number. The message text is a per-venue prefill built by
 // whatsappUrl() below; this is the base the ?text= is appended to.
 const WHATSAPP_BASE = 'https://wa.me/306947772928'
