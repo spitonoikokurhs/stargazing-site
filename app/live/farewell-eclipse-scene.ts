@@ -320,16 +320,16 @@ const ECLIPSE_SCENE_TEMPLATE = String.raw`<!DOCTYPE html>
         COL='#c4bdad', STONE3='#3e372e', STAIR='#39332b', STEP='#221e18',
         CYP='#0f1b11', RIM='rgba(255,158,104,.16)';
 
-    /* left edges extended to x=-120 (was 0) so the portrait view's rightward
-       shift — see fitRuins — leaves no transparent gap in the sky-line/ground
-       on the far left; the extra span just continues each layer's leftmost
-       height flat outward. */
-    g+='<path d="M-120 60 L100 46 L200 56 L300 40 L410 54 L520 44 L630 58 L730 46 L840 56 L940 48 L1000 54 '
-      +'L1000 300 L-120 300 Z" fill="#3c4d63" opacity=".5"/>';
-    g+='<path d="M-120 80 L120 68 L250 80 L370 66 L500 76 L620 68 L740 80 L860 70 L1000 78 '
-      +'L1000 300 L-120 300 Z" fill="#2c3a49" opacity=".6"/>';
-    g+='<path d="M-120 98 L70 92 L150 98 L240 88 L320 82 L400 68 L460 56 L500 53 L540 56 L600 68 '
-      +'L680 82 L760 88 L840 96 L920 90 L1000 98 L1000 300 L-120 300 Z" fill="#14241a"/>';
+    /* Outer edges extended to x=-400/1400 (was -120/1000): with the wide-screen
+       viewBox (-400 0 1800 300, see fitRuins) these flat continuations reach
+       both screen edges under "slice", leaving no sky-blue wedge in the corners.
+       The temple/detail region (x≈30–970) is untouched. */
+    g+='<path d="M-400 60 L100 46 L200 56 L300 40 L410 54 L520 44 L630 58 L730 46 L840 56 L940 48 L1000 54 '
+      +'L1400 54 L1400 300 L-400 300 Z" fill="#3c4d63" opacity=".5"/>';
+    g+='<path d="M-400 80 L120 68 L250 80 L370 66 L500 76 L620 68 L740 80 L860 70 L1000 78 '
+      +'L1400 78 L1400 300 L-400 300 Z" fill="#2c3a49" opacity=".6"/>';
+    g+='<path d="M-400 98 L70 92 L150 98 L240 88 L320 82 L400 68 L460 56 L500 53 L540 56 L600 68 '
+      +'L680 82 L760 88 L840 96 L920 90 L1000 98 L1400 98 L1400 300 L-400 300 Z" fill="#14241a"/>';
     function cyp(x,tip,w,cls){return '<path class="sway '+cls+'" d="M'+x+' 116 C'+(x+w)+' '+(tip+50)+','+(x+w*0.7)+' 112,'+x+' 116 '
       +'C'+(x-w*0.7)+' 112,'+(x-w)+' '+(tip+50)+','+x+' '+tip+' Z" fill="'+CYP+'"/>';}
     g+=cyp(150,58,12,'sway1')+cyp(250,64,10,'sway2')+cyp(650,56,12,'sway3')+cyp(730,66,10,'sway1')+cyp(825,60,11,'sway2');
@@ -368,11 +368,12 @@ const ECLIPSE_SCENE_TEMPLATE = String.raw`<!DOCTYPE html>
     g+='<g stroke="'+STEP+'" stroke-width="1.3">'+st2+'</g>';
 
     g+='<rect x="30" y="170" width="940" height="82" fill="'+STONE1+'"/>';
-    /* ground bands extended left to x=-120 (see the sky-line note above) so the
-       shifted portrait view shows continuous ground, no transparent wedge. */
-    g+='<rect x="-120" y="252" width="1120" height="48" fill="'+GROUND+'"/>';
-    g+='<rect x="-120" y="278" width="1120" height="22" fill="#3a2f21"/>';
-    g+='<rect x="-120" y="278" width="1120" height="3" fill="rgba(210,180,140,.22)"/>';
+    /* ground bands extended to x=-400..1400 (see the sky-line note above) so the
+       ground reaches both screen edges under "meet" on wide desktops and under
+       the shifted portrait view, with no transparent wedge either side. */
+    g+='<rect x="-400" y="252" width="1800" height="48" fill="'+GROUND+'"/>';
+    g+='<rect x="-400" y="278" width="1800" height="22" fill="#3a2f21"/>';
+    g+='<rect x="-400" y="278" width="1800" height="3" fill="rgba(210,180,140,.22)"/>';
     g+='<g fill="#463825"><ellipse cx="150" cy="288" rx="22" ry="7"/><ellipse cx="835" cy="292" rx="26" ry="8"/>'
       +'<ellipse cx="500" cy="295" rx="18" ry="6"/><ellipse cx="330" cy="291" rx="14" ry="5"/><ellipse cx="670" cy="289" rx="16" ry="5"/></g>';
     var arch='', pitch=54, aw=42, r=aw/2, spring=208, baseY=248;
@@ -409,20 +410,15 @@ const ECLIPSE_SCENE_TEMPLATE = String.raw`<!DOCTYPE html>
       // terrace colonnade clears the left edge, while keeping the temple's
       // pediment (upper right) from riding off the right side.
       //
-      // Landscape: the art is 1000x300 (aspect 3.33). The .ruins band is
-      // width:100% x 44vh, whose aspect on a WIDE desktop exceeds 3.33 — with
-      // "slice" that cropped the top and cut the temple pediment. When the band
-      // is wider-aspect than the art, switch to "meet" so the WHOLE scene fits
-      // (temple included), anchored to the bottom-centre; the surrounding sky
-      // (a full-bleed gradient behind the ruins) fills the sides seamlessly, so
-      // there's no visible letterbox. Narrower screens keep "slice" (fills edge
-      // to edge with only a harmless sliver of foreground cropped).
-      var ruinsEl=document.getElementById('ruins');
-      var bandH=ruinsEl?ruinsEl.getBoundingClientRect().height:(window.innerHeight*0.44);
-      var bandAspect=window.innerWidth/Math.max(1,bandH);
-      var wideBand=bandAspect>(1000/300); // art aspect
-      svg.setAttribute('viewBox', portrait?'-70 20 900 280':'0 0 1000 300');
-      svg.setAttribute('preserveAspectRatio', portrait?'xMidYMax slice':(wideBand?'xMidYMax meet':'xMidYMax slice'));
+      // Landscape: use a viewBox WIDER than any screen (-400..1400 = 1800 wide,
+      // aspect 6) with "slice". Because the box is wider-aspect than every real
+      // desktop band, slice always scales to fit the HEIGHT and crops the SIDES
+      // — and the sides are the extended flat hills/ground (drawn out to
+      // x=-400/1400 in buildRuins), so cropping them is invisible. The full
+      // height, including the temple pediment, is always shown, and the ground
+      // reaches both screen edges. No top-clip, no side-gap, at any width.
+      svg.setAttribute('viewBox', portrait?'-70 20 900 280':'-400 0 1800 300');
+      svg.setAttribute('preserveAspectRatio','xMidYMax slice');
     }
     fit(); window.addEventListener('resize',fit);
   })();
