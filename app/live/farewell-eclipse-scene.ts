@@ -401,16 +401,35 @@ const ECLIPSE_SCENE_TEMPLATE = String.raw`<!DOCTYPE html>
   (function fitRuins(){
     var svg=document.getElementById('ruinsSvg');
     function fit(){
-      var portrait=(window.innerWidth/window.innerHeight)<0.75;
+      var aspect=window.innerWidth/window.innerHeight;
+      var portrait=aspect<0.75;
       // Portrait: a WIDE window into the 1000-wide artwork so almost the whole
       // sanctuary is visible — the left arcade through the right propylaea, not
       // the centered slice that used to crop them off. Origin nudged left
       // (40 -> -70) to shift the foreground RIGHT on screen so the middle-
       // terrace colonnade clears the left edge, while keeping the temple's
-      // pediment (upper right) from riding off the right side. The small
-      // negative margin reads as open ground/sky beyond the sanctuary's left
-      // end (background extended to x=-120 to cover it). Landscape unchanged.
-      svg.setAttribute('viewBox', portrait?'-70 20 900 280':'0 0 1000 300');
+      // pediment (upper right) from riding off the right side.
+      //
+      // Landscape: slice scales the art to COVER the ruins band (width 100pct,
+      // height 44vh). On a WIDE desktop the band is far wider than the art's
+      // 1000x300 aspect, so slice scales up until the width fills and crops the
+      // TOP, clipping the temple pediment (peak at y=60). The wider the screen,
+      // the more top gets cut. So the viewBox gains top headroom that grows with
+      // the screen's aspect: the temple keeps its roof no matter how wide the
+      // window. (Height stays anchored at the bottom via YMax, so the ground and
+      // foreground detail are unaffected.)
+      if (portrait) {
+        svg.setAttribute('viewBox', '-70 20 900 280');
+      } else {
+        // How tall the art must be, in viewBox units, to cover a band of the
+        // container's aspect at width 1000: h = 1000 / (aspect * bandFrac),
+        // bandFrac = 0.44 (ruins height is 44vh). Give the top the extra room.
+        var bandFrac = window.innerWidth <= 640 ? 0.35 : 0.44; // matches .ruins height
+        var neededH = 1000 / (aspect * bandFrac);
+        var vbH = Math.max(300, neededH);
+        var topY = 300 - vbH; // extend upward (negative when taller than 300)
+        svg.setAttribute('viewBox', '0 ' + topY.toFixed(0) + ' 1000 ' + vbH.toFixed(0));
+      }
       svg.setAttribute('preserveAspectRatio','xMidYMax slice');
     }
     fit(); window.addEventListener('resize',fit);
@@ -663,6 +682,9 @@ const ECLIPSE_SCENE_TEMPLATE = String.raw`<!DOCTYPE html>
   var TOTAL_EPS=1.5;
   var c=0, wasTotal=false, animating=false, idleReset, fwTimer;
   var postTotality=false;
+  // Once-guard: the delayed 'eclipse-complete' (review-panel reveal) fires only
+  // on the FIRST totality, never again on a replay.
+  var completeSent=false;
   // Latches true the first time totality is reached and NEVER resets — once the
   // day has gone dark, the daytime clouds and birds do not come back, not even
   // if the guest replays the eclipse. (setGulls/eagle/cloud opacity below all
@@ -708,6 +730,12 @@ const ECLIPSE_SCENE_TEMPLATE = String.raw`<!DOCTYPE html>
       if(venueFooter) venueFooter.classList.add('show');   // reveal venue footer at first totality
       // ADDITIVE, standalone-safe: notify the host page (when embedded) that totality was reached, so it can reveal the review invitation. No-op when opened as a standalone file (window.parent===window) — nothing listens and nothing changes visually.
       try{ if(window.parent && window.parent!==window){ window.parent.postMessage({type:'eclipse-totality'},'*'); } }catch(e){}
+      // Reveal the review/socials panel a few seconds INTO totality — after the
+      // guest has taken in the corona, but guaranteed to fire (unlike waiting for
+      // full egress, which a replay-tap can skip). Once per farewell view.
+      if(!completeSent){ completeSent=true; setTimeout(function(){
+        try{ if(window.parent && window.parent!==window){ window.parent.postMessage({type:'eclipse-complete'},'*'); } }catch(e){}
+      }, 4000); }
     }
     if(!total && wasTotal){ flashBeads(A0); flashDiamond(A0,true);
       shadowbands.style.opacity='.32'; setTimeout(function(){shadowbands.style.opacity='0';},1000);
@@ -732,11 +760,6 @@ const ECLIPSE_SCENE_TEMPLATE = String.raw`<!DOCTYPE html>
         var fw=document.getElementById('farewell');
         fw.style.opacity='1'; hint.style.opacity='0';
         fwTimer=setTimeout(function(){ fw.style.opacity='0'; hint.style.opacity='1'; }, 8000);
-        // The full experience is over now (ingress -> totality -> egress, sun
-        // fully returned). Notify the host so it can reveal the review/socials
-        // panel WITHOUT interrupting totality or the transition. Standalone-safe
-        // (no-op when window.parent===window). Fires once per completed run.
-        try{ if(window.parent && window.parent!==window){ window.parent.postMessage({type:'eclipse-complete'},'*'); } }catch(e){}
       }
     }
     requestAnimationFrame(frame);
