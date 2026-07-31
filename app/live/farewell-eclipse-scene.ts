@@ -718,12 +718,6 @@ const ECLIPSE_SCENE_TEMPLATE = String.raw`<!DOCTYPE html>
       if(venueFooter) venueFooter.classList.add('show');   // reveal venue footer at first totality
       // ADDITIVE, standalone-safe: notify the host page (when embedded) that totality was reached, so it can reveal the review invitation. No-op when opened as a standalone file (window.parent===window) — nothing listens and nothing changes visually.
       try{ if(window.parent && window.parent!==window){ window.parent.postMessage({type:'eclipse-totality'},'*'); } }catch(e){}
-      // Reveal the review/socials panel a few seconds INTO totality — after the
-      // guest has taken in the corona, but guaranteed to fire (unlike waiting for
-      // full egress, which a replay-tap can skip). Once per farewell view.
-      if(!completeSent){ completeSent=true; setTimeout(function(){
-        try{ if(window.parent && window.parent!==window){ window.parent.postMessage({type:'eclipse-complete'},'*'); } }catch(e){}
-      }, 4000); }
     }
     if(!total && wasTotal){ flashBeads(A0); flashDiamond(A0,true);
       shadowbands.style.opacity='.32'; setTimeout(function(){shadowbands.style.opacity='0';},1000);
@@ -748,6 +742,13 @@ const ECLIPSE_SCENE_TEMPLATE = String.raw`<!DOCTYPE html>
         var fw=document.getElementById('farewell');
         fw.style.opacity='1'; hint.style.opacity='0';
         fwTimer=setTimeout(function(){ fw.style.opacity='0'; hint.style.opacity='1'; }, 8000);
+        // The sun has fully RETURNED to normal — the whole experience is over.
+        // Reveal the review/socials panel now (per the design: show it when the
+        // sun is back, not during totality). Egress auto-runs after the last tap,
+        // so this reliably fires. Once per farewell view. Standalone-safe.
+        if(!completeSent){ completeSent=true;
+          try{ if(window.parent && window.parent!==window){ window.parent.postMessage({type:'eclipse-complete'},'*'); } }catch(e){}
+        }
       }
     }
     requestAnimationFrame(frame);
