@@ -732,6 +732,11 @@ const ECLIPSE_SCENE_TEMPLATE = String.raw`<!DOCTYPE html>
         var fw=document.getElementById('farewell');
         fw.style.opacity='1'; hint.style.opacity='0';
         fwTimer=setTimeout(function(){ fw.style.opacity='0'; hint.style.opacity='1'; }, 8000);
+        // The full experience is over now (ingress -> totality -> egress, sun
+        // fully returned). Notify the host so it can reveal the review/socials
+        // panel WITHOUT interrupting totality or the transition. Standalone-safe
+        // (no-op when window.parent===window). Fires once per completed run.
+        try{ if(window.parent && window.parent!==window){ window.parent.postMessage({type:'eclipse-complete'},'*'); } }catch(e){}
       }
     }
     requestAnimationFrame(frame);

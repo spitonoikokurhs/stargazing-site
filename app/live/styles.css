@@ -3743,11 +3743,14 @@
   text-align: center;
   padding: 16px 18px;
   border-radius: 16px;
-  background: rgba(8, 10, 16, 0.62);
+  /* Mostly-opaque dark backing so the panel is readable even where backdrop
+     blur isn't supported (some Android browsers); the blur is a nicety on top,
+     not what the readability depends on. */
+  background: rgba(10, 12, 18, 0.9);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
-  border: 1px solid rgba(237, 234, 227, 0.12);
-  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.42);
+  border: 1px solid rgba(237, 234, 227, 0.14);
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.5);
   animation: review-funnel-in 700ms ease both;
 }
 
@@ -3858,12 +3861,13 @@
    back-home link. A scrim disc keeps it legible over the bright pre-totality
    sky (though it only ever shows AFTER totality, when the sky is dark). */
 .farewell-eclipse-funnel {
-  /* Pure positioning wrapper now — the .review-funnel card carries its own
-     blurred background so the two don't double up. Centered near the top so it
-     doesn't sit over the corona's focal ring. */
+  /* Positioning wrapper — the .review-funnel card carries its own backing.
+     Anchored toward the BOTTOM (above the back-home link), clear of the sun's
+     focal area, and only shown after the eclipse has fully finished so it never
+     covers totality or the transition. */
   position: fixed;
-  top: 14px;
   left: 50%;
+  bottom: 64px;
   transform: translateX(-50%);
   z-index: 51;
   width: min(92vw, 340px);

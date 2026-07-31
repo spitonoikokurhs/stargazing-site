@@ -75,12 +75,15 @@ export function FarewellEclipse({
   onTrack?: (key: InteractionKey) => void
 }) {
   // The eclipse scene lives in a sandboxed cross-origin iframe, so the parent
-  // can't observe totality directly. The scene posts an 'eclipse-totality'
-  // message to window.parent at first totality (see farewell-eclipse-scene.ts —
-  // one additive, standalone-safe line). We listen for it to reveal the baseline
-  // review invitation "after totality," per the spec. Latched: once true it
-  // stays, so a replay of the eclipse loop doesn't re-toggle the invitation.
-  const [totalityReached, setTotalityReached] = useState(false)
+  // can't observe totality directly. The scene posts 'eclipse-totality' at first
+  // totality and 'eclipse-complete' once the whole sequence has played out (see
+  // farewell-eclipse-scene.ts). Totality is used only for the Tier-1 beacon;
+  // the review panel waits for eclipse-complete (below).
+  // The whole experience is over (ingress -> totality -> egress, sun returned).
+  // The review/socials panel waits for THIS, not for totality — so it never
+  // interrupts totality, the diamond-ring transition, or the guest reading the
+  // scene text. Latched: stays true across any replay of the loop.
+  const [sceneComplete, setSceneComplete] = useState(false)
   // onTrack held in a ref (same pattern as FarewellAegeanUfo's onTrackRef): the
   // []-dep listener effect below captures its closure once at mount, while the
   // onTrack prop is a fresh arrow from LiveView on every render — the ref keeps
@@ -97,8 +100,8 @@ export function FarewellEclipse({
       // Validate shape only (the sandboxed null-origin iframe has an opaque
       // origin, so an origin check isn't meaningful here; we accept only our
       // own known message type and ignore everything else).
-      if (e && e.data && typeof e.data === 'object' && (e.data as { type?: unknown }).type === 'eclipse-totality') {
-        setTotalityReached(true)
+      const type = e && e.data && typeof e.data === 'object' ? (e.data as { type?: unknown }).type : undefined
+      if (type === 'eclipse-totality') {
         if (!totalityBeaconSentRef.current) {
           totalityBeaconSentRef.current = true
           try {
@@ -107,6 +110,9 @@ export function FarewellEclipse({
             // a tracking hiccup must never disturb the farewell
           }
         }
+      } else if (type === 'eclipse-complete') {
+        // Full sequence finished — safe to reveal the review/socials panel.
+        setSceneComplete(true)
       }
     }
     window.addEventListener('message', onMessage)
@@ -154,13 +160,12 @@ export function FarewellEclipse({
       <div className="farewell-eclipse-back-home">
         <BackToHome variant="link" />
       </div>
-      {/* Review funnel: baseline invitation only (the eclipse has no finale, so
-          no finder variant — see the report). Revealed AFTER totality, as a
-          PARENT-tree sibling overlay (zIndex 51 > the iframe's 50) in the
-          top-right — clear of the centered sun and the top-left back-home link.
-          Reduced motion is honoured by the funnel/CSS even though the eclipse
-          scene itself doesn't (it's a separate document). */}
-      {totalityReached && (
+      {/* Review + socials panel: revealed only once the WHOLE eclipse has played
+          out (eclipse-complete, i.e. the sun has fully returned) — never during
+          totality or the transition, so the moment isn't interrupted. Anchored
+          bottom-centre, above the back-home link, clear of the sun's focal area;
+          the panel carries its own backing so it reads cleanly over the sky. */}
+      {sceneComplete && (
         <div className="farewell-eclipse-funnel">
           <ReviewFunnel variant="baseline" hotelId={hotelId} onTrack={onTrack} />
         </div>
