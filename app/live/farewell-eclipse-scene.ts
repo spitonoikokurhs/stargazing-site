@@ -401,8 +401,7 @@ const ECLIPSE_SCENE_TEMPLATE = String.raw`<!DOCTYPE html>
   (function fitRuins(){
     var svg=document.getElementById('ruinsSvg');
     function fit(){
-      var aspect=window.innerWidth/window.innerHeight;
-      var portrait=aspect<0.75;
+      var portrait=(window.innerWidth/window.innerHeight)<0.75;
       // Portrait: a WIDE window into the 1000-wide artwork so almost the whole
       // sanctuary is visible — the left arcade through the right propylaea, not
       // the centered slice that used to crop them off. Origin nudged left
@@ -410,27 +409,20 @@ const ECLIPSE_SCENE_TEMPLATE = String.raw`<!DOCTYPE html>
       // terrace colonnade clears the left edge, while keeping the temple's
       // pediment (upper right) from riding off the right side.
       //
-      // Landscape: slice scales the art to COVER the ruins band (width 100pct,
-      // height 44vh). On a WIDE desktop the band is far wider than the art's
-      // 1000x300 aspect, so slice scales up until the width fills and crops the
-      // TOP, clipping the temple pediment (peak at y=60). The wider the screen,
-      // the more top gets cut. So the viewBox gains top headroom that grows with
-      // the screen's aspect: the temple keeps its roof no matter how wide the
-      // window. (Height stays anchored at the bottom via YMax, so the ground and
-      // foreground detail are unaffected.)
-      if (portrait) {
-        svg.setAttribute('viewBox', '-70 20 900 280');
-      } else {
-        // How tall the art must be, in viewBox units, to cover a band of the
-        // container's aspect at width 1000: h = 1000 / (aspect * bandFrac),
-        // bandFrac = 0.44 (ruins height is 44vh). Give the top the extra room.
-        var bandFrac = window.innerWidth <= 640 ? 0.35 : 0.44; // matches .ruins height
-        var neededH = 1000 / (aspect * bandFrac);
-        var vbH = Math.max(300, neededH);
-        var topY = 300 - vbH; // extend upward (negative when taller than 300)
-        svg.setAttribute('viewBox', '0 ' + topY.toFixed(0) + ' 1000 ' + vbH.toFixed(0));
-      }
-      svg.setAttribute('preserveAspectRatio','xMidYMax slice');
+      // Landscape: the art is 1000x300 (aspect 3.33). The .ruins band is
+      // width:100% x 44vh, whose aspect on a WIDE desktop exceeds 3.33 — with
+      // "slice" that cropped the top and cut the temple pediment. When the band
+      // is wider-aspect than the art, switch to "meet" so the WHOLE scene fits
+      // (temple included), anchored to the bottom-centre; the surrounding sky
+      // (a full-bleed gradient behind the ruins) fills the sides seamlessly, so
+      // there's no visible letterbox. Narrower screens keep "slice" (fills edge
+      // to edge with only a harmless sliver of foreground cropped).
+      var ruinsEl=document.getElementById('ruins');
+      var bandH=ruinsEl?ruinsEl.getBoundingClientRect().height:(window.innerHeight*0.44);
+      var bandAspect=window.innerWidth/Math.max(1,bandH);
+      var wideBand=bandAspect>(1000/300); // art aspect
+      svg.setAttribute('viewBox', portrait?'-70 20 900 280':'0 0 1000 300');
+      svg.setAttribute('preserveAspectRatio', portrait?'xMidYMax slice':(wideBand?'xMidYMax meet':'xMidYMax slice'));
     }
     fit(); window.addEventListener('resize',fit);
   })();
