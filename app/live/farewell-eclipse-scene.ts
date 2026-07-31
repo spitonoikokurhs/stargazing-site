@@ -671,8 +671,9 @@ const ECLIPSE_SCENE_TEMPLATE = String.raw`<!DOCTYPE html>
   var c=0, wasTotal=false, animating=false, idleReset, fwTimer;
   var postTotality=false;
   // Once-guard: the delayed 'eclipse-complete' (review-panel reveal) fires only
-  // on the FIRST totality, never again on a replay.
-  var completeSent=false;
+  // on the FIRST totality, never again on a replay. completeReveal holds the
+  // guaranteed timer id (scheduled at the 10th tap) so it can survive.
+  var completeSent=false, completeReveal=null, completeAt=0;
   // Latches true the first time totality is reached and NEVER resets — once the
   // day has gone dark, the daytime clouds and birds do not come back, not even
   // if the guest replays the eclipse. (setGulls/eagle/cloud opacity below all
@@ -742,13 +743,10 @@ const ECLIPSE_SCENE_TEMPLATE = String.raw`<!DOCTYPE html>
         var fw=document.getElementById('farewell');
         fw.style.opacity='1'; hint.style.opacity='0';
         fwTimer=setTimeout(function(){ fw.style.opacity='0'; hint.style.opacity='1'; }, 8000);
-        // The sun has fully RETURNED to normal — the whole experience is over.
-        // Reveal the review/socials panel now (per the design: show it when the
-        // sun is back, not during totality). Egress auto-runs after the last tap,
-        // so this reliably fires. Once per farewell view. Standalone-safe.
-        if(!completeSent){ completeSent=true;
-          try{ if(window.parent && window.parent!==window){ window.parent.postMessage({type:'eclipse-complete'},'*'); } }catch(e){}
-        }
+        // The sun has fully RETURNED to normal — reveal the panel now (visual
+        // path). The guaranteed timer at the 10th tap is the safety net if this
+        // RAF loop was paused (backgrounded tab); fireComplete is idempotent.
+        fireComplete();
       }
     }
     requestAnimationFrame(frame);
@@ -764,9 +762,30 @@ const ECLIPSE_SCENE_TEMPLATE = String.raw`<!DOCTYPE html>
     if(c>=STEPS){
       animating=true;
       setTimeout(startEgress, TOTALITY_MS);
+      // GUARANTEED panel reveal: schedule 'eclipse-complete' for the moment the
+      // sun should be back to normal (totality hold + egress). This does NOT
+      // depend on the requestAnimationFrame egress loop actually finishing —
+      // that RAF loop fully PAUSES on a real phone whenever the tab/screen isn't
+      // visible (glance away, screen dims), so tying the reveal only to its end
+      // meant the panel silently never appeared. completeSent guards against a
+      // double-post from the egress-end handler. Standalone-safe.
+      if(!completeSent){ completeAt=Date.now()+TOTALITY_MS+EGRESS_MS+200; completeReveal=setTimeout(fireComplete, TOTALITY_MS+EGRESS_MS+200); }
     } else {
       idleReset=setTimeout(function(){ c=0; applyD(2*R); }, 8000);
     }
+  });
+
+  // Fire the review-panel reveal, once. Called by the guaranteed timer above and
+  // by the visibility safety-net below (a backgrounded mobile tab throttles the
+  // timer; when the guest returns to the screen, this catches up if the reveal
+  // time has already passed, so the panel still appears).
+  function fireComplete(){
+    if(completeSent) return; completeSent=true;
+    if(completeReveal){ clearTimeout(completeReveal); completeReveal=null; }
+    try{ if(window.parent && window.parent!==window){ window.parent.postMessage({type:'eclipse-complete'},'*'); } }catch(e){}
+  }
+  document.addEventListener('visibilitychange', function(){
+    if(!document.hidden && !completeSent && completeAt && Date.now()>=completeAt){ fireComplete(); }
   });
 })();
 </script>
