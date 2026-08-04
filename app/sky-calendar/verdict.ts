@@ -1,4 +1,4 @@
-// Verdict-first copy for /sky-calendar-v2. Pure functions: given the computed
+// Verdict-first copy for /sky-calendar. Pure functions: given the computed
 // night + planets, produce the hero headline and the "How we'd play it" expert
 // read. Auto-generated from the data (rules over moon %, moonless hours, and
 // which planets are well-placed) so it's always live and never stale; the

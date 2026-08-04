@@ -1,44 +1,36 @@
-// The 24-hour altitude chart + the day/night timeline bar for Tonight's Sky.
-// Both are pure/presentational server components that take already-computed
-// numbers (see lib/ephemeris: altitudeCurves + twilightPhases) and emit inline
-// SVG — no client JS, no charting library, so /sky-calendar keeps its tiny page
-// weight. The x-axis is the SELECTED CITY's own local 00:00..24:00 clock.
+// Night-windowed altitude chart + day/night bar for /sky-calendar. Unlike the
+// shared sky-chart (a full 00:00..24:00 axis), these crop to the NIGHT — ~2h
+// before sunset to ~2h after sunrise — so the important hours fill the width and
+// it reads well on a phone (handoff §10). The altitude chart precomputes all
+// SVG geometry HERE (server) and hands ready-made path strings to a small client
+// component that only manages series visibility (so ephemeris stays server-side).
 
-import type { AltCurves, AltSample, TwilightPhases } from '@/lib/ephemeris'
+import type { NightCurves, NightCurve } from '@/lib/ephemeris'
+import { NightChartClient, type ChartGeometry } from './NightChartClient'
 
-// ---- geometry ----------------------------------------------------------------
 const W = 720
-const H = 260
-const PAD_L = 34 // room for the altitude axis labels
+const H = 240
+const PAD_L = 32
 const PAD_R = 12
 const PAD_T = 12
-const PAD_B = 26 // room for the hour labels
+const PAD_B = 26
 const PLOT_W = W - PAD_L - PAD_R
 const PLOT_H = H - PAD_T - PAD_B
-const ALT_MIN = -90
+const ALT_MIN = -30 // night chart: floor at -30° — below that is just "well down"
 const ALT_MAX = 90
 
-const xForMinute = (m: number) => PAD_L + (m / 1440) * PLOT_W
-const yForAlt = (a: number) => PAD_T + ((ALT_MAX - a) / (ALT_MAX - ALT_MIN)) * PLOT_H
-
-// A smooth-enough polyline path for a sampled curve (5-min samples already read
-// as a smooth arc at this scale, so a plain polyline is honest and crisp).
-function curvePath(samples: AltSample[]): string {
-  return samples.map((s, i) => `${i === 0 ? 'M' : 'L'} ${xForMinute(s.minute).toFixed(1)} ${yForAlt(s.altitude).toFixed(1)}`).join(' ')
+// Per-planet stroke colour (off-white tints + the two accents only would collide,
+// so planets get muted distinct hues but stay subordinate to sun/moon).
+// Distinct from the Sun's gold (#e8c583), the Moon's silver (#c7d2e0) AND the
+// teal (#7ee0c4, reserved for darkness/now). Only one planet shows at a time, so
+// each needs to separate from Sun/Moon/teal, not from the other planets.
+const PLANET_COLORS: Record<string, string> = {
+  Venus: '#8fc4e6', // pale blue
+  Mars: '#e2724f', // rust
+  Jupiter: '#c79be0', // soft violet
+  Saturn: '#e39ab8', // dusty rose
 }
 
-// Minutes-from-local-midnight for a twilight instant, relative to the chart's
-// day-start. Null-safe: a phase that doesn't occur (never-dark summer) returns
-// null and its band simply isn't drawn.
-function minuteOf(date: Date | undefined, dayStartUtc: Date): number | null {
-  if (!date) return null
-  const m = (date.getTime() - dayStartUtc.getTime()) / 60_000
-  return m >= 0 && m <= 1440 ? m : null
-}
-
-// Progressively darker blue per twilight level, so the shaded night reads as a
-// gradient from dusk (civil) through to full dark — matching the darkness ladder
-// above the chart.
 const TWILIGHT_FILL: Record<string, string> = {
   civil: 'rgba(40,58,96,0.34)',
   nautical: 'rgba(32,46,80,0.5)',
@@ -46,160 +38,73 @@ const TWILIGHT_FILL: Record<string, string> = {
   dark: 'rgba(16,24,46,0.82)',
 }
 
-export function AltitudeChart({ curves }: { curves: AltCurves }) {
-  // Graded twilight shading from the sun samples — always matches the chart's own
-  // 00:00..24:00 axis, and distinguishes civil / nautical / astronomical / dark.
-  const bands = curves.twilightBands.map((b) => ({
-    x1: xForMinute(b.startMin),
-    x2: xForMinute(b.endMin),
-    fill: TWILIGHT_FILL[b.level] ?? TWILIGHT_FILL.dark,
-  }))
+export function NightAltitudeChart({ curves, tz }: { curves: NightCurves; tz: string }) {
+  const span = curves.winEnd - curves.winStart
+  const xFor = (t: number) => PAD_L + ((t - curves.winStart) / span) * PLOT_W
+  const yFor = (a: number) => PAD_T + ((ALT_MAX - Math.max(ALT_MIN, Math.min(ALT_MAX, a))) / (ALT_MAX - ALT_MIN)) * PLOT_H
+  const path = (samples: NightCurve[]) =>
+    samples.map((s, i) => `${i === 0 ? 'M' : 'L'} ${xFor(s.t).toFixed(1)} ${yFor(s.altitude).toFixed(1)}`).join(' ')
 
-  // 24-hour hour labels every 3h (00,03,...,24).
-  const hourTicks = [0, 3, 6, 9, 12, 15, 18, 21, 24]
-  const hourLabel = (h: number) => (h === 24 ? '24' : String(h).padStart(2, '0'))
+  const twoH = 2 * 3600_000
+  const firstTick = Math.ceil(curves.winStart / twoH) * twoH
+  const hourTicks: { x: number; label: string }[] = []
+  for (let t = firstTick; t <= curves.winEnd; t += twoH) {
+    const hh = new Intl.DateTimeFormat('en-GB', { timeZone: tz, hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date(t))
+    hourTicks.push({ x: xFor(t), label: hh.slice(0, 2) })
+  }
 
-  // Altitude gridlines at -60,-30,0,30,60.
-  const altTicks = [60, 30, 0, -30, -60]
+  // All geometry precomputed server-side; the client component only toggles.
+  const geo: ChartGeometry = {
+    viewBox: `0 0 ${W} ${H}`,
+    padT: PAD_T,
+    plotH: PLOT_H,
+    plotL: PAD_L,
+    plotR: W - PAD_R,
+    sunPath: path(curves.sun),
+    moonPath: path(curves.moon),
+    planets: curves.planets.map((pl) => ({ name: pl.name, color: PLANET_COLORS[pl.name] ?? '#c7ced8', path: path(pl.samples) })),
+    twilight: curves.twilightBands.map((b) => ({ x: xFor(b.start), w: Math.max(0, xFor(b.end) - xFor(b.start)), fill: TWILIGHT_FILL[b.level] ?? TWILIGHT_FILL.dark })),
+    altTicks: [60, 30, 0, -30].map((a) => ({ a, y: yFor(a), label: a > 0 ? `+${a}°` : `${a}°` })),
+    hourTicks,
+    nowX: curves.nowMs != null && curves.nowMs >= curves.winStart && curves.nowMs <= curves.winEnd ? xFor(curves.nowMs) : null,
+  }
 
-  const nowX = curves.nowFraction !== null ? PAD_L + curves.nowFraction * PLOT_W : null
-
-  return (
-    <svg
-      viewBox={`0 0 ${W} ${H}`}
-      className="sky-altchart"
-      role="img"
-      aria-label="Sun and Moon altitude across the day"
-      preserveAspectRatio="xMidYMid meet"
-    >
-      {/* graded twilight shading (civil -> nautical -> astronomical -> dark) */}
-      {bands.map((b, i) => (
-        <rect key={i} x={b.x1} y={PAD_T} width={b.x2 - b.x1} height={PLOT_H} fill={b.fill} />
-      ))}
-
-      {/* altitude gridlines + labels */}
-      {altTicks.map((a) => (
-        <g key={a}>
-          <line
-            x1={PAD_L}
-            x2={W - PAD_R}
-            y1={yForAlt(a)}
-            y2={yForAlt(a)}
-            stroke={a === 0 ? 'rgba(234,231,223,0.34)' : 'rgba(150,180,220,0.12)'}
-            strokeWidth={a === 0 ? 1.2 : 1}
-            strokeDasharray={a === 0 ? undefined : '3 4'}
-          />
-          <text x={PAD_L - 6} y={yForAlt(a) + 3.5} textAnchor="end" className="sky-altchart-axis">
-            {a > 0 ? `+${a}°` : `${a}°`}
-          </text>
-        </g>
-      ))}
-
-      {/* hour ticks + labels */}
-      {hourTicks.map((h) => (
-        <g key={h}>
-          <line
-            x1={xForMinute(h * 60)}
-            x2={xForMinute(h * 60)}
-            y1={PAD_T}
-            y2={PAD_T + PLOT_H}
-            stroke="rgba(150,180,220,0.08)"
-            strokeWidth={1}
-          />
-          <text x={xForMinute(h * 60)} y={H - 9} textAnchor="middle" className="sky-altchart-axis">
-            {hourLabel(h)}
-          </text>
-        </g>
-      ))}
-
-      {/* Moon curve (silver) — drawn first so the Sun sits on top */}
-      <path d={curvePath(curves.moon)} fill="none" stroke="#c7d2e0" strokeWidth={2} strokeLinejoin="round" opacity={0.9} />
-      {/* Sun curve (gold) */}
-      <path d={curvePath(curves.sun)} fill="none" stroke="#e8c583" strokeWidth={2.4} strokeLinejoin="round" />
-
-      {/* transit dots at each body's peak */}
-      {curves.moonTransit && (
-        <circle
-          cx={xForMinute(minuteFromHHMM(curves.moonTransit.hhmm))}
-          cy={yForAlt(curves.moonTransit.altitude)}
-          r={3.2}
-          fill="#eef2f8"
-          stroke="#0b0f14"
-          strokeWidth={1}
-        />
-      )}
-      {curves.sunTransit && (
-        <circle
-          cx={xForMinute(minuteFromHHMM(curves.sunTransit.hhmm))}
-          cy={yForAlt(curves.sunTransit.altitude)}
-          r={3.6}
-          fill="#f4dca6"
-          stroke="#0b0f14"
-          strokeWidth={1}
-        />
-      )}
-
-      {/* now marker (today only) */}
-      {nowX !== null && (
-        <g>
-          <line x1={nowX} x2={nowX} y1={PAD_T} y2={PAD_T + PLOT_H} stroke="#7ee0c4" strokeWidth={1.4} strokeDasharray="2 3" />
-          <circle cx={nowX} cy={PAD_T} r={2.6} fill="#7ee0c4" />
-        </g>
-      )}
-    </svg>
-  )
+  return <NightChartClient geo={geo} />
 }
 
-// The transit hhmm is a wall-clock string in the city's zone; convert back to a
-// minute-of-day for x-positioning (avoids re-plumbing the raw Date through).
-function minuteFromHHMM(hhmm: string): number {
-  const [h, m] = hhmm.split(':').map((n) => parseInt(n, 10))
-  return h * 60 + m
-}
-
-// ---- 24-hour day/night timeline bar ------------------------------------------
-// A compact horizontal bar: night (dark) vs day (lit), with sunrise/sunset tick
-// marks and a "now" dot on today. Reads instantly on a phone, complements the
-// altitude chart (bar = when it's dark; chart = how high things get).
-export function DayNightBar({ curves, tw }: { curves: AltCurves; tw: TwilightPhases }) {
-  // Sunrise/sunset markers come from twilightPhases (their hhmm is the labelled
-  // time a guest reads), but they belong to the night STARTING this evening, so
-  // only the sunset reliably lands within this calendar day; guard each with
-  // minuteOf and simply omit any that fall outside. The twilight BANDS come from
-  // the sun samples (curves.twilightBands), which always fit the 00:00..24:00 axis.
-  const sunsetM = minuteOf(tw.sunset?.date, curves.dayStartUtc)
-
-  const pct = (m: number) => `${(m / 1440) * 100}%`
-  const hourTicks = [0, 6, 12, 18, 24]
-  const hourLabel = (h: number) => (h === 24 ? '24' : String(h).padStart(2, '0'))
-
+// Compact night bar: the twilight bands across the same night window, with a
+// "now" dot. No 24h axis, so the dark part isn't crushed into a third of the bar.
+export function NightBar({ curves, tz }: { curves: NightCurves; tz: string }) {
+  const span = curves.winEnd - curves.winStart
+  const pct = (t: number) => `${((t - curves.winStart) / span) * 100}%`
+  const twoH = 2 * 3600_000
+  const ticks: { left: string; label: string }[] = []
+  const firstTick = Math.ceil(curves.winStart / twoH) * twoH
+  for (let t = firstTick; t <= curves.winEnd; t += twoH) {
+    const hh = new Intl.DateTimeFormat('en-GB', { timeZone: tz, hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date(t))
+    ticks.push({ left: pct(t), label: hh.slice(0, 2) })
+  }
   return (
-    <div className="sky-daynight" aria-label="24-hour day and night">
-      <div className="sky-daynight-bar">
-        {/* graded twilight bands (civil -> dark), both after-midnight + evening */}
+    <div className="v2-nightbar" aria-label="The night, sunset to sunrise">
+      <div className="v2-nightbar-track">
         {curves.twilightBands.map((b, i) => (
-          <div
-            key={i}
-            className={`sky-daynight-tw sky-daynight-tw--${b.level}`}
-            style={{ left: pct(b.startMin), width: pct(b.endMin - b.startMin) }}
-          />
+          <div key={i} className={`v2-nightbar-tw v2-nightbar-tw--${b.level}`} style={{ left: pct(b.start), width: `${((b.end - b.start) / span) * 100}%` }} />
         ))}
-
-        {/* sunset marker */}
-        {sunsetM !== null && (
-          <span className="sky-daynight-mark sky-daynight-mark--set" style={{ left: pct(sunsetM) }} title={`Sunset ${tw.sunset?.hhmm ?? ''}`} />
-        )}
-        {/* now dot (today only) */}
-        {curves.nowFraction !== null && (
-          <span className="sky-daynight-now" style={{ left: `${curves.nowFraction * 100}%` }} />
+        {curves.nowMs != null && curves.nowMs >= curves.winStart && curves.nowMs <= curves.winEnd && (
+          <span className="v2-nightbar-now" style={{ left: pct(curves.nowMs) }} />
         )}
       </div>
-      <div className="sky-daynight-hours">
-        {hourTicks.map((h) => (
-          <span key={h} style={{ left: pct(h * 60) }}>
-            {hourLabel(h)}
-          </span>
+      <div className="v2-nightbar-hours">
+        {ticks.map((tk, i) => (
+          <span key={i} style={{ left: tk.left }}>{tk.label}</span>
         ))}
+      </div>
+      {/* Key so the graded strip reads at a glance: gold = still light,
+          progressively darker blue = deeper twilight into full dark. */}
+      <div className="v2-nightbar-key" aria-hidden="true">
+        <span className="v2-nbk"><span className="v2-nbk-sw v2-nbk-sw--day" />Light</span>
+        <span className="v2-nbk"><span className="v2-nbk-sw v2-nbk-sw--civil" />Twilight</span>
+        <span className="v2-nbk"><span className="v2-nbk-sw v2-nbk-sw--dark" />Properly dark</span>
       </div>
     </div>
   )

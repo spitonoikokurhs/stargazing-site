@@ -1,7 +1,7 @@
 'use client'
 
 // Interactive layer for the v2 night altitude chart. The heavy work (sampling
-// altitudes, building the SVG path strings) stays SERVER-side in sky-v2-chart;
+// altitudes, building the SVG path strings) stays SERVER-side in sky-chart;
 // this component receives ready-made path strings and only manages which series
 // are visible. So the client bundle carries UI state, not ephemeris.
 //

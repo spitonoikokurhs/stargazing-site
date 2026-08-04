@@ -627,7 +627,7 @@ export function moonDuringDark(city: City, whenUtc: Date, tw: TwilightPhases): M
 }
 
 // ============================================================================
-// V2 NIGHT SUMMARY — the verdict-first model (see /sky-calendar-v2).
+// V2 NIGHT SUMMARY — the verdict-first model (see /sky-calendar).
 // Kept SEPARATE from the live-page functions above so v2 can iterate without
 // touching production. The headline metric is MOONLESS DARK: the dark window
 // intersected with the moon being below the horizon — the number that actually
