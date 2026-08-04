@@ -6,7 +6,10 @@ import scheduleData from '@/config/schedule.json'
 // bounds and the timeShifts (e.g. the Sept 1 shift to earlier start/end);
 // scheduledHotelFor is a thin wrapper kept for /api/ingest, which only needs
 // the weekly hotel mapping.
-type DaySlot = { hotelId: string; start: string; end: string } | null
+// `fixedTime: true` pins this slot's start/end so the season-wide timeShifts
+// (e.g. the Sept 1 shift) do NOT move it — used when a venue's slot is a fixed
+// contractual time regardless of the seasonal earlier-sunset shift.
+type DaySlot = { hotelId: string; start: string; end: string; fixedTime?: boolean } | null
 
 // A one-off exception for a single calendar date — e.g. a hotel's usual night
 // moves for one week because the host is away at an external event.
@@ -100,13 +103,18 @@ export function eventFor(date: string): ScheduledEvent | null {
   if (!slot) return null
 
   let { start, end } = slot
-  const applicable = timeShifts
-    .filter((s) => date >= s.from)
-    .sort((a, b) => (a.from < b.from ? -1 : 1))
-    .at(-1)
-  if (applicable) {
-    start = applicable.start
-    end = applicable.end
+  // A slot marked fixedTime keeps its own start/end no matter what season-wide
+  // timeShift is in effect (e.g. OKU's contractual 22:00–23:00 stays put through
+  // the Sept earlier-sunset shift that moves the other venues).
+  if (!slot.fixedTime) {
+    const applicable = timeShifts
+      .filter((s) => date >= s.from)
+      .sort((a, b) => (a.from < b.from ? -1 : 1))
+      .at(-1)
+    if (applicable) {
+      start = applicable.start
+      end = applicable.end
+    }
   }
   return { hotelId: slot.hotelId, start, end }
 }

@@ -3,7 +3,7 @@
   "timezone": "Europe/Athens",
   "weekly": {
     "monday": { "hotelId": "astir-odysseus", "start": "21:30", "end": "22:30" },
-    "tuesday": { "hotelId": "oku-kos", "start": "21:30", "end": "22:30" },
+    "tuesday": { "hotelId": "oku-kos", "start": "22:00", "end": "23:00", "fixedTime": true },
     "wednesday": null,
     "thursday": { "hotelId": "paralos-kyma-dunes", "start": "21:30", "end": "22:30" },
     "friday": { "hotelId": "caravia-beach", "start": "21:30", "end": "22:30" },
