@@ -95,6 +95,7 @@
 
 /* ---- hero ---- */
 .v2-hero {
+  position: relative;
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
@@ -154,6 +155,20 @@
   position: absolute; transform: translateX(-50%);
   font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums;
 }
+/* Key for the graded night bar. */
+.v2-nightbar-key {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--muted);
+}
+.v2-nbk { display: inline-flex; align-items: center; gap: 6px; }
+.v2-nbk-sw { width: 12px; height: 10px; border-radius: 2px; flex: 0 0 auto; border: 1px solid var(--edge); }
+.v2-nbk-sw--day { background: rgba(232, 197, 131, 0.28); }
+.v2-nbk-sw--civil { background: rgba(40, 58, 96, 0.7); }
+.v2-nbk-sw--dark { background: rgba(12, 18, 36, 0.97); }
 
 /* ---- night altitude chart + series toggles ---- */
 .v2-nightchart { margin-top: 6px; }
@@ -373,6 +388,17 @@
 .v2-cta--foot { margin-top: 16px; }
 
 @media (max-width: 480px) {
-  .v2-hero { flex-direction: column-reverse; align-items: flex-start; }
-  .v2-hero-moon { align-self: flex-end; margin-top: -8px; }
+  /* Moon becomes a top-right accent the headline flows UNDER, instead of a
+     separate stacked block that left an empty gap beside the headline. */
+  .v2-hero { display: block; }
+  .v2-hero-moon {
+    position: absolute;
+    top: -4px;
+    right: 0;
+    z-index: 0;
+  }
+  .v2-hero-moon svg { width: 74px !important; height: 74px !important; }
+  .v2-hero-main { position: relative; z-index: 1; }
+  /* keep the headline clear of the moon on the first line(s) */
+  .v2-eyebrow, .v2-headline { padding-right: 84px; }
 }

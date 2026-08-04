@@ -919,12 +919,23 @@ function planetTonight(
     const word = altitudeWord(best.alt)
     const lead = word === 'high' ? 'High' : word === 'well-placed' ? 'Well-placed' : 'Low'
     const twNote = twilightOnly ? ', a bright twilight object' : ''
+    const deg = Math.round(best.alt)
+    // Lead with the STRENGTH of the view (altitude + where/when), not the
+    // boundary caveat — a planet that reaches 56° right before dawn is a great
+    // target, and "still climbing when the sky brightens" wrongly read as "you
+    // can't see it". Only when the peak is genuinely LOW (<25°) do we lead with
+    // the honest caveat. The boundary is still stated, just second.
+    const strong = best.alt >= 25
     if (atEnd) {
-      summary = `Still climbing when the sky brightens${bestTime ? ` at ${bestTime.hhmm}` : ''} — reaches ${Math.round(best.alt)}° in the ${direction}${twNote}.`
+      summary = strong
+        ? `${lead} in the ${direction} — ${deg}° just before dawn${bestTime ? ` (${bestTime.hhmm})` : ''}, still rising as the sky brightens${twNote}.`
+        : `Low in the ${direction}, still climbing when the sky brightens${bestTime ? ` at ${bestTime.hhmm}` : ''} — only ${deg}°${twNote}.`
     } else if (atStart) {
-      summary = `Already ${Math.round(best.alt)}° as darkness falls${bestTime ? ` (${bestTime.hhmm})` : ''}, then sinking — in the ${direction}${twNote}.`
+      summary = strong
+        ? `${lead} in the ${direction} — ${deg}° as darkness falls${bestTime ? ` (${bestTime.hhmm})` : ''}, then sinking through the night${twNote}.`
+        : `Low in the ${direction} — ${deg}° as darkness falls${bestTime ? ` (${bestTime.hhmm})` : ''}, then dropping${twNote}.`
     } else {
-      summary = `${lead} ${phrase}${bestTime ? ` (around ${bestTime.hhmm})` : ''} — in the ${direction}${twNote}.`
+      summary = `${lead} ${phrase}${bestTime ? ` (around ${bestTime.hhmm})` : ''} — ${deg}° in the ${direction}${twNote}.`
     }
   }
   return { name, visible, rise, set, bestTime, maxAltitude: best.alt, direction, summary }

@@ -99,6 +99,13 @@ export function NightBar({ curves, tz }: { curves: NightCurves; tz: string }) {
           <span key={i} style={{ left: tk.left }}>{tk.label}</span>
         ))}
       </div>
+      {/* Key so the graded strip reads at a glance: gold = still light,
+          progressively darker blue = deeper twilight into full dark. */}
+      <div className="v2-nightbar-key" aria-hidden="true">
+        <span className="v2-nbk"><span className="v2-nbk-sw v2-nbk-sw--day" />Light</span>
+        <span className="v2-nbk"><span className="v2-nbk-sw v2-nbk-sw--civil" />Twilight</span>
+        <span className="v2-nbk"><span className="v2-nbk-sw v2-nbk-sw--dark" />Properly dark</span>
+      </div>
     </div>
   )
 }

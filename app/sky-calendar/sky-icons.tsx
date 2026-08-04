@@ -83,12 +83,18 @@ export function MoonPhaseIcon({
       <circle cx={cx} cy={cy} r={r - 0.5} fill="#171d26" stroke="#2b3442" strokeWidth="1" />
       {/* lit face */}
       <circle cx={cx} cy={cy} r={r - 0.5} fill={`url(#${gid})`} />
-      {/* subtle maria so the lit face isn't a flat coin */}
-      <g fill="#c2cbd7" opacity="0.55">
-        <ellipse cx="38" cy="40" rx="9" ry="7" />
-        <ellipse cx="58" cy="34" rx="6" ry="5" />
-        <ellipse cx="60" cy="58" rx="8" ry="6" />
-        <ellipse cx="42" cy="62" rx="5" ry="4" />
+      {/* subtle maria — small, soft, varied so the lit face reads as a textured
+          moon rather than a few big blobs (the old large ellipses looked
+          potato-ish at hero size). Two opacity tiers for gentle depth. */}
+      <g fill="#b9c3d1">
+        <ellipse cx="40" cy="42" rx="5.5" ry="4.5" opacity="0.42" />
+        <ellipse cx="57" cy="36" rx="3.8" ry="3.2" opacity="0.38" />
+        <ellipse cx="60" cy="57" rx="4.6" ry="3.8" opacity="0.4" />
+        <ellipse cx="44" cy="60" rx="3.2" ry="2.6" opacity="0.34" />
+        <ellipse cx="50" cy="48" rx="2.4" ry="2.1" opacity="0.28" />
+        <circle cx="34" cy="52" r="1.6" opacity="0.3" />
+        <circle cx="63" cy="45" r="1.4" opacity="0.26" />
+        <circle cx="52" cy="66" r="1.3" opacity="0.24" />
       </g>
       {/* shadow overlay (the un-lit part) */}
       {f < 0.995 && <path d={shadowPath} fill="#12161e" opacity="0.94" />}
