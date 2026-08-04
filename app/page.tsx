@@ -467,6 +467,17 @@ export default function HomePage() {
 
                 <button type="submit" className="btn primary">Submit feedback</button>
               </form>
+
+              <p className="review-cta">
+                Prefer a public review?{' '}
+                <a
+                  href="https://g.page/r/CQMsZrOvq_kLEBI/review?utm_source=homepage&utm_medium=website&utm_campaign=review"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Leave one on Google&nbsp;⭐
+                </a>
+              </p>
             </div>
           </div>
         </section>

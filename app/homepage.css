@@ -233,6 +233,9 @@ footer{padding:28px 0 40px;border-top:1px solid var(--border);color:var(--muted)
 .lightbox-caption{margin-top:12px;color:#d5dde7}
 
 .feedback-form{margin-top:22px}
+.review-cta{margin-top:18px;padding-top:16px;border-top:1px solid var(--border);color:var(--muted);font-size:.95rem}
+.review-cta a{color:var(--accent);text-decoration:none;font-weight:600}
+.review-cta a:hover{text-decoration:underline}
 .form-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px}
 .form-group{margin-bottom:16px}
 .form-group label{display:block;margin-bottom:8px;color:var(--text);font-weight:600}
