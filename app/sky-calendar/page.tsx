@@ -14,6 +14,7 @@ import { upcomingCelestialEvents } from '@/lib/celestial-events'
 import { MoonPhaseIcon, PlanetIcon, EventIcon, RiseSetArrow, TwilightIcon, type TwilightRowKind } from './sky-icons'
 import { NightAltitudeChart, NightBar } from './sky-chart'
 import { verdictHeadline, moonlessPhrase, howWedPlayIt } from './verdict'
+import { SkyTrack } from './SkyTrack'
 import './sky-calendar.css'
 
 export const metadata: Metadata = {
@@ -108,6 +109,8 @@ export default async function SkyCalendarV2({
 
   return (
     <main className={`v2-root v2-grade-${night.grade}`}>
+      {/* Consent-gated interest beacon: which city + whether Full detail. */}
+      <SkyTrack cityId={city.id} fullDetail={full} />
       <div className="v2-inner">
         {/* Controls: one collapsed line, not seven chips. */}
         <div className="v2-controls">

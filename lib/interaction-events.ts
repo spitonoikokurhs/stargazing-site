@@ -51,6 +51,10 @@ export const INTERACTION_KEYS = [
   'funnel_baseline_review_click', // baseline review option clicked -> REVIEW_URL
   'funnel_finder_review_impression', // finder (easter-egg) review ask shown
   'funnel_finder_review_click', // finder review ask clicked -> REVIEW_URL
+
+  // Tonight's Sky (/sky-calendar) — aggregate interest signals, identifier-free.
+  'sky_city_select', // guest opened a city's conditions (objectId = city id, e.g. "kos") — which markets people care about
+  'sky_full_detail', // guest opened Full detail (the altitude chart) — is the depth wanted (count only)
 ] as const
 
 export type InteractionKey = (typeof INTERACTION_KEYS)[number]
@@ -66,6 +70,9 @@ export function isInteractionKey(value: unknown): value is InteractionKey {
 const OBJECT_SCOPED_KEYS: ReadonlySet<string> = new Set<InteractionKey>([
   'history_pill_tap',
   'object_info_open',
+  // sky_city_select carries a CITY id (kos/bodrum/...) in the objectId slot —
+  // same generic short-string mechanism, so per-city tallies separate cleanly.
+  'sky_city_select',
 ])
 
 export function keyTakesObjectId(key: InteractionKey): boolean {
