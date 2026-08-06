@@ -55,6 +55,7 @@ export const INTERACTION_KEYS = [
   // Tonight's Sky (/sky-calendar) — aggregate interest signals, identifier-free.
   'sky_city_select', // guest opened a city's conditions (objectId = city id, e.g. "kos") — which markets people care about
   'sky_full_detail', // guest opened Full detail (the altitude chart) — is the depth wanted (count only)
+  'sky_date_bucket', // which night the guest is viewing, BUCKETED (objectId = "tonight" | "soon" | "later") — do people plan ahead? Bucketed (never an exact date) to stay identifier-free.
 ] as const
 
 export type InteractionKey = (typeof INTERACTION_KEYS)[number]
@@ -73,6 +74,8 @@ const OBJECT_SCOPED_KEYS: ReadonlySet<string> = new Set<InteractionKey>([
   // sky_city_select carries a CITY id (kos/bodrum/...) in the objectId slot —
   // same generic short-string mechanism, so per-city tallies separate cleanly.
   'sky_city_select',
+  // sky_date_bucket carries a coarse bucket (tonight/soon/later), not a date.
+  'sky_date_bucket',
 ])
 
 export function keyTakesObjectId(key: InteractionKey): boolean {

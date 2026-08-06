@@ -11,7 +11,7 @@ import {
   type Interval,
 } from '@/lib/ephemeris'
 import { upcomingCelestialEvents } from '@/lib/celestial-events'
-import { MoonPhaseIcon, PlanetIcon, EventIcon, RiseSetArrow, TwilightIcon, type TwilightRowKind } from './sky-icons'
+import { CityFlag, MoonPhaseIcon, PlanetIcon, EventIcon, RiseSetArrow, TwilightIcon, type TwilightRowKind } from './sky-icons'
 import { NightAltitudeChart, NightBar } from './sky-chart'
 import { verdictHeadline, moonlessPhrase, howWedPlayIt } from './verdict'
 import { SkyTrack } from './SkyTrack'
@@ -89,6 +89,17 @@ export default async function SkyCalendarV2({
 
   const nightYmd = (offset: number) => localYmdFmt.format(new Date(now.getTime() + offset * 86_400_000))
   const shownYmd = localYmdFmt.format(when)
+  // Coarse "how far ahead" bucket for analytics (never an exact date): tonight,
+  // soon (1–7 nights), later (>7). Days-ahead by comparing city-local YMDs.
+  const dateBucket = (() => {
+    if (isToday) return 'tonight'
+    let ahead = 0
+    for (let d = 1; d <= 60; d++) {
+      if (nightYmd(d) === shownYmd) { ahead = d; break }
+    }
+    if (ahead === 0) return 'other' // a picked date outside the 60-day scan (rare)
+    return ahead <= 7 ? 'soon' : 'later'
+  })()
   const dayLabel = (offset: number) =>
     offset === 0 ? 'Tonight' : new Date(now.getTime() + offset * 86_400_000).toLocaleDateString('en-GB', { timeZone: city.tz, weekday: 'short' })
 
@@ -110,15 +121,20 @@ export default async function SkyCalendarV2({
   return (
     <main className={`v2-root v2-grade-${night.grade}`}>
       {/* Consent-gated interest beacon: which city + whether Full detail. */}
-      <SkyTrack cityId={city.id} fullDetail={full} />
+      <SkyTrack cityId={city.id} fullDetail={full} dateBucket={dateBucket} />
       <div className="v2-inner">
         {/* Controls: one collapsed line, not seven chips. */}
         <div className="v2-controls">
           <details className="v2-picker">
-            <summary>{city.name}<span className="v2-picker-caret">⌄</span></summary>
+            <summary>
+              <span className="v2-picker-flag"><CityFlag country={city.country} /></span>
+              {city.name}
+              <span className="v2-picker-caret">⌄</span>
+            </summary>
             <div className="v2-picker-menu">
               {CITIES.map((c) => (
                 <a key={c.id} href={hrefWith({ city: c.id })} className={c.id === city.id ? 'is-active' : ''}>
+                  <span className="v2-picker-flag"><CityFlag country={c.country} /></span>
                   {c.name} <span className="v2-picker-region">{c.country}</span>
                 </a>
               ))}

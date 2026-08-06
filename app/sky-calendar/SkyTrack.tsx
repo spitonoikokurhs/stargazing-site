@@ -13,7 +13,7 @@ import { useEffect } from 'react'
 import { hasAnalyticsConsent, CONSENT_GRANTED_EVENT } from '@/lib/consent'
 import { trackInteraction } from '@/lib/track-client'
 
-export function SkyTrack({ cityId, fullDetail }: { cityId: string; fullDetail: boolean }) {
+export function SkyTrack({ cityId, fullDetail, dateBucket }: { cityId: string; fullDetail: boolean; dateBucket: string }) {
   useEffect(() => {
     let sent = false
     const fire = () => {
@@ -22,6 +22,8 @@ export function SkyTrack({ cityId, fullDetail }: { cityId: string; fullDetail: b
       // Which market: city id in the objectId slot (kos/bodrum/…) — the server
       // allowlists sky_city_select as object-scoped, so per-city tallies split.
       trackInteraction('sky_city_select', { objectId: cityId })
+      // Which night, bucketed (tonight/soon/later) — never an exact date.
+      trackInteraction('sky_date_bucket', { objectId: dateBucket })
       if (fullDetail) trackInteraction('sky_full_detail')
     }
     // Fire now if consent already given; otherwise wait for the grant event so a
@@ -32,7 +34,7 @@ export function SkyTrack({ cityId, fullDetail }: { cityId: string; fullDetail: b
       window.addEventListener(CONSENT_GRANTED_EVENT, fire, { once: true })
       return () => window.removeEventListener(CONSENT_GRANTED_EVENT, fire)
     }
-  }, [cityId, fullDetail])
+  }, [cityId, fullDetail, dateBucket])
 
   return null
 }

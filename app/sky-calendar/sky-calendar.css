@@ -83,12 +83,17 @@
   text-decoration: none;
   font-size: 14px;
   display: flex;
-  justify-content: space-between;
-  gap: 12px;
+  align-items: center;
+  gap: 8px;
 }
 .v2-picker-menu a:hover { background: rgba(150, 180, 220, 0.08); }
 .v2-picker-menu a.is-active { color: var(--gold); }
-.v2-picker-region { color: var(--faint); font-size: 12px; }
+/* Region label pushed to the right edge; flag + name stay grouped on the left. */
+.v2-picker-region { color: var(--faint); font-size: 12px; margin-left: auto; }
+/* City flag chips in the picker (summary + menu). */
+.v2-picker-flag { display: inline-flex; flex: 0 0 auto; }
+.v2-picker-flag .sky-svg-flag { width: 20px; height: auto; display: block; border-radius: 2.5px; }
+.v2-picker > summary .v2-picker-flag .sky-svg-flag { width: 22px; }
 .v2-controls-date { color: var(--muted); }
 .v2-home { margin-left: auto; color: var(--muted); text-decoration: none; font-size: 13px; }
 .v2-home:hover { color: var(--ink); }
