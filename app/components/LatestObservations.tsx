@@ -29,8 +29,13 @@ export function LatestObservations({ items }: { items: RecentObservation[] }) {
         <p className="lo-eyebrow">From the eyepiece</p>
         <h2>Latest observations</h2>
         <p className="lead lo-lead">
-          Real captures from our live telescope — the most recent shot of each object, straight from a night under the
-          Aegean sky. New targets appear here as we photograph them.
+          Seen through our electronic eyepiece — a modern sensor in place of the ordinary glass one. It draws out the
+          true colour of a nebula, the fine structure of a galaxy, and the faint stars scattered around it: detail no
+          traditional eyepiece can show the eye.
+        </p>
+        <p className="lo-subnote">
+          Each object below is exactly as our guests saw it, live under the Aegean sky. New ones join the collection
+          every time we bring a fresh target into view.
         </p>
 
         <ol className="lo-grid">
