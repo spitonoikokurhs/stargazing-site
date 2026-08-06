@@ -4,6 +4,8 @@ import Script from 'next/script'
 import { LiveStatusPill } from './components/LiveStatusPill'
 import { cityById, CITIES } from '@/lib/ephemeris'
 import { issPasses } from '@/lib/iss'
+import { latestObservationsPerObject } from '@/lib/recent-observations'
+import { LatestObservations } from './components/LatestObservations'
 import './homepage.css'
 
 // Hourly ISR so the ISS teaser stays fresh without recomputing per request (the
@@ -149,6 +151,11 @@ export default async function HomePage() {
     }
   })()
 
+  // Latest capture of each object from the live telescope — a live, self-growing
+  // gallery. Fail-safe: returns [] on any DB issue, and the component renders
+  // nothing for an empty list, so a data hiccup never breaks the homepage.
+  const latestObservations = await latestObservationsPerObject()
+
   return (
     <>
       <script
@@ -271,6 +278,10 @@ export default async function HomePage() {
             </div>
           </div>
         </section>
+
+        {/* Live, self-growing gallery of the latest capture of each object.
+            Renders nothing when there's no data (fail-safe). */}
+        <LatestObservations items={latestObservations} />
 
         <section id="gallery" className="section">
           <div className="container">

@@ -209,6 +209,44 @@ nav a{color:var(--text);white-space:nowrap}
 .gallery-filters{display:flex;flex-wrap:wrap;gap:10px;margin:18px 0 18px}
 .gallery-filters button{cursor:pointer;color:var(--text);background:var(--panel);border:1px solid var(--border);padding:9px 14px;border-radius:999px;font:inherit}
 .gallery-filters button.active{outline:2px solid var(--accent)}
+/* ---- Latest observations (live capture gallery) ---- */
+.lo-section{border-top:1px solid var(--border)}
+.lo-eyebrow{margin:0 0 8px;font-size:.78rem;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--accent)}
+.lo-lead{max-width:52ch}
+.lo-grid{
+  list-style:none;margin:26px 0 0;padding:0;
+  display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px;
+}
+.lo-card{
+  margin:0;border-radius:16px;overflow:hidden;
+  border:1px solid var(--border);background:#070a0e;box-shadow:var(--shadow);
+  transition:transform .25s ease,box-shadow .25s ease,border-color .25s ease;
+}
+.lo-card:hover{transform:translateY(-3px);box-shadow:0 18px 40px rgba(0,0,0,.35);border-color:rgba(125,198,255,.28)}
+.lo-thumb{position:relative;aspect-ratio:1/1;overflow:hidden;background:#05070a}
+/* The subject (nebula/galaxy) is centred in a mostly-black frame, so a plain
+   fit reads as a black box. Scale up + center-crop so the subject fills the
+   card, and lift brightness/contrast a touch so faint detail shows at thumb
+   size — the raw capture stays untouched; this is display-only. */
+.lo-thumb img{
+  width:100%;height:100%;object-fit:cover;object-position:center;display:block;
+  transform:scale(1.7);transform-origin:center;
+  filter:brightness(1.35) contrast(1.12) saturate(1.08);
+  transition:transform .3s ease;
+}
+.lo-card:hover .lo-thumb img{transform:scale(1.78)}
+.lo-overlay{
+  position:absolute;left:0;right:0;bottom:0;
+  padding:34px 14px 12px;
+  display:flex;flex-direction:column;gap:2px;
+  background:linear-gradient(180deg,transparent, rgba(3,5,9,.86));
+}
+.lo-name{font-weight:700;font-size:1.02rem;color:#fff;text-shadow:0 1px 8px rgba(0,0,0,.5)}
+.lo-type{font-size:.8rem;color:rgba(255,255,255,.72)}
+.lo-meta{display:flex;justify-content:space-between;align-items:baseline;gap:10px;padding:10px 14px;font-size:.78rem;color:var(--muted)}
+.lo-where{font-style:italic;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lo-date{white-space:nowrap;font-variant-numeric:tabular-nums}
+
 .gallery-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
 .gallery-card{margin:0;overflow:hidden;position:relative;border-radius:16px;border:1px solid var(--border);background:#070a0e;box-shadow:var(--shadow);cursor:pointer}
 .gallery-card img{width:100%;height:250px;object-fit:cover;transition:transform .25s ease}
