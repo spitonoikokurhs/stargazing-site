@@ -152,9 +152,10 @@ export default async function HomePage() {
   })()
 
   // Latest capture of each object from the live telescope — a live, self-growing
-  // gallery. Fail-safe: returns [] on any DB issue, and the component renders
-  // nothing for an empty list, so a data hiccup never breaks the homepage.
-  const latestObservations = await latestObservationsPerObject()
+  // gallery. Homepage shows a TEASER (first 8, "See all →" to /observations).
+  // Fail-safe: returns [] on any DB issue, and the component renders nothing for
+  // an empty list, so a data hiccup never breaks the homepage.
+  const latestObservations = await latestObservationsPerObject(8)
 
   return (
     <>
@@ -193,6 +194,7 @@ export default async function HomePage() {
             {/* Grouped by purpose, with separators between groups:
                 (1) the service, (2) informative/night-sky, (3) Turkey
                 collaborations, (4) guest feedback. */}
+            <a href="/observations">Observations</a>
             <a href="#gallery">Gallery</a>
             <a href="#partnerships">Partnerships</a>
             <a href="#about">About</a>
@@ -280,8 +282,8 @@ export default async function HomePage() {
         </section>
 
         {/* Live, self-growing gallery of the latest capture of each object.
-            Renders nothing when there's no data (fail-safe). */}
-        <LatestObservations items={latestObservations} />
+            Teaser variant on the homepage; renders nothing with no data. */}
+        <LatestObservations items={latestObservations} variant="teaser" />
 
         <section id="gallery" className="section">
           <div className="container">

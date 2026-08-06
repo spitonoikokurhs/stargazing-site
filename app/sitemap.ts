@@ -23,6 +23,13 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 0.7,
     },
     {
+      // Observations gallery — grows as new objects are captured.
+      url: 'https://www.stargazing.events/observations',
+      lastModified: new Date(),
+      changeFrequency: 'weekly',
+      priority: 0.6,
+    },
+    {
       url: 'https://www.stargazing.events/privacy',
       lastModified: new Date(),
       changeFrequency: 'yearly',

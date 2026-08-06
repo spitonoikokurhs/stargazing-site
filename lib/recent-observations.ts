@@ -25,6 +25,19 @@ export type RecentObservation = {
   imageUrl: string // full-size stacked image (Frame.blobUrl)
   thumbnailUrl: string | null
   observedAt: Date // when this run started (its capture night)
+  // Enrichment for the click-through lightbox (all optional — a card renders
+  // without whatever the catalog hasn't back-filled).
+  distanceLy: number | null
+  sizeDescription: string | null
+  description: string | null
+}
+
+// Client-safe shape (Date -> ISO string) for passing to the client grid/lightbox.
+export type ObservationCard = Omit<RecentObservation, 'observedAt'> & { observedAtIso: string }
+
+export function toCard(o: RecentObservation): ObservationCard {
+  const { observedAt, ...rest } = o
+  return { ...rest, observedAtIso: observedAt.toISOString() }
 }
 
 // How many distinct objects the gallery shows at most. Generous — a season has
@@ -93,6 +106,9 @@ export async function latestObservationsPerObject(limit = MAX_OBJECTS): Promise<
         imageUrl: frame.blobUrl,
         thumbnailUrl: frame.thumbnailUrl ?? null,
         observedAt: r.startedAt,
+        distanceLy: cat?.distanceLy ?? null,
+        sizeDescription: cat?.sizeDescription ?? null,
+        description: cat?.description ?? null,
       })
     }
     // Already newest-first from the reduce order.

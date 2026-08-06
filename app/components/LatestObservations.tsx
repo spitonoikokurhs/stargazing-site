@@ -1,27 +1,29 @@
-/* eslint-disable @next/next/no-img-element */
 // "Latest observations" — a guest-facing gallery of the most recent capture of
-// each object from the live telescope (see lib/recent-observations). Server
-// component: it's handed the already-fetched list and renders nothing when the
-// list is empty (fail-safe, so a data hiccup never leaves a broken section).
+// each object through the electronic eyepiece (see lib/recent-observations).
+// Server component: fetches nothing itself — it's handed the list and renders
+// nothing when it's empty (fail-safe, so a data hiccup never leaves a broken
+// section). The interactive grid + click-to-open lightbox lives in the client
+// ObservationGrid child.
 //
-// Each card is the real stacked astrophoto with the object's name/type in an
-// elegant overlay and the capture date — conveying "we photographed this, live,
-// under the Aegean sky," which is the whole draw.
+// `heading` lets the same gallery serve the homepage TEASER (a short intro,
+// "See all →" link) and the full /observations page (no teaser cap).
 
 import type { RecentObservation } from '@/lib/recent-observations'
+import { toCard } from '@/lib/recent-observations'
+import { ObservationGrid } from './ObservationGrid'
 
-function fmtObserved(d: Date): string {
-  // "12 August 2026" — Athens zone, EU-style, matching the site's date convention.
-  return new Intl.DateTimeFormat('en-GB', {
-    timeZone: 'Europe/Athens',
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-  }).format(d)
-}
-
-export function LatestObservations({ items }: { items: RecentObservation[] }) {
+export function LatestObservations({
+  items,
+  variant = 'full',
+}: {
+  items: RecentObservation[]
+  // 'full' = the whole intro + all items (the /observations page).
+  // 'teaser' = homepage: same cards but a shorter intro and a "See all" link.
+  variant?: 'full' | 'teaser'
+}) {
   if (!items || items.length === 0) return null
+
+  const cards = items.map(toCard)
 
   return (
     <section id="latest-observations" className="section lo-section" aria-label="Latest observations">
@@ -34,34 +36,17 @@ export function LatestObservations({ items }: { items: RecentObservation[] }) {
           traditional eyepiece can show the eye.
         </p>
         <p className="lo-subnote">
-          Each object below is exactly as our guests saw it, live under the Aegean sky. New ones join the collection
-          every time we bring a fresh target into view.
+          Each object below is exactly as our guests saw it, live under the Aegean sky. Tap any capture to see it full
+          size, with a few words about what it is.
         </p>
 
-        <ol className="lo-grid">
-          {items.map((o) => (
-            <li key={o.objectId} className="lo-card">
-              <div className="lo-thumb">
-                <img
-                  src={o.thumbnailUrl ?? o.imageUrl}
-                  alt={`${o.name}${o.type ? ` — ${o.type}` : ''}, captured by Stargazing Events`}
-                  loading="lazy"
-                  decoding="async"
-                />
-                <div className="lo-overlay">
-                  <span className="lo-name">{o.name}</span>
-                  {o.type ? <span className="lo-type">{o.type}</span> : null}
-                </div>
-              </div>
-              <div className="lo-meta">
-                <span className="lo-where">{o.constellation ? `in ${o.constellation}` : ' '}</span>
-                <time className="lo-date" dateTime={o.observedAt.toISOString()}>
-                  {fmtObserved(o.observedAt)}
-                </time>
-              </div>
-            </li>
-          ))}
-        </ol>
+        <ObservationGrid items={cards} />
+
+        {variant === 'teaser' ? (
+          <p className="lo-seeall">
+            <a href="/observations">See all observations →</a>
+          </p>
+        ) : null}
       </div>
     </section>
   )
