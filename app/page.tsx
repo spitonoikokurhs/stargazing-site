@@ -194,11 +194,11 @@ export default async function HomePage() {
             {/* Grouped by purpose, with separators between groups:
                 (1) the service, (2) informative/night-sky, (3) Turkey
                 collaborations, (4) guest feedback. */}
-            <a href="/observations">Observations</a>
-            <a href="#gallery">Gallery</a>
             <a href="#partnerships">Partnerships</a>
             <a href="#about">About</a>
             <a href="#faq">FAQ</a>
+            <a href="/observations">Observations</a>
+            <a href="#gallery">Gallery</a>
             <span className="nav-sep" aria-hidden="true"></span>
             <a href="/sky-calendar">Tonight&apos;s Sky</a>
             <span className="nav-sep" aria-hidden="true"></span>
@@ -270,6 +270,7 @@ export default async function HomePage() {
                 <span className="chip">Content</span>
                 <h3>Astronomy &amp; Visual Experience</h3>
                 <p>Astrophotography and visual elements that complement the experience, revealing details beyond what the eye can see and adding depth to the night sky.</p>
+                <p className="card-link"><a href="#latest-observations">See our latest observations →</a></p>
               </article>
 
               <article className="card">
@@ -277,78 +278,6 @@ export default async function HomePage() {
                 <h3>Kos • Nearby Islands • Bodrum</h3>
                 <p>Based in Kos and operating across nearby islands, Greece, and Bodrum for selected collaborations and private events.</p>
               </article>
-            </div>
-          </div>
-        </section>
-
-        {/* Live, self-growing gallery of the latest capture of each object.
-            Teaser variant on the homepage; renders nothing with no data. */}
-        <LatestObservations items={latestObservations} variant="teaser" />
-
-        <section id="gallery" className="section">
-          <div className="container">
-            <h2>My Astrophotography Work</h2>
-            <p className="lead">A selection of my astrophotography and night-sky work, capturing details and structures not visible to the naked eye. These images offer a deeper visual perspective of what we explore together during the stargazing experience. Click any image to view it larger.</p>
-
-            <div className="gallery-filters" aria-label="Gallery filters">
-              <button className="active" data-filter="all" aria-label="Show all images">All</button>
-              <button data-filter="deep-sky" aria-label="Show deep sky images">Deep Sky</button>
-              <button data-filter="wide-field" aria-label="Show wide field images">Wide Field</button>
-              <button data-filter="featured" aria-label="Show featured images">Featured</button>
-            </div>
-
-            <div className="gallery-grid" id="galleryGrid">
-              <figure className="gallery-card" data-category="deep-sky featured">
-                <img loading="lazy" src="/images/galaxy-triangulum-m33.jpg" alt="Triangulum Galaxy M33 astrophotography by Michalis Reisis" />
-                <figcaption>Triangulum Galaxy (M33) — a nearby spiral galaxy rich in star-forming regions</figcaption>
-              </figure>
-
-              <figure className="gallery-card" data-category="deep-sky featured">
-                <img loading="lazy" src="/images/nebula-orion-m42.jpg" alt="Orion Nebula M42 astrophotography showing a stellar nursery" />
-                <figcaption>Orion Nebula (M42) — a vast stellar nursery where new stars are being born</figcaption>
-              </figure>
-
-              <figure className="gallery-card" data-category="deep-sky">
-                <img loading="lazy" src="/images/galaxy-fireworks-ngc6946.jpg" alt="Fireworks Galaxy NGC 6946 and star cluster NGC 6939 astrophotography" />
-                <figcaption>Fireworks Galaxy (NGC 6946) alongside the open star cluster NGC 6939</figcaption>
-              </figure>
-
-              <figure className="gallery-card" data-category="deep-sky">
-                <img loading="lazy" src="/images/galaxy-ngc2403.jpg" alt="NGC 2403 spiral galaxy astrophotography" />
-                <figcaption>NGC 2403 — a bright spiral galaxy in Camelopardalis with active star-forming regions</figcaption>
-              </figure>
-
-              <figure className="gallery-card" data-category="deep-sky">
-                <img loading="lazy" src="/images/galaxy-ic342-hidden.jpg" alt="IC 342 Hidden Galaxy face-on spiral galaxy astrophotography" />
-                <figcaption>IC 342 — a face-on spiral galaxy partially veiled by interstellar dust</figcaption>
-              </figure>
-
-              <figure className="gallery-card" data-category="deep-sky wide-field">
-                <img loading="lazy" src="/images/milkyway-core-dust-clouds.jpg" alt="Milky Way core dust clouds astrophotography" />
-                <figcaption>Dense Milky Way dust clouds shaping the structure of our galaxy</figcaption>
-              </figure>
-
-              <figure className="gallery-card" data-category="deep-sky">
-                <img loading="lazy" src="/images/nebula-trifid-m20.jpg" alt="Trifid Nebula M20 astrophotography" />
-                <figcaption>Trifid Nebula (M20) — a rare combination of emission, reflection and dark nebula</figcaption>
-              </figure>
-
-              <figure className="gallery-card" data-category="wide-field featured">
-                <img loading="lazy" src="/images/milkyway-kos-turkey-coast.jpg" alt="Milky Way core rising above Kos with Turkey coastline visible" />
-                <figcaption>Milky Way core rising above Kos, with the coastline of Turkey visible in the distance</figcaption>
-              </figure>
-
-              <figure className="gallery-card" data-category="wide-field featured">
-                <img loading="lazy" src="/images/milkyway-kos-agios-stefanos.jpg" alt="Milky Way panorama over Agios Stefanos Basilica in Kefalos Kos Greece" />
-                <figcaption>Basilica of Agios Stefanos, Kefalos — ancient ruins beneath the timeless arc of the Milky Way</figcaption>
-              </figure>
-            </div>
-          </div>
-
-          <div className="lightbox" id="lightbox" aria-modal={true} role="dialog" aria-label="Image viewer">
-            <div className="lightbox-inner">
-              <img id="lightboxImg" alt="" />
-              <div className="lightbox-caption" id="lightboxCaption"></div>
             </div>
           </div>
         </section>
@@ -427,6 +356,17 @@ export default async function HomePage() {
                 <div className="quote-author">Guest experience feedback</div>
               </div>
             </div>
+
+            <p className="testimonials-reviews">
+              Guests share their own words on Google —{' '}
+              <a
+                href="https://g.page/r/CQMsZrOvq_kLEBI/review?utm_source=homepage&utm_medium=website&utm_campaign=testimonials"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                read our Google reviews ⭐
+              </a>
+            </p>
           </div>
         </section>
 
@@ -475,6 +415,79 @@ export default async function HomePage() {
                 <h3>Which areas do you operate in?</h3>
                 <p>Based on Kos Island, with selected collaborations available across nearby Greek islands, other destinations in Greece and Bodrum, Turkey.</p>
               </article>
+            </div>
+          </div>
+        </section>
+
+        {/* Observations + Gallery — last content sections, before the
+            Feedback/Contact CTAs. A B2B reader reaches them sooner via the
+            "See our latest observations" link in the Content card above. */}
+        <LatestObservations items={latestObservations} variant="teaser" />
+
+        <section id="gallery" className="section">
+          <div className="container">
+            <h2>My Astrophotography Work</h2>
+            <p className="lead">A selection of my astrophotography and night-sky work, capturing details and structures not visible to the naked eye. These images offer a deeper visual perspective of what we explore together during the stargazing experience. Click any image to view it larger.</p>
+
+            <div className="gallery-filters" aria-label="Gallery filters">
+              <button className="active" data-filter="all" aria-label="Show all images">All</button>
+              <button data-filter="deep-sky" aria-label="Show deep sky images">Deep Sky</button>
+              <button data-filter="wide-field" aria-label="Show wide field images">Wide Field</button>
+              <button data-filter="featured" aria-label="Show featured images">Featured</button>
+            </div>
+
+            <div className="gallery-grid" id="galleryGrid">
+              <figure className="gallery-card" data-category="deep-sky featured">
+                <img loading="lazy" src="/images/galaxy-triangulum-m33.jpg" alt="Triangulum Galaxy M33 astrophotography by Michalis Reisis" />
+                <figcaption>Triangulum Galaxy (M33) — a nearby spiral galaxy rich in star-forming regions</figcaption>
+              </figure>
+
+              <figure className="gallery-card" data-category="deep-sky featured">
+                <img loading="lazy" src="/images/nebula-orion-m42.jpg" alt="Orion Nebula M42 astrophotography showing a stellar nursery" />
+                <figcaption>Orion Nebula (M42) — a vast stellar nursery where new stars are being born</figcaption>
+              </figure>
+
+              <figure className="gallery-card" data-category="deep-sky">
+                <img loading="lazy" src="/images/galaxy-fireworks-ngc6946.jpg" alt="Fireworks Galaxy NGC 6946 and star cluster NGC 6939 astrophotography" />
+                <figcaption>Fireworks Galaxy (NGC 6946) alongside the open star cluster NGC 6939</figcaption>
+              </figure>
+
+              <figure className="gallery-card" data-category="deep-sky">
+                <img loading="lazy" src="/images/galaxy-ngc2403.jpg" alt="NGC 2403 spiral galaxy astrophotography" />
+                <figcaption>NGC 2403 — a bright spiral galaxy in Camelopardalis with active star-forming regions</figcaption>
+              </figure>
+
+              <figure className="gallery-card" data-category="deep-sky">
+                <img loading="lazy" src="/images/galaxy-ic342-hidden.jpg" alt="IC 342 Hidden Galaxy face-on spiral galaxy astrophotography" />
+                <figcaption>IC 342 — a face-on spiral galaxy partially veiled by interstellar dust</figcaption>
+              </figure>
+
+              <figure className="gallery-card" data-category="deep-sky wide-field">
+                <img loading="lazy" src="/images/milkyway-core-dust-clouds.jpg" alt="Milky Way core dust clouds astrophotography" />
+                <figcaption>Dense Milky Way dust clouds shaping the structure of our galaxy</figcaption>
+              </figure>
+
+              <figure className="gallery-card" data-category="deep-sky">
+                <img loading="lazy" src="/images/nebula-trifid-m20.jpg" alt="Trifid Nebula M20 astrophotography" />
+                <figcaption>Trifid Nebula (M20) — a rare combination of emission, reflection and dark nebula</figcaption>
+              </figure>
+
+              <figure className="gallery-card" data-category="wide-field featured">
+                <img loading="lazy" src="/images/milkyway-kos-turkey-coast.jpg" alt="Milky Way core rising above Kos with Turkey coastline visible" />
+                <figcaption>Milky Way core rising above Kos, with the coastline of Turkey visible in the distance</figcaption>
+              </figure>
+
+              <figure className="gallery-card" data-category="wide-field featured">
+                <img loading="lazy" src="/images/milkyway-kos-agios-stefanos.jpg" alt="Milky Way panorama over Agios Stefanos Basilica in Kefalos Kos Greece" />
+                <figcaption>Basilica of Agios Stefanos, Kefalos — ancient ruins beneath the timeless arc of the Milky Way</figcaption>
+              </figure>
+            </div>
+          </div>
+
+          <div className="lightbox" id="lightbox" aria-modal={true} role="dialog" aria-label="Image viewer">
+            <div className="lightbox-inner">
+              <img id="lightboxImg" alt="" />
+              <div className="lightbox-caption" id="lightboxCaption"></div>
             </div>
           </div>
         </section>

@@ -260,6 +260,14 @@ nav a{color:var(--text);white-space:nowrap}
 .lo-seeall{margin:22px 0 0}
 .lo-seeall a{color:var(--accent);font-weight:600;text-decoration:none}
 .lo-seeall a:hover{text-decoration:underline}
+/* Jump link inside a feature card (e.g. Content card -> observations). */
+.card-link{margin:14px 0 0}
+.card-link a{color:var(--accent);font-weight:600;text-decoration:none}
+.card-link a:hover{text-decoration:underline}
+/* "Read our Google reviews" line under the partner testimonials. */
+.testimonials-reviews{margin:22px 0 0;color:var(--muted)}
+.testimonials-reviews a{color:var(--accent);font-weight:600;text-decoration:none}
+.testimonials-reviews a:hover{text-decoration:underline}
 
 /* /observations page topbar (this page doesn't use the homepage nav). */
 .obs-topbar{position:sticky;top:0;z-index:30;background:rgba(11,15,20,.85);backdrop-filter:blur(10px);border-bottom:1px solid var(--border)}
