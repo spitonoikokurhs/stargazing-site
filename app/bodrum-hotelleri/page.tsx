@@ -98,6 +98,16 @@ export default function BodrumHotelleriPage() {
             <span className="brand-dot"></span>
             <span>Stargazing Events</span>
           </a>
+
+          {/* CSS-only mobile menu (checkbox hack) — matches the main site. Hidden
+              on desktop; below the breakpoint the burger toggles the dropdown. */}
+          <input type="checkbox" id="nav-toggle" className="nav-toggle" aria-hidden="true" />
+          <label htmlFor="nav-toggle" className="nav-burger" aria-label="Menüyü aç">
+            <span></span>
+            <span></span>
+            <span></span>
+          </label>
+
           <nav>
             <a href="#deneyim">Deneyim</a>
             <a href="#oteller">Oteller</a>

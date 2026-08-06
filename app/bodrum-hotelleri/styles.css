@@ -17,11 +17,15 @@ p{margin:0 0 14px}
 .muted{color:var(--muted)}
 
 header{position:sticky;top:0;z-index:30;background:rgba(11,15,20,.85);backdrop-filter:blur(10px);border-bottom:1px solid var(--border)}
-.nav{min-height:72px;display:flex;align-items:center;justify-content:space-between;gap:16px}
+.nav{position:relative;min-height:72px;display:flex;align-items:center;justify-content:space-between;gap:16px}
 .brand{display:flex;align-items:center;gap:10px;font-weight:700;color:var(--text)}
 .brand-dot{width:10px;height:10px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#fff,var(--accent));box-shadow:0 0 14px var(--accent)}
-nav{display:flex;flex-wrap:wrap;align-items:center;gap:12px}
-nav a{color:var(--text)}
+nav{display:flex;flex-wrap:nowrap;align-items:center;gap:12px}
+nav a{color:var(--text);white-space:nowrap}
+/* Mobile menu toggle + burger — hidden on desktop, flipped on below the mobile
+   breakpoint (checkbox hack; matches the main site). */
+.nav-toggle{display:none}
+.nav-burger{display:none}
 
 .btn{display:inline-block;padding:11px 18px;border:1px solid var(--border);border-radius:12px;background:linear-gradient(180deg,#121a24,#0b1016);color:var(--text);box-shadow:var(--shadow);transition:transform .2s ease,opacity .2s ease,box-shadow .2s ease;cursor:pointer;font:inherit}
 .btn:hover{transform:translateY(-2px);box-shadow:0 16px 34px rgba(0,0,0,.3)}
@@ -117,9 +121,37 @@ footer a{color:var(--muted)}
   .grid-3,.trust-grid,.proof-stats,.req-grid,.gallery-grid-3col{grid-template-columns:repeat(2,1fr)}
   .grid-2,.about-grid{grid-template-columns:1fr}
 }
-@media (max-width:700px){
-  .nav{padding:14px 0}
-  nav{justify-content:flex-end}
+/* Mobile menu kicks in at 900px — the Turkish nav (6 items incl. İletişim) is
+   wide and wrapped into a messy two-row header on a phone. Below this the clean
+   burger dropdown is used instead (ported from the main site). */
+@media (max-width:900px){
+  .nav{padding:12px 0;gap:12px}
+
+  .nav-burger{
+    display:inline-flex;flex-direction:column;justify-content:center;gap:5px;
+    width:44px;height:44px;padding:11px;
+    border:1px solid var(--border);border-radius:12px;
+    background:rgba(255,255,255,.03);cursor:pointer;flex:0 0 auto;
+  }
+  .nav-burger span{display:block;height:2px;width:100%;background:var(--text);border-radius:2px;transition:transform .22s ease,opacity .22s ease}
+  .nav-toggle:checked + .nav-burger span:nth-child(1){transform:translateY(7px) rotate(45deg)}
+  .nav-toggle:checked + .nav-burger span:nth-child(2){opacity:0}
+  .nav-toggle:checked + .nav-burger span:nth-child(3){transform:translateY(-7px) rotate(-45deg)}
+
+  header nav{
+    position:absolute;top:100%;left:0;right:0;
+    flex-direction:column;align-items:stretch;gap:0;
+    background:rgba(11,15,20,.98);backdrop-filter:blur(10px);
+    border-bottom:1px solid var(--border);
+    padding:8px 20px 16px;
+    max-height:0;overflow:hidden;opacity:0;pointer-events:none;
+    transition:max-height .28s ease,opacity .2s ease;
+  }
+  .nav-toggle:checked ~ nav{max-height:80vh;opacity:1;pointer-events:auto;overflow-y:auto}
+  header nav a{padding:13px 4px;border-bottom:1px solid rgba(255,255,255,.06);font-size:1.05rem}
+  header nav a:last-child{border-bottom:none}
+  header nav .btn{margin-top:10px;text-align:center;padding:13px 16px}
+
   .grid-3,.trust-grid,.proof-stats,.req-grid,.gallery-grid-3col,.faq-grid,.meta-list{grid-template-columns:1fr}
   .gallery-card-3col img{height:240px}
   .hero-inner{padding:96px 0 60px}
