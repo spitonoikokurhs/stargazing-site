@@ -27,6 +27,28 @@ img{max-width:100%;height:auto;display:block}
 .container{width:min(1120px,100% - 40px);margin:0 auto}
 .section{padding:72px 0;border-top:1px solid var(--border)}
 
+/* ISS "look up tonight" teaser — a slim live-data strip under the hero linking
+   to Tonight's Sky. Understated, gold-accented, full-width within the column. */
+.iss-teaser{
+  display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+  max-width:900px;margin:0 auto;
+  padding:12px 18px;
+  background:linear-gradient(180deg, rgba(125,198,255,.06), rgba(125,198,255,.02));
+  border:1px solid var(--border);border-top:none;
+  border-radius:0 0 14px 14px;
+  color:var(--text);text-decoration:none;
+  font-size:.95rem;line-height:1.4;
+  transition:background .2s ease, border-color .2s ease;
+}
+.iss-teaser:hover{background:linear-gradient(180deg, rgba(125,198,255,.1), rgba(125,198,255,.04));border-color:rgba(125,198,255,.3)}
+.iss-teaser-icon{font-size:1.1rem;flex:0 0 auto}
+.iss-teaser-text{flex:1 1 240px;color:var(--muted)}
+.iss-teaser-text strong{color:var(--text);font-variant-numeric:tabular-nums}
+.iss-teaser-cta{flex:0 0 auto;color:var(--accent);font-weight:600;white-space:nowrap}
+@media (max-width:560px){
+  .iss-teaser{border-radius:12px;margin:14px 16px 0}
+}
+
 h1,h2,h3{line-height:1.15;margin:0 0 14px}
 h1{font-size:clamp(2.1rem,5vw,4rem)}
 h2{font-size:clamp(1.6rem,3vw,2.3rem)}

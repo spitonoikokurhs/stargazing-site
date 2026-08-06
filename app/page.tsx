@@ -2,7 +2,13 @@
 import type { Metadata } from 'next'
 import Script from 'next/script'
 import { LiveStatusPill } from './components/LiveStatusPill'
+import { cityById, CITIES } from '@/lib/ephemeris'
+import { issPasses } from '@/lib/iss'
 import './homepage.css'
+
+// Hourly ISR so the ISS teaser stays fresh without recomputing per request (the
+// TLE fetch + SGP4 is cheap but there's no reason to redo it every hit).
+export const revalidate = 3600
 
 const professionalServiceJsonLd = `{
   "@context": "https://schema.org",
@@ -126,7 +132,23 @@ export const metadata: Metadata = {
   },
 }
 
-export default function HomePage() {
+export default async function HomePage() {
+  // ISS teaser: the next naked-eye Space Station pass over Kos tonight. Server-
+  // computed, fails silent — if the feed is down or there's no pass, we simply
+  // render no teaser (never a broken/empty strip). Pulls a homepage visitor
+  // toward Tonight's Sky with a concrete "look up tonight" hook.
+  const issTeaser = await (async () => {
+    try {
+      const kos = cityById('kos') ?? CITIES[0]
+      const res = await issPasses(kos, new Date())
+      if (!res.ok || res.passes.length === 0) return null
+      const p = res.passes[0]
+      return { start: p.start, dir: p.startDir, peak: p.peakAltitude }
+    } catch {
+      return null
+    }
+  })()
+
   return (
     <>
       <script
@@ -196,6 +218,19 @@ export default function HomePage() {
             </div>
           </div>
         </section>
+
+        {/* Live "look up tonight" hook — the next naked-eye ISS pass over Kos,
+            pulling visitors toward Tonight's Sky. Only rendered when there's a
+            real pass tonight (issTeaser is null otherwise). */}
+        {issTeaser ? (
+          <a className="iss-teaser" href="/sky-calendar" aria-label="See tonight's sky">
+            <span className="iss-teaser-icon" aria-hidden="true">🛰️</span>
+            <span className="iss-teaser-text">
+              The Space Station passes over Kos tonight at <strong>{issTeaser.start}</strong>, {issTeaser.dir} — {Math.round(issTeaser.peak)}° up.
+            </span>
+            <span className="iss-teaser-cta">Tonight&apos;s Sky →</span>
+          </a>
+        ) : null}
 
         <section className="section">
           <div className="container">
