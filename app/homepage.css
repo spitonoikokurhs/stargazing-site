@@ -231,11 +231,11 @@ nav a{color:var(--text);white-space:nowrap}
    size — the raw capture stays untouched; this is display-only. */
 .lo-thumb img{
   width:100%;height:100%;object-fit:cover;object-position:center;display:block;
-  transform:scale(1.7);transform-origin:center;
+  transform:scale(2.2);transform-origin:center;
   filter:brightness(1.35) contrast(1.12) saturate(1.08);
   transition:transform .3s ease;
 }
-.lo-card:hover .lo-thumb img{transform:scale(1.78)}
+.lo-card:hover .lo-thumb img{transform:scale(2.3)}
 .lo-overlay{
   position:absolute;left:0;right:0;bottom:0;
   padding:34px 14px 12px;
