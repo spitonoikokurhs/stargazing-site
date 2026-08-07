@@ -1,0 +1,247 @@
+/* Private operator stats page. Dark to match the site base (#0b0f14). Utility
+   styling, not marketing — legibility and scannable numbers over flourish. */
+
+.stats-main {
+  --bg: #0b0f14;
+  --panel: #131a22;
+  --panel-2: #0f151c;
+  --line: #223040;
+  --text: #e6edf3;
+  --muted: #8ba0b3;
+  --accent: #6fb2ff;
+  --good: #5ad19a;
+  --bad: #ff7a7a;
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--text);
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  padding: 28px clamp(16px, 4vw, 48px) 80px;
+  box-sizing: border-box;
+}
+
+.stats-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 24px;
+}
+
+.stats-header h1 {
+  margin: 0 0 6px;
+  font-size: clamp(22px, 3vw, 30px);
+  letter-spacing: -0.01em;
+}
+
+.stats-sub {
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
+  max-width: 62ch;
+  line-height: 1.5;
+}
+
+.stats-home {
+  color: var(--accent);
+  text-decoration: none;
+  font-size: 14px;
+  white-space: nowrap;
+  padding-top: 6px;
+}
+.stats-home:hover {
+  text-decoration: underline;
+}
+
+.stats-card {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 18px 20px;
+  margin-bottom: 18px;
+}
+
+/* ---- Auth ---- */
+.stats-auth h2 {
+  margin: 0 0 8px;
+  font-size: 17px;
+}
+.stats-auth p {
+  margin: 0 0 14px;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.55;
+  max-width: 70ch;
+}
+.stats-auth code {
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  padding: 1px 6px;
+  font-size: 13px;
+  color: var(--text);
+}
+.stats-auth-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.stats-auth-row input {
+  flex: 1 1 320px;
+}
+
+/* ---- Controls ---- */
+.stats-controls {
+  display: flex;
+  gap: 16px;
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+.stats-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.stats-field label {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+.stats-actions {
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+}
+
+.stats-main input,
+.stats-main select {
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--text);
+  padding: 9px 11px;
+  font-size: 14px;
+  font-family: inherit;
+  color-scheme: dark;
+}
+.stats-main input:focus,
+.stats-main select:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+  border-color: var(--accent);
+}
+
+.stats-main button {
+  background: var(--accent);
+  color: #06121f;
+  border: none;
+  border-radius: 8px;
+  padding: 9px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+}
+.stats-main button:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+.stats-main button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.stats-main button.stats-link-btn {
+  background: none;
+  color: var(--muted);
+  font-weight: 400;
+  padding: 9px 4px;
+  text-decoration: underline;
+}
+.stats-main button.stats-link-btn:hover {
+  color: var(--text);
+}
+
+/* ---- Feedback lines ---- */
+.stats-error {
+  color: var(--bad);
+  background: rgba(255, 122, 122, 0.08);
+  border: 1px solid rgba(255, 122, 122, 0.3);
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 14px;
+  margin: 0 0 18px;
+}
+.stats-range-note {
+  color: var(--muted);
+  font-size: 13px;
+  margin: 0 0 14px;
+}
+.stats-empty {
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.55;
+  margin: 0;
+  max-width: 68ch;
+}
+
+/* ---- Table ---- */
+.stats-table-wrap {
+  padding: 0;
+  overflow-x: auto;
+}
+.stats-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+  min-width: 640px;
+}
+.stats-table th,
+.stats-table td {
+  padding: 11px 14px;
+  text-align: left;
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+.stats-table thead th {
+  color: var(--muted);
+  font-weight: 600;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  position: sticky;
+  top: 0;
+  background: var(--panel);
+}
+.stats-col-num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.stats-col-total {
+  font-weight: 700;
+  color: var(--text);
+}
+.stats-table tbody tr:hover {
+  background: var(--panel-2);
+}
+.stats-table tfoot td {
+  font-weight: 700;
+  color: var(--text);
+  border-top: 2px solid var(--line);
+  border-bottom: none;
+  background: var(--panel-2);
+}
+.stats-col-date {
+  font-variant-numeric: tabular-nums;
+}
+.stats-col-hotel {
+  color: var(--text);
+}
+
+@media (max-width: 560px) {
+  .stats-controls {
+    gap: 12px;
+  }
+  .stats-field {
+    flex: 1 1 140px;
+  }
+}

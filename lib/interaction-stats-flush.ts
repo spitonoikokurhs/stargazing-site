@@ -154,3 +154,47 @@ export async function readDurableInteractionStatsByDate(date: string): Promise<{
     return { rows: [], byKey: {}, eventKeys: [] }
   }
 }
+
+// Range read for the private /stats operator page: every hotel-scoped interaction
+// row whose Athens date falls inside [from, to] (inclusive). Powers the per-night
+// table with a hotel filter. Hotel scope only (special events are date-independent
+// and read via ?event= on their own stable key), so a season/date view never mixes
+// them in. Rows keep their date/hotelId/eventKey so the caller can group by night
+// and by venue — AND correctly handle the midnight-straggler caveat documented on
+// readDurableInteractionStatsByDate (a hotelId===null bucket sharing a date with a
+// real hotel night is leftover noise, not a venue of its own). Best-effort:
+// returns [] on any DB error, so the page renders "no data" rather than breaking.
+export async function readDurableInteractionStatsInRange(
+  from: string,
+  to: string,
+): Promise<{
+  rows: {
+    date: string | null
+    eventKey: string
+    hotelId: string | null
+    counterField: string
+    interactionKey: string
+    objectId: string | null
+    count: number
+  }[]
+}> {
+  try {
+    const rows = await prisma.eventInteractionStats.findMany({
+      where: { scope: 'hotel', date: { gte: from, lte: to } },
+      select: {
+        date: true,
+        eventKey: true,
+        hotelId: true,
+        counterField: true,
+        interactionKey: true,
+        objectId: true,
+        count: true,
+      },
+      orderBy: [{ date: 'desc' }, { hotelId: 'asc' }, { counterField: 'asc' }],
+    })
+    return { rows }
+  } catch (e) {
+    console.error('readDurableInteractionStatsInRange failed', e)
+    return { rows: [] }
+  }
+}

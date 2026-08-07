@@ -4,8 +4,13 @@ import { resolveInteractionScope } from '@/lib/interaction-stats'
 import {
   readDurableInteractionStats,
   readDurableInteractionStatsByDate,
+  readDurableInteractionStatsInRange,
 } from '@/lib/interaction-stats-flush'
 import { athensToday } from '@/lib/schedule'
+
+// Athens "YYYY-MM-DD" shape guard for the ?from=/?to= range params. Cheap
+// validation before the DB touch — a malformed range reads as "no range".
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
 
 // Node runtime required: crypto.timingSafeEqual, createHash.
 export const runtime = 'nodejs'
@@ -56,6 +61,30 @@ export async function GET(req: NextRequest) {
     if (!authorized(req, secret)) {
       console.warn(`/api/interaction-stats: auth failure at ${new Date().toISOString()}`)
       return json({ error: 'unauthorized' }, 401)
+    }
+
+    // ?from=YYYY-MM-DD&to=YYYY-MM-DD — range read for the /stats operator page.
+    // Returns every hotel-scoped counter row across the window (one flat list;
+    // the client groups by night and hotel, and filters the midnight-straggler
+    // bucket per the readDurableInteractionStatsByDate caveat). Hotel scope only,
+    // so ?event= is ignored here. Bounded so a typo can't scan the whole table.
+    const fromParam = req.nextUrl.searchParams.get('from')
+    const toParam = req.nextUrl.searchParams.get('to')
+    if (fromParam || toParam) {
+      if (!fromParam || !toParam || !DATE_RE.test(fromParam) || !DATE_RE.test(toParam)) {
+        return json({ error: 'from and to must both be YYYY-MM-DD' }, 400)
+      }
+      // Normalise a reversed range rather than returning empty silently.
+      const from = fromParam <= toParam ? fromParam : toParam
+      const to = fromParam <= toParam ? toParam : fromParam
+      const range = await readDurableInteractionStatsInRange(from, to)
+      return json({
+        scope: 'hotel',
+        range: { from, to },
+        archived: true,
+        counters: range.rows,
+        generatedAt: new Date().toISOString(),
+      })
     }
 
     const eventSlug = req.nextUrl.searchParams.get('event')
