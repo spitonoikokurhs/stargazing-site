@@ -101,25 +101,31 @@ function main() {
   clearStoredViewerId()
   assert('after reject + clear -> sessionStorage id erased', session.getItem(VIEWER_ID_STORAGE_KEY) === null)
 
-  // --- CONSENT-FREE ephemeral id (the QR-guest counting fix) ---
-  // The load-bearing claim: it counts a guest WITHOUT storing anything on the
-  // device (so Art. 5(3) isn't triggered), and it coexists with the consented
-  // path as a clean precedence (one id per poll).
+  // --- SESSION-ONLY count id (the QR-guest counting fix) ---
+  // Updated 2026-08-07: the count id now persists in sessionStorage so a reload
+  // REUSES it (the reload-recount fix). It counts a guest without consent, is
+  // session-only (auto-erased on tab close, no cross-visit recognition), never
+  // touches localStorage, and coexists with the consented path as clean
+  // precedence (one id per poll).
   {
     reset(); clearChoice(); __resetEphemeralViewerIdForTest()
     const eph1 = getEphemeralViewerId()
-    assert('ephemeral: id minted with no consent', typeof eph1 === 'string' && eph1.length > 0)
-    assert('ephemeral: prefixed eph-', eph1.startsWith('eph-'))
-    // THE identifier-free proof: nothing touched device storage.
-    assert('ephemeral: NOTHING written to localStorage', local._map.size === 0)
-    assert('ephemeral: NOTHING written to sessionStorage', session._map.size === 0)
+    assert('count-id: minted with no consent', typeof eph1 === 'string' && eph1.length > 0)
+    assert('count-id: prefixed eph-', eph1.startsWith('eph-'))
+    // Session-only: it IS in sessionStorage (disclosed), but NEVER localStorage.
+    assert('count-id: NOTHING written to localStorage', local._map.size === 0)
+    assert('count-id: persisted to sessionStorage', session.getItem('stargazing:ephViewerId') === eph1)
     // Stable within the same page load (React re-mounts reuse it, no double-count).
-    assert('ephemeral: stable within page load', getEphemeralViewerId() === eph1)
-    // A "reload" (module reset) mints a NEW id — the documented upward bias.
+    assert('count-id: stable within page load', getEphemeralViewerId() === eph1)
+    // A "reload" (in-memory reset, sessionStorage survives) REUSES the SAME id —
+    // the whole point of the fix: a reloading phone is no longer recounted.
     __resetEphemeralViewerIdForTest()
     const eph2 = getEphemeralViewerId()
-    assert('ephemeral: fresh id after a page load (reload over-count is upward)', eph2 !== eph1 && eph2.startsWith('eph-'))
-    assert('ephemeral: still wrote nothing to storage after remint', local._map.size === 0 && session._map.size === 0)
+    assert('count-id: SAME id after a reload (no more reload over-count)', eph2 === eph1)
+    // A tab close (sessionStorage cleared) DOES mint a fresh id — session-scoped.
+    reset(); __resetEphemeralViewerIdForTest()
+    const eph3 = getEphemeralViewerId()
+    assert('count-id: fresh id in a new tab session (session-scoped)', eph3 !== eph1 && eph3.startsWith('eph-'))
   }
 
   // --- PRECEDENCE: exactly what LiveView's poll resolves, one id per poll ---
@@ -136,7 +142,9 @@ function main() {
     reset(); clearChoice(); __resetEphemeralViewerIdForTest()
     const noConsent = pollId()
     assert('precedence: no consent -> ephemeral id (guest IS counted)', typeof noConsent === 'string' && noConsent.startsWith('eph-'))
-    assert('precedence: no-consent poll still wrote nothing to storage', session._map.size === 0)
+    // The count id IS written (to the ephemeral key), but the CONSENTED key must
+    // stay empty — no-consent never populates the consented viewer id.
+    assert('precedence: no-consent poll did NOT write the consented id', session.getItem(VIEWER_ID_STORAGE_KEY) === null)
     // Now accept: the CONSENTED (stored) id takes precedence over the ephemeral.
     accept()
     const consentedNow = pollId()

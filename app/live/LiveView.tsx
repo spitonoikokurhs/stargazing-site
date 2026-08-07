@@ -1309,11 +1309,12 @@ export default function LiveView({
           //   1. consent granted -> the stored consented id (stable across
           //      reloads; the better number, so consenting guests count more
           //      accurately AND unlock Tier-2 journeys elsewhere).
-          //   2. otherwise -> the CONSENT-FREE ephemeral id (getEphemeralViewerId):
-          //      page-memory only, never stored on the device (see the Art. 5(3)
-          //      proof in lib/consent.ts). This is what finally lets QR guests —
-          //      who land on /live, never see the banner, and so never consent —
-          //      be counted at all, on the same footing as the Tier-1 counters.
+          //   2. otherwise -> the CONSENT-FREE session count id (getEphemeralViewerId):
+          //      session-only, in sessionStorage so a reload REUSES it (the
+          //      reload-recount fix; see the ePrivacy stance in lib/consent.ts).
+          //      This is what lets QR guests — who land on /live, never see the
+          //      banner, and so never consent — be counted at all, and counted
+          //      once per tab rather than once per reload.
           // Because this runs each poll, a mid-session accept/reject switches
           // which id is used on the very next request with no reload; and either
           // way the guest is counted, so the audience number is single-sourced
