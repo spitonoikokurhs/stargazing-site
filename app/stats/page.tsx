@@ -70,6 +70,24 @@ type RangeResponse = {
   counters: RangeRow[]
 }
 
+// ---- Viewer rows (from /api/viewer-stats?from=&to=) ----
+type ViewerRow = {
+  date: string | null
+  hotelId: string | null
+  eventKey: string
+  unique: number
+  maxConcurrent: number
+  source: string
+}
+
+type ViewerResponse = {
+  scope: 'hotel'
+  range: { from: string; to: string }
+  nights: ViewerRow[]
+}
+
+type Tab = 'taps' | 'viewers'
+
 // One collapsed row in the table: a single night at a single venue, with a
 // per-interaction-key tally summed across objectIds.
 type NightGroup = {
@@ -112,9 +130,11 @@ export default function StatsPage() {
   const [to, setTo] = useState('')
   const [hotelFilter, setHotelFilter] = useState<string>('all')
   const [rows, setRows] = useState<RangeRow[]>([])
+  const [viewerRows, setViewerRows] = useState<ViewerRow[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [loadedRange, setLoadedRange] = useState<{ from: string; to: string } | null>(null)
+  const [tab, setTab] = useState<Tab>('taps')
 
   // Restore a previously-entered token + seed the default range on mount.
   useEffect(() => {
@@ -129,27 +149,36 @@ export default function StatsPage() {
     async (authToken: string, rangeFrom: string, rangeTo: string) => {
       setLoading(true)
       setError(null)
+      const auth = { Authorization: `Bearer ${authToken}` }
+      const qs = `from=${encodeURIComponent(rangeFrom)}&to=${encodeURIComponent(rangeTo)}`
       try {
-        const res = await fetch(
-          `/api/interaction-stats?from=${encodeURIComponent(rangeFrom)}&to=${encodeURIComponent(rangeTo)}`,
-          { headers: { Authorization: `Bearer ${authToken}` }, cache: 'no-store' },
-        )
-        if (res.status === 401) {
+        // Load both views in one go — same token, same range — so switching tabs
+        // is instant and the two never disagree on the window they're showing.
+        const [tapsRes, viewersRes] = await Promise.all([
+          fetch(`/api/interaction-stats?${qs}`, { headers: auth, cache: 'no-store' }),
+          fetch(`/api/viewer-stats?${qs}`, { headers: auth, cache: 'no-store' }),
+        ])
+        if (tapsRes.status === 401 || viewersRes.status === 401) {
           setError('That token was rejected. Check VIEWER_STATS_TOKEN in Vercel and try again.')
           setRows([])
+          setViewerRows([])
           return
         }
-        if (!res.ok) {
-          setError(`Request failed (${res.status}).`)
+        if (!tapsRes.ok || !viewersRes.ok) {
+          setError(`Request failed (taps ${tapsRes.status}, viewers ${viewersRes.status}).`)
           setRows([])
+          setViewerRows([])
           return
         }
-        const data = (await res.json()) as RangeResponse
-        setRows(Array.isArray(data.counters) ? data.counters : [])
-        setLoadedRange(data.range ?? { from: rangeFrom, to: rangeTo })
+        const tapsData = (await tapsRes.json()) as RangeResponse
+        const viewersData = (await viewersRes.json()) as ViewerResponse
+        setRows(Array.isArray(tapsData.counters) ? tapsData.counters : [])
+        setViewerRows(Array.isArray(viewersData.nights) ? viewersData.nights : [])
+        setLoadedRange(tapsData.range ?? { from: rangeFrom, to: rangeTo })
       } catch {
         setError('Could not reach the server. Check your connection and try again.')
         setRows([])
+        setViewerRows([])
       } finally {
         setLoading(false)
       }
@@ -170,6 +199,7 @@ export default function StatsPage() {
     window.localStorage.removeItem(TOKEN_STORAGE_KEY)
     setSavedToken(null)
     setRows([])
+    setViewerRows([])
     setLoadedRange(null)
     setError(null)
   }, [])
@@ -257,6 +287,31 @@ export default function StatsPage() {
     return { t, grand }
   }, [groups, activeColumns])
 
+  // Viewer nights: apply the same hotel filter + midnight-straggler suppression
+  // as the taps table, so both tabs agree on which nights count.
+  const viewerNights = useMemo(() => {
+    const withDate = viewerRows.filter((r) => r.date)
+    const datesWithRealHotel = new Set<string>()
+    for (const r of withDate) if (r.hotelId) datesWithRealHotel.add(r.date as string)
+    let out = withDate.filter((r) => r.hotelId !== null || !datesWithRealHotel.has(r.date as string))
+    if (hotelFilter !== 'all') out = out.filter((r) => (r.hotelId ?? '') === hotelFilter)
+    return out.slice().sort((a, b) => {
+      const da = a.date ?? ''
+      const db = b.date ?? ''
+      return da === db ? hotelName(a.hotelId).localeCompare(hotelName(b.hotelId)) : db.localeCompare(da)
+    })
+  }, [viewerRows, hotelFilter])
+
+  const viewerTotals = useMemo(() => {
+    let unique = 0
+    let peak = 0
+    for (const r of viewerNights) {
+      unique += r.unique
+      if (r.maxConcurrent > peak) peak = r.maxConcurrent
+    }
+    return { unique, peak }
+  }, [viewerNights])
+
   return (
     <main className="stats-main">
       <header className="stats-header">
@@ -328,14 +383,84 @@ export default function StatsPage() {
 
           {error && <p className="stats-error">{error}</p>}
 
+          <div className="stats-tabs" role="tablist" aria-label="Stats view">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={tab === 'taps'}
+              className={tab === 'taps' ? 'is-active' : ''}
+              onClick={() => setTab('taps')}
+            >
+              Taps
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={tab === 'viewers'}
+              className={tab === 'viewers' ? 'is-active' : ''}
+              onClick={() => setTab('viewers')}
+            >
+              Viewers
+            </button>
+          </div>
+
           {loadedRange && !error && (
             <p className="stats-range-note">
               Showing {fmtDate(loadedRange.from)} → {fmtDate(loadedRange.to)}
-              {hotelFilter !== 'all' ? ` · ${hotelName(hotelFilter)}` : ''} · {groups.length}{' '}
-              {groups.length === 1 ? 'night' : 'nights'}
+              {hotelFilter !== 'all' ? ` · ${hotelName(hotelFilter)}` : ''} ·{' '}
+              {tab === 'taps'
+                ? `${groups.length} ${groups.length === 1 ? 'night' : 'nights'} with taps`
+                : `${viewerNights.length} ${viewerNights.length === 1 ? 'night' : 'nights'} with viewers`}
             </p>
           )}
 
+          {tab === 'viewers' && (
+            <section className="stats-card stats-table-wrap">
+              {viewerNights.length === 0 && !loading ? (
+                <p className="stats-empty">
+                  No archived viewer counts in this window yet. A night is recorded when its session is
+                  finished (or backfilled) — an empty table here is normal for a quiet period or for nights
+                  whose live counters expired before a snapshot was taken, not an error.
+                </p>
+              ) : (
+                <table className="stats-table">
+                  <thead>
+                    <tr>
+                      <th className="stats-col-date">Night</th>
+                      <th className="stats-col-hotel">Venue</th>
+                      <th className="stats-col-num">Unique viewers</th>
+                      <th className="stats-col-num stats-col-total">Peak at once</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {viewerNights.map((r) => (
+                      <tr key={r.eventKey}>
+                        <td className="stats-col-date">{fmtDate(r.date as string)}</td>
+                        <td className="stats-col-hotel">{hotelName(r.hotelId)}</td>
+                        <td className="stats-col-num">{r.unique}</td>
+                        <td className="stats-col-num stats-col-total">{r.maxConcurrent}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr>
+                      <td className="stats-col-date">Total</td>
+                      <td className="stats-col-hotel"></td>
+                      <td className="stats-col-num">{viewerTotals.unique}</td>
+                      <td className="stats-col-num stats-col-total">{viewerTotals.peak}</td>
+                    </tr>
+                  </tfoot>
+                </table>
+              )}
+              <p className="stats-foot-note">
+                “Unique viewers” = distinct devices seen that night. “Peak at once” = the most watching
+                simultaneously. The total row sums unique viewers and shows the highest single-night peak (peaks
+                aren’t additive across nights).
+              </p>
+            </section>
+          )}
+
+          {tab === 'taps' && (
           <section className="stats-card stats-table-wrap">
             {groups.length === 0 && !loading ? (
               <p className="stats-empty">
@@ -387,6 +512,7 @@ export default function StatsPage() {
               </table>
             )}
           </section>
+          )}
         </>
       )}
     </main>

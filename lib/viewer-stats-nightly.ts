@@ -67,3 +67,44 @@ export async function snapshotViewerStatsNightly(params: {
     return null
   }
 }
+
+// Range read for the private /stats operator page's "Viewers" view: every
+// archived hotel-night snapshot whose Athens date falls inside [from, to]
+// (inclusive). One row per event (the model's eventKey is unique), so no
+// grouping is needed — each row already IS a night at a venue. Hotel scope only
+// (special events are date-independent, read via ?event= on their own key), so a
+// date-range view never mixes them in. Best-effort: [] on any DB error, so the
+// page shows "no data" rather than breaking. Mirrors
+// readDurableInteractionStatsInRange so the two /stats views load the same way.
+export async function readViewerStatsNightlyInRange(
+  from: string,
+  to: string,
+): Promise<{
+  rows: {
+    date: string | null
+    hotelId: string | null
+    eventKey: string
+    unique: number
+    maxConcurrent: number
+    source: string
+  }[]
+}> {
+  try {
+    const rows = await prisma.viewerStatsNightly.findMany({
+      where: { scope: 'hotel', date: { gte: from, lte: to } },
+      select: {
+        date: true,
+        hotelId: true,
+        eventKey: true,
+        unique: true,
+        maxConcurrent: true,
+        source: true,
+      },
+      orderBy: [{ date: 'desc' }, { hotelId: 'asc' }],
+    })
+    return { rows }
+  } catch (e) {
+    console.error('readViewerStatsNightlyInRange failed', e)
+    return { rows: [] }
+  }
+}

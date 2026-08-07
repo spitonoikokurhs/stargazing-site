@@ -161,6 +161,43 @@
   color: var(--text);
 }
 
+/* ---- Tabs ---- */
+.stats-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--line);
+}
+.stats-tabs button {
+  background: none;
+  color: var(--muted);
+  border: none;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  padding: 9px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-bottom: -1px;
+}
+.stats-tabs button:hover:not(:disabled) {
+  color: var(--text);
+  filter: none;
+}
+.stats-tabs button.is-active {
+  color: var(--text);
+  border-bottom-color: var(--accent);
+}
+
+.stats-foot-note {
+  color: var(--muted);
+  font-size: 12.5px;
+  line-height: 1.5;
+  margin: 0;
+  padding: 14px 20px 4px;
+  max-width: 78ch;
+}
+
 /* ---- Feedback lines ---- */
 .stats-error {
   color: var(--bad);

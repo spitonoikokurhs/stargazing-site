@@ -4,9 +4,18 @@ import { readViewerStats, viewerEventKey, viewerSpecialEventKey } from '@/lib/re
 import { athensToday, eventFor } from '@/lib/schedule'
 import { extraEventFor, isExtraEventSlug } from '@/lib/extra-events'
 import { prisma } from '@/lib/db'
+import { readViewerStatsNightlyInRange } from '@/lib/viewer-stats-nightly'
 
 // Node runtime required: crypto.timingSafeEqual, createHash.
 export const runtime = 'nodejs'
+// Always dynamic: the route reads the auth header on every call. Declaring it
+// also silences Next's build-time static-render probe, which otherwise logs a
+// spurious "Dynamic server usage" error through the catch block (same fix the
+// interaction-stats sibling already carries).
+export const dynamic = 'force-dynamic'
+
+// Athens "YYYY-MM-DD" shape guard for the ?from=/?to= range params.
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
 
 function json(body: unknown, status = 200) {
   return NextResponse.json(body, { status, headers: { 'Cache-Control': 'no-store' } })
@@ -63,6 +72,30 @@ export async function GET(req: NextRequest) {
     if (!authorized(req, secret)) {
       console.warn(`/api/viewer-stats: auth failure at ${new Date().toISOString()}`)
       return json({ error: 'unauthorized' }, 401)
+    }
+
+    // ?from=YYYY-MM-DD&to=YYYY-MM-DD — range read for the /stats "Viewers" view.
+    // Returns every archived hotel-night snapshot in the window (one row per
+    // night/venue). Hotel scope only, so ?event= is ignored here. Bounded/
+    // validated like the interaction-stats sibling. `current` is intentionally
+    // absent — "currently watching" is a live-only metric with no meaning for a
+    // past night.
+    const fromParam = req.nextUrl.searchParams.get('from')
+    const toParam = req.nextUrl.searchParams.get('to')
+    if (fromParam || toParam) {
+      if (!fromParam || !toParam || !DATE_RE.test(fromParam) || !DATE_RE.test(toParam)) {
+        return json({ error: 'from and to must both be YYYY-MM-DD' }, 400)
+      }
+      const from = fromParam <= toParam ? fromParam : toParam
+      const to = fromParam <= toParam ? toParam : fromParam
+      const range = await readViewerStatsNightlyInRange(from, to)
+      return json({
+        scope: 'hotel',
+        range: { from, to },
+        archived: true,
+        nights: range.rows,
+        generatedAt: new Date().toISOString(),
+      })
     }
 
     const eventSlug = req.nextUrl.searchParams.get('event')
