@@ -104,6 +104,17 @@ function fmtDate(iso: string): string {
   return `${d}-${m}-${y}`
 }
 
+const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+
+// Short weekday for a "YYYY-MM-DD" Athens date. Pure date arithmetic (UTC
+// midnight of that calendar day) — no timezone dependence, since we only want
+// the day-of-week label, and a calendar date's weekday is the same everywhere.
+function weekdayShort(iso: string): string {
+  const [y, m, d] = iso.split('-').map(Number)
+  if (!y || !m || !d) return ''
+  return WEEKDAYS[new Date(Date.UTC(y, m - 1, d)).getUTCDay()] ?? ''
+}
+
 // Default range: last 30 days, computed from an anchor "today" passed in (we
 // avoid Date.now() drift by reading it once on mount).
 function isoDaysAgo(anchorIso: string, days: number): string {
@@ -305,11 +316,23 @@ export default function StatsPage() {
   const viewerTotals = useMemo(() => {
     let unique = 0
     let peak = 0
+    let uniqueMax = 0 // biggest single-night unique — bar scale + best-night pick
+    let bestNight: ViewerRow | null = null
     for (const r of viewerNights) {
       unique += r.unique
       if (r.maxConcurrent > peak) peak = r.maxConcurrent
+      if (r.unique > uniqueMax) uniqueMax = r.unique
+      if (!bestNight || r.unique > bestNight.unique) bestNight = r
     }
-    return { unique, peak }
+    return {
+      unique,
+      peak,
+      uniqueMax,
+      peakMax: peak, // peak total already IS the max single-night peak
+      nights: viewerNights.length,
+      bestNight,
+      avgUnique: viewerNights.length ? Math.round(unique / viewerNights.length) : 0,
+    }
   }, [viewerNights])
 
   return (
@@ -415,49 +438,110 @@ export default function StatsPage() {
           )}
 
           {tab === 'viewers' && (
-            <section className="stats-card stats-table-wrap">
+            <>
               {viewerNights.length === 0 && !loading ? (
-                <p className="stats-empty">
-                  No archived viewer counts in this window yet. A night is recorded when its session is
-                  finished (or backfilled) — an empty table here is normal for a quiet period or for nights
-                  whose live counters expired before a snapshot was taken, not an error.
-                </p>
+                <section className="stats-card stats-table-wrap">
+                  <p className="stats-empty">
+                    No archived viewer counts in this window yet. A night is recorded when its session is
+                    finished (or backfilled) — an empty table here is normal for a quiet period or for nights
+                    whose live counters expired before a snapshot was taken, not an error.
+                  </p>
+                </section>
               ) : (
-                <table className="stats-table">
-                  <thead>
-                    <tr>
-                      <th className="stats-col-date">Night</th>
-                      <th className="stats-col-hotel">Venue</th>
-                      <th className="stats-col-num">Unique viewers</th>
-                      <th className="stats-col-num stats-col-total">Peak at once</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {viewerNights.map((r) => (
-                      <tr key={r.eventKey}>
-                        <td className="stats-col-date">{fmtDate(r.date as string)}</td>
-                        <td className="stats-col-hotel">{hotelName(r.hotelId)}</td>
-                        <td className="stats-col-num">{r.unique}</td>
-                        <td className="stats-col-num stats-col-total">{r.maxConcurrent}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                  <tfoot>
-                    <tr>
-                      <td className="stats-col-date">Total</td>
-                      <td className="stats-col-hotel"></td>
-                      <td className="stats-col-num">{viewerTotals.unique}</td>
-                      <td className="stats-col-num stats-col-total">{viewerTotals.peak}</td>
-                    </tr>
-                  </tfoot>
-                </table>
+                <>
+                  <section className="stats-summary" aria-label="Viewer summary">
+                    <div className="stats-metric">
+                      <span className="stats-metric-value">{viewerTotals.unique}</span>
+                      <span className="stats-metric-label">Unique viewers</span>
+                      <span className="stats-metric-sub">across {viewerTotals.nights} nights</span>
+                    </div>
+                    <div className="stats-metric">
+                      <span className="stats-metric-value">{viewerTotals.peak}</span>
+                      <span className="stats-metric-label">Best peak</span>
+                      <span className="stats-metric-sub">most watching at once</span>
+                    </div>
+                    <div className="stats-metric">
+                      <span className="stats-metric-value">{viewerTotals.avgUnique}</span>
+                      <span className="stats-metric-label">Avg / night</span>
+                      <span className="stats-metric-sub">unique viewers</span>
+                    </div>
+                    <div className="stats-metric stats-metric-best">
+                      <span className="stats-metric-value">
+                        {viewerTotals.bestNight ? viewerTotals.bestNight.unique : '—'}
+                      </span>
+                      <span className="stats-metric-label">Busiest night</span>
+                      <span className="stats-metric-sub">
+                        {viewerTotals.bestNight
+                          ? `${fmtDate(viewerTotals.bestNight.date as string)} · ${hotelName(
+                              viewerTotals.bestNight.hotelId,
+                            )}`
+                          : '—'}
+                      </span>
+                    </div>
+                  </section>
+
+                  <section className="stats-card stats-table-wrap">
+                    <table className="stats-table stats-table-viewers">
+                      <thead>
+                        <tr>
+                          <th className="stats-col-date">Night</th>
+                          <th className="stats-col-hotel">Venue</th>
+                          <th className="stats-col-bar">Unique viewers</th>
+                          <th className="stats-col-bar">Peak at once</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {viewerNights.map((r) => {
+                          const isBest =
+                            viewerTotals.bestNight?.eventKey === r.eventKey && viewerTotals.unique > 0
+                          const uPct = viewerTotals.uniqueMax
+                            ? Math.max(4, Math.round((r.unique / viewerTotals.uniqueMax) * 100))
+                            : 0
+                          const pPct = viewerTotals.peakMax
+                            ? Math.max(4, Math.round((r.maxConcurrent / viewerTotals.peakMax) * 100))
+                            : 0
+                          return (
+                            <tr key={r.eventKey} className={isBest ? 'is-best' : ''}>
+                              <td className="stats-col-date">
+                                <span className="stats-weekday">{weekdayShort(r.date as string)}</span>
+                                {fmtDate(r.date as string)}
+                              </td>
+                              <td className="stats-col-hotel">{hotelName(r.hotelId)}</td>
+                              <td className="stats-col-bar">
+                                <span className="stats-bar-cell">
+                                  <span className="stats-bar-track">
+                                    <span className="stats-bar" style={{ width: `${uPct}%` }} aria-hidden="true" />
+                                  </span>
+                                  <span className="stats-bar-num">{r.unique}</span>
+                                </span>
+                              </td>
+                              <td className="stats-col-bar">
+                                <span className="stats-bar-cell">
+                                  <span className="stats-bar-track">
+                                    <span
+                                      className="stats-bar stats-bar-peak"
+                                      style={{ width: `${pPct}%` }}
+                                      aria-hidden="true"
+                                    />
+                                  </span>
+                                  <span className="stats-bar-num">{r.maxConcurrent}</span>
+                                </span>
+                              </td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
+                    <p className="stats-foot-note">
+                      “Unique viewers” = distinct devices seen that night. “Peak at once” = the most watching
+                      simultaneously. Bars are scaled to the busiest night in view. Only finished (or
+                      backfilled) nights appear — a session whose live counters expired before a snapshot won’t
+                      show here.
+                    </p>
+                  </section>
+                </>
               )}
-              <p className="stats-foot-note">
-                “Unique viewers” = distinct devices seen that night. “Peak at once” = the most watching
-                simultaneously. The total row sums unique viewers and shows the highest single-night peak (peaks
-                aren’t additive across nights).
-              </p>
-            </section>
+            </>
           )}
 
           {tab === 'taps' && (

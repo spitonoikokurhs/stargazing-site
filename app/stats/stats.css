@@ -221,6 +221,49 @@
   max-width: 68ch;
 }
 
+/* ---- Summary metric cards ---- */
+.stats-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+  margin-bottom: 18px;
+}
+.stats-metric {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.stats-metric-value {
+  font-size: 30px;
+  font-weight: 700;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+.stats-metric-label {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  margin-top: 4px;
+}
+.stats-metric-sub {
+  font-size: 12.5px;
+  color: var(--muted);
+  opacity: 0.85;
+}
+.stats-metric-best {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
+  background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 10%, var(--panel)), var(--panel));
+}
+.stats-metric-best .stats-metric-value {
+  color: var(--accent);
+}
+
 /* ---- Table ---- */
 .stats-table-wrap {
   padding: 0;
@@ -272,6 +315,87 @@
 }
 .stats-col-hotel {
   color: var(--text);
+}
+
+/* ---- Viewer table: weekday chip + data bars ---- */
+.stats-weekday {
+  display: inline-block;
+  min-width: 34px;
+  margin-right: 10px;
+  padding: 1px 7px;
+  border-radius: 5px;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  text-align: center;
+  vertical-align: middle;
+}
+
+.stats-table-viewers .stats-col-bar {
+  min-width: 190px;
+  width: 34%;
+}
+/* Bar track holds the fill; the number sits AFTER the track so it can never be
+   pushed off the cell. Track is capped to leave room for a 4-digit number. */
+.stats-bar-cell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 26px;
+}
+.stats-bar-track {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 22px;
+  border-radius: 5px;
+  background: var(--panel-2);
+  overflow: hidden;
+}
+.stats-bar {
+  display: block;
+  height: 100%;
+  border-radius: 5px;
+  background: color-mix(in srgb, var(--accent) 55%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 70%, transparent);
+  box-sizing: border-box;
+  transition: width 0.35s ease;
+  min-width: 3px;
+}
+.stats-bar-peak {
+  background: color-mix(in srgb, var(--good) 45%, transparent);
+  border-color: color-mix(in srgb, var(--good) 65%, transparent);
+}
+.stats-bar-num {
+  flex: 0 0 auto;
+  min-width: 34px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: var(--text);
+  font-size: 14px;
+}
+
+.stats-table-viewers tbody tr.is-best {
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+.stats-table-viewers tbody tr.is-best .stats-col-hotel::after {
+  content: '★ busiest';
+  margin-left: 8px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--accent);
+  vertical-align: middle;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stats-bar {
+    transition: none;
+  }
 }
 
 @media (max-width: 560px) {
