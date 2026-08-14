@@ -7,6 +7,7 @@
     { "id": "berlin", "name": "Berlin", "country": "Germany", "lat": 52.52, "lon": 13.405, "height": 34, "tz": "Europe/Berlin" },
     { "id": "munich", "name": "Munich", "country": "Germany", "lat": 48.1374, "lon": 11.5755, "height": 519, "tz": "Europe/Berlin" },
     { "id": "rome", "name": "Rome", "country": "Italy", "lat": 41.9028, "lon": 12.4964, "height": 21, "tz": "Europe/Rome" },
-    { "id": "london", "name": "London", "country": "United Kingdom", "lat": 51.5072, "lon": -0.1276, "height": 11, "tz": "Europe/London" }
+    { "id": "london", "name": "London", "country": "United Kingdom", "lat": 51.5072, "lon": -0.1276, "height": 11, "tz": "Europe/London" },
+    { "id": "lisbon", "name": "Lisbon", "country": "Portugal", "lat": 38.7223, "lon": -9.1393, "height": 2, "tz": "Europe/Lisbon" }
   ]
 }
