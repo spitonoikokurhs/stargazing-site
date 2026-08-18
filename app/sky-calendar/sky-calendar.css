@@ -88,8 +88,16 @@
 }
 .v2-picker-menu a:hover { background: rgba(150, 180, 220, 0.08); }
 .v2-picker-menu a.is-active { color: var(--gold); }
-/* Region label pushed to the right edge; flag + name stay grouped on the left. */
-.v2-picker-region { color: var(--faint); font-size: 12px; margin-left: auto; }
+/* Region label pushed to the right edge; flag + name stay grouped on the left.
+   nowrap + a left pad keep a long country ("United Kingdom") on one line — the
+   menu widens to fit instead of the label wrapping and making the row taller. */
+.v2-picker-region {
+  color: var(--faint);
+  font-size: 12px;
+  margin-left: auto;
+  padding-left: 14px;
+  white-space: nowrap;
+}
 /* City flag chips in the picker (summary + menu). */
 .v2-picker-flag { display: inline-flex; flex: 0 0 auto; }
 .v2-picker-flag .sky-svg-flag { width: 20px; height: auto; display: block; border-radius: 2.5px; }
