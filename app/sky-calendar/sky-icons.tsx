@@ -483,6 +483,20 @@ export function CityFlag({ country }: { country: string }) {
           <path d="M15 0 V20 M0 10 H30" stroke="#c8102e" strokeWidth="3.4" />
         </FlagFrame>
       )
+    case 'Portugal':
+      // Green (2/5) / red (3/5) vertical fields with a simplified yellow
+      // armillary sphere + white shield over the division. Recognisable at
+      // chip size without the full heraldic detail (same house style as above).
+      return (
+        <FlagFrame label="Portugal">
+          <rect width="30" height="20" fill="#da291c" />
+          <rect width="12" height="20" fill="#046a38" />
+          <circle cx="12" cy="10" r="4.4" fill="none" stroke="#ffcc4d" strokeWidth="1" />
+          <ellipse cx="12" cy="10" rx="1.9" ry="4.4" fill="none" stroke="#ffcc4d" strokeWidth="0.8" />
+          <path d="M7.6 10 H16.4" stroke="#ffcc4d" strokeWidth="0.8" />
+          <rect x="10.4" y="7.6" width="3.2" height="4.8" rx="0.6" fill="#fff" stroke="#c8102e" strokeWidth="0.7" />
+        </FlagFrame>
+      )
     default:
       return (
         <FlagFrame label={country}>
