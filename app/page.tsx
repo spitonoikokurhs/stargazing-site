@@ -95,10 +95,10 @@ const faqJsonLd = `{
 
 export const metadata: Metadata = {
   title: {
-    absolute: 'Premium Stargazing Experiences for Hotels & Resorts | Kos, Greece',
+    absolute: 'Stargazing on Kos — Telescope Nights Under the Aegean Sky',
   },
   description:
-    'Premium stargazing experiences for hotels, resorts, weddings and luxury venues in Kos, nearby Greek islands and Bodrum — telescope observation, storytelling and original astrophotography by Michalis Reisis.',
+    'Live telescope stargazing on Kos and the Greek islands — see planets, galaxies and nebulae with an expert guide, under the Aegean’s darkest skies.',
   alternates: {
     canonical: 'https://www.stargazing.events/',
     languages: {
@@ -108,9 +108,9 @@ export const metadata: Metadata = {
     },
   },
   openGraph: {
-    title: 'Premium Stargazing Experiences for Hotels & Resorts | Stargazing Events',
+    title: 'Stargazing on Kos — Telescope Nights Under the Aegean Sky',
     description:
-      'Premium stargazing experiences for hotels, resorts, weddings and luxury venues in Kos, Greece and Bodrum — telescope observation, storytelling and astrophotography.',
+      'Live telescope stargazing on Kos and across the Greek islands — planets, galaxies and nebulae with an expert guide, under the Aegean’s darkest skies. Private nights for guests, hotels, resorts and weddings.',
     type: 'website',
     url: 'https://www.stargazing.events/',
     images: [
@@ -126,9 +126,9 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Premium Stargazing Experiences for Hotels & Resorts | Stargazing Events',
+    title: 'Stargazing on Kos — Telescope Nights Under the Aegean Sky',
     description:
-      'Premium stargazing experiences for hotels, resorts, weddings and luxury venues in Kos, Greece and Bodrum.',
+      'Live telescope stargazing on Kos and the Greek islands — planets, galaxies and nebulae with an expert guide. Private nights for guests, hotels, resorts and weddings.',
     images: ['https://www.stargazing.events/images/stargazing-events-thumbnail.jpg'],
     site: '@mixalre',
   },

@@ -6,9 +6,13 @@ import './cookie-consent.css'
 
 export const metadata: Metadata = {
   title: {
-    default: 'Stargazing Events — Premium Stargazing Experiences in Greece',
+    default: 'Stargazing Events — Telescope Stargazing on Kos, Greece',
     template: '%s | Stargazing Events',
   },
+  // Site-wide fallback description for any page without its own. The homepage
+  // and key pages override this; it exists so no page ships description-less.
+  description:
+    'Live telescope stargazing on Kos and across the Greek islands — planets, galaxies and nebulae with an expert guide, under the Aegean’s darkest skies.',
   authors: [{ name: 'Michalis Reisis' }],
   icons: {
     icon: [
