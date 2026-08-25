@@ -4270,12 +4270,16 @@
   opacity: 1;
 }
 
+/* Bottom-CENTER: pinned to the bottom, centred horizontally. Centring is done
+   with left:50% + a translateX(-50%) that is baked into EVERY transform state
+   below (base, is-in, and both shake keyframes), so the slide/shake never knock
+   it off-centre. */
 .inevent-review {
   position: fixed;
-  right: 16px;
-  bottom: 16px;
+  left: 50%;
+  bottom: 20px;
   z-index: 60;
-  max-width: min(320px, calc(100vw - 32px));
+  max-width: min(340px, calc(100vw - 32px));
   padding: 15px 16px;
   background: rgba(16, 20, 28, 0.94);
   border: 1px solid rgba(255, 204, 77, 0.4);
@@ -4284,7 +4288,7 @@
   backdrop-filter: blur(8px);
   color: #edeae3;
   opacity: 0;
-  transform: translateY(14px);
+  transform: translateX(-50%) translateY(14px);
   transition: opacity 260ms ease, transform 260ms ease;
   pointer-events: none;
 }
@@ -4295,19 +4299,20 @@
    permanent vibration. */
 .inevent-review.is-in {
   opacity: 1;
-  transform: translateY(0);
+  transform: translateX(-50%) translateY(0);
   pointer-events: auto;
   animation:
     inevent-shake 620ms ease-in-out 240ms 1 both,
     inevent-glow 2.6s ease-in-out 900ms infinite;
 }
+/* Shake keeps the -50% centring offset in the X translate (base -50% ± nudge). */
 @keyframes inevent-shake {
-  0%, 100% { transform: translateY(0) translateX(0); }
-  15% { transform: translateY(0) translateX(-4px); }
-  30% { transform: translateY(0) translateX(4px); }
-  45% { transform: translateY(0) translateX(-3px); }
-  60% { transform: translateY(0) translateX(3px); }
-  75% { transform: translateY(0) translateX(-1.5px); }
+  0%, 100% { transform: translateX(-50%) translateY(0); }
+  15% { transform: translateX(calc(-50% - 4px)) translateY(0); }
+  30% { transform: translateX(calc(-50% + 4px)) translateY(0); }
+  45% { transform: translateX(calc(-50% - 3px)) translateY(0); }
+  60% { transform: translateX(calc(-50% + 3px)) translateY(0); }
+  75% { transform: translateX(calc(-50% - 1.5px)) translateY(0); }
 }
 @keyframes inevent-glow {
   0%, 100% {
@@ -4380,12 +4385,12 @@
 @media (prefers-reduced-motion: reduce) {
   .inevent-review {
     transition: opacity 200ms ease; /* keep a gentle fade, drop the slide */
-    transform: none;
+    transform: translateX(-50%); /* keep centring, drop the vertical slide */
   }
   /* No shake, no slide; keep a very soft glow pulse only (a slow opacity/border
      breath, no movement) so it's still noticeable without motion. */
   .inevent-review.is-in {
-    transform: none;
+    transform: translateX(-50%);
     animation: inevent-glow-still 3s ease-in-out infinite;
   }
   @keyframes inevent-glow-still {
