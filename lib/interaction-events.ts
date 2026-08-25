@@ -52,6 +52,14 @@ export const INTERACTION_KEYS = [
   'funnel_finder_review_impression', // finder (easter-egg) review ask shown
   'funnel_finder_review_click', // finder review ask clicked -> REVIEW_URL
 
+  // In-event review prompt — the small toast shown DURING a live session
+  // (start+40min), separate from the farewell asks above so in-event vs.
+  // farewell conversion is comparable. impression = toast faded in; click =
+  // tapped through to REVIEW_URL; dismiss = tapped ✕ (measures annoyance).
+  'funnel_inevent_review_impression',
+  'funnel_inevent_review_click',
+  'funnel_inevent_review_dismiss',
+
   // Tonight's Sky (/sky-calendar) — aggregate interest signals, identifier-free.
   'sky_city_select', // guest opened a city's conditions (objectId = city id, e.g. "kos") — which markets people care about
   'sky_full_detail', // guest opened Full detail (the altitude chart) — is the depth wanted (count only)

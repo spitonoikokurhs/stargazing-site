@@ -647,6 +647,14 @@ export async function GET(req: NextRequest) {
         viewers: null,
         history,
         stackRunStartedAt: activeStackRunStartedAt(history),
+        // Tonight's scheduled start/end "HH:MM" (Athens), for the in-event
+        // review prompt: it appears once at start+40min and never after end.
+        // Null if nothing is scheduled (ad-hoc session) — the client then never
+        // shows the prompt, the safe direction. Computed once here.
+        ...(() => {
+          const sched = eventFor(athensToday())
+          return { eventStart: sched?.start ?? null, eventEnd: sched?.end ?? null }
+        })(),
         sources,
         ...(telemetry
           ? {

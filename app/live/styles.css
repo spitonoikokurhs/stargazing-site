@@ -4244,3 +4244,87 @@
   .starting-ufo,
   .starting-ufo-alarm { display: none; } /* the whole gag is motion — hide it */
 }
+
+/* ---------------------------------------------------------------------------
+   In-event review prompt — a small, calm toast in the bottom corner that fades
+   in ~40min into an event. Fixed so it never shifts the telescope view; sits
+   above it but out of the way. Starts translated-down + transparent, slides up
+   into place when .is-in is added.
+   --------------------------------------------------------------------------- */
+.inevent-review {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 60;
+  max-width: min(320px, calc(100vw - 32px));
+  padding: 14px 16px 15px;
+  background: rgba(16, 20, 28, 0.94);
+  border: 1px solid rgba(237, 234, 227, 0.18);
+  border-radius: 14px;
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(8px);
+  color: #edeae3;
+  opacity: 0;
+  transform: translateY(14px);
+  transition: opacity 260ms ease, transform 260ms ease;
+  pointer-events: none;
+}
+.inevent-review.is-in {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+.inevent-review-close {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  width: 26px;
+  height: 26px;
+  border: none;
+  background: none;
+  color: rgba(237, 234, 227, 0.55);
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+  border-radius: 8px;
+}
+.inevent-review-close:hover,
+.inevent-review-close:focus-visible {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.08);
+}
+.inevent-review-lead {
+  margin: 0 22px 2px 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+.inevent-review-sub {
+  margin: 0 0 12px;
+  font-size: 13px;
+  color: rgba(237, 234, 227, 0.72);
+}
+.inevent-review-btn {
+  display: inline-block;
+  padding: 9px 16px;
+  border-radius: 999px;
+  font-size: 13.5px;
+  letter-spacing: 0.3px;
+  text-decoration: none;
+  background: rgba(255, 204, 77, 0.16);
+  border: 1px solid rgba(255, 204, 77, 0.5);
+  color: #ffe6a8;
+  transition: background 160ms ease, border-color 160ms ease, color 160ms ease;
+}
+.inevent-review-btn:hover,
+.inevent-review-btn:focus-visible {
+  background: rgba(255, 204, 77, 0.26);
+  border-color: rgba(255, 204, 77, 0.7);
+  color: #fff;
+}
+@media (prefers-reduced-motion: reduce) {
+  .inevent-review {
+    transition: opacity 200ms ease; /* keep a gentle fade, drop the slide */
+    transform: none;
+  }
+  .inevent-review.is-in { transform: none; }
+}

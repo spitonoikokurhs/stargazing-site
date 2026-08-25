@@ -12,6 +12,7 @@ import { formatNextSessionLines, NO_NEXT_SESSION_LINE } from '@/lib/live-farewel
 import { eventFor, nextEvent } from '@/lib/schedule'
 import { getOrCreateViewerId, getConsentedViewerId, clearStoredViewerId, getEphemeralViewerId } from '@/lib/consent'
 import { track, trackingContextFor, type TrackingContext } from '@/lib/track-client'
+import { REVIEW_URL } from '@/lib/review-funnel'
 import { FarewellAegeanUfo } from './FarewellAegeanUfo'
 import { FarewellEclipse } from './FarewellEclipse'
 import { resolveFarewellScene, forcedSceneFromQuery, type FarewellScene } from './farewell-scene-choice'
@@ -187,6 +188,12 @@ type StatusLive = {
   // row yet) both just mean "no run-key comparison possible this poll,"
   // never a reason to fail validation.
   stackRunStartedAt?: string | null
+  // Tonight's scheduled start/end "HH:MM" (Athens local), for the in-event
+  // review prompt: it shows once at start+40min and never after end.
+  // Optional/nullable: absent (older server) or null (no scheduled event) both
+  // just mean "no review prompt this session."
+  eventStart?: string | null
+  eventEnd?: string | null
   telemetry?: { state?: string; totalAccumulatedTime?: number; astrometryState?: string }
   objectMatch?: {
     name: string
@@ -1282,6 +1289,12 @@ export default function LiveView({
   // different state.
   const [history, setHistory] = useState<HistoryEntry[]>([])
 
+  // Tonight's scheduled start/end "HH:MM" (Athens), from each live poll — feeds
+  // the in-event review prompt (shows once at start+40min, never after end).
+  // Null on any non-live poll or when nothing is scheduled, so the prompt is
+  // simply never eligible outside a real, scheduled, live event.
+  const [eventSchedule, setEventSchedule] = useState<{ start: string; end: string } | null>(null)
+
   useEffect(() => {
     let cancelled = false
 
@@ -1388,6 +1401,11 @@ export default function LiveView({
           return
         }
 
+        // Clear the in-event review schedule by default; only the live branch
+        // below re-sets it. So any non-live poll (offline/finished/degraded/
+        // starting) disables the prompt without per-branch bookkeeping.
+        setEventSchedule(null)
+
         if (body.live === false && body.finished === true) {
           // Checked FIRST — before degraded/offline/live — mirroring the
           // server's own ordering. This must win even if the client were
@@ -1440,6 +1458,15 @@ export default function LiveView({
           const nextHistory = sanitizeHistory(body.history)
           // live:true — never dispatch "live" until the image actually preloads.
           const current = stateRef.current
+
+          // Capture tonight's schedule for the in-event review prompt. Both
+          // present-and-valid, or clear it — a partial/absent schedule (older
+          // server) simply disables the prompt.
+          setEventSchedule(
+            typeof body.eventStart === 'string' && typeof body.eventEnd === 'string'
+              ? { start: body.eventStart, end: body.eventEnd }
+              : null,
+          )
 
           // State-aware transition: compare the INCOMING run key (this
           // poll's source+observationId+stackRunStartedAt) against the
@@ -1751,6 +1778,7 @@ export default function LiveView({
       debugFields={debugFields}
       debugNoFeed={debugNoFeed}
       tracking={tracking}
+      reviewSchedule={eventSchedule}
     />
   )
 }
@@ -2109,6 +2137,7 @@ function LiveViewPresentation({
   debugFields = null,
   debugNoFeed = false,
   tracking = null,
+  reviewSchedule = null,
 }: {
   state: LiveStatusState
   history: HistoryEntry[]
@@ -2116,6 +2145,7 @@ function LiveViewPresentation({
   debugFields?: DebugFields | null
   debugNoFeed?: boolean
   tracking?: TrackingContext | null
+  reviewSchedule?: { start: string; end: string } | null
 }) {
   const { uiState, lastLiveFrame } = state
 
@@ -2505,6 +2535,7 @@ function LiveViewPresentation({
       debugMode={debugMode}
       debugFields={debugFields}
       tracking={tracking}
+      reviewSchedule={reviewSchedule}
     />
   )
 }
@@ -3250,6 +3281,145 @@ function useShrinkTitleToFit(text: string): { ref: React.RefObject<HTMLHeadingEl
   return { ref, fontSize }
 }
 
+// ---------------------------------------------------------------------------
+// In-event review prompt — a small toast that fades in ONCE, ~40 minutes after
+// the event's scheduled start, inviting the (delighted, mid-experience) guest
+// to leave a review. Design decisions (all confirmed with the operator):
+//   • Anchored to SCHEDULED start (not "when the guest connected"), so a
+//     reconnect / reload / Wi-Fi drop never restarts the timer — the trigger is
+//     purely "is it now past start+40min?", which is reconnect-immune.
+//   • Never shows once the event's scheduled END has passed — a late joiner
+//     near the end (or after) is not asked, avoiding "a popup after we finished."
+//   • Shows at most ONCE per event: a sessionStorage flag keyed by the event's
+//     date+start survives reloads, and dismiss/click both set it. Same-tab only,
+//     auto-erased — consistent with the ephemeral count-id's storage posture.
+//   • Bottom-corner toast, non-blocking (never covers the telescope image).
+// Reuses REVIEW_URL and its own dedicated analytics keys (funnel_inevent_*).
+const REVIEW_PROMPT_DELAY_MIN = 40
+
+function hhmmToMinutes(hhmm: string): number | null {
+  const m = /^(\d{1,2}):(\d{2})$/.exec(hhmm)
+  if (!m) return null
+  const h = Number(m[1])
+  const min = Number(m[2])
+  if (h < 0 || h > 23 || min < 0 || min > 59) return null
+  return h * 60 + min
+}
+
+// Athens local minutes-since-midnight, "now". Matches how the server reasons
+// about the event window (same tz, same HH:MM basis).
+function athensNowMinutes(): number {
+  const s = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Europe/Athens',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).format(new Date())
+  return hhmmToMinutes(s) ?? 0
+}
+
+function InEventReviewPrompt({
+  schedule,
+  tracking,
+}: {
+  schedule: { start: string; end: string } | null
+  tracking: TrackingContext | null
+}) {
+  const [visible, setVisible] = useState(false)
+  const [mounted, setMounted] = useState(false) // drives the fade-in transition
+  const [done, setDone] = useState(false) // dismissed or clicked this session
+
+  // A per-event storage key so the "already shown" flag is scoped to tonight's
+  // event, not global (a different night must get its own prompt).
+  const storageKey = schedule ? `sg:inevent-review:${schedule.start}-${schedule.end}` : null
+
+  // On mount / schedule change, respect a prior dismissal for THIS event.
+  useEffect(() => {
+    if (!storageKey) return
+    try {
+      if (window.sessionStorage.getItem(storageKey) === '1') setDone(true)
+    } catch {
+      // storage blocked — the prompt just won't be reload-persistent; harmless.
+    }
+  }, [storageKey])
+
+  // Poll the clock once a minute; reveal when we're inside [start+40, end).
+  useEffect(() => {
+    if (!schedule || done) return
+    const start = hhmmToMinutes(schedule.start)
+    const end = hhmmToMinutes(schedule.end)
+    if (start === null || end === null) return
+    const showAt = start + REVIEW_PROMPT_DELAY_MIN
+
+    const check = () => {
+      const now = athensNowMinutes()
+      if (now >= showAt && now < end) setVisible(true)
+    }
+    check()
+    const id = setInterval(check, 60 * 1000)
+    return () => clearInterval(id)
+  }, [schedule, done])
+
+  // Fire the fade-in one tick after becoming visible, and emit the impression
+  // exactly once when it first appears.
+  useEffect(() => {
+    if (!visible) return
+    const raf = requestAnimationFrame(() => setMounted(true))
+    track(tracking, 'funnel_inevent_review_impression')
+    return () => cancelAnimationFrame(raf)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible])
+
+  const finish = useCallback(() => {
+    if (storageKey) {
+      try {
+        window.sessionStorage.setItem(storageKey, '1')
+      } catch {
+        // ignore — worst case it may reappear on a reload, still capped by end.
+      }
+    }
+    setMounted(false)
+    // Let the fade-out play, then unmount.
+    setTimeout(() => setDone(true), 260)
+  }, [storageKey])
+
+  if (!visible || done) return null
+
+  return (
+    <div
+      className={`inevent-review${mounted ? ' is-in' : ''}`}
+      role="dialog"
+      aria-label="Leave a review"
+    >
+      <button
+        type="button"
+        className="inevent-review-close"
+        aria-label="Dismiss"
+        onClick={() => {
+          track(tracking, 'funnel_inevent_review_dismiss')
+          finish()
+        }}
+      >
+        ✕
+      </button>
+      <p className="inevent-review-lead">Enjoying tonight?</p>
+      <p className="inevent-review-sub">A few words would mean a lot.</p>
+      <a
+        className="inevent-review-btn"
+        href={REVIEW_URL}
+        target="_blank"
+        rel="noopener noreferrer"
+        onClick={() => {
+          track(tracking, 'funnel_inevent_review_click')
+          finish()
+        }}
+      >
+        ⭐ Leave a review
+      </a>
+    </div>
+  )
+}
+
 // Split out so it (and its fullscreenMode state) only mounts once we
 // actually have a frame to show — the circular FOV view is the pretty
 // default view; fullscreen swaps to the full square image, maximized, with
@@ -3264,6 +3434,7 @@ function LiveFrameView({
   debugMode = false,
   debugFields = null,
   tracking = null,
+  reviewSchedule = null,
 }: {
   uiState: LiveStatusState['uiState']
   lastLiveFrame: NonNullable<LiveStatusState['lastLiveFrame']>
@@ -3274,6 +3445,10 @@ function LiveFrameView({
   debugMode?: boolean
   debugFields?: DebugFields | null
   tracking?: TrackingContext | null
+  // Tonight's schedule for the in-event review prompt. Passed non-null ONLY
+  // from the normal live view (not history-browsing), so the prompt never
+  // appears while a guest is looking at an earlier target.
+  reviewSchedule?: { start: string; end: string } | null
 }) {
   // 'off': normal circular view. 'native': the real Fullscreen API is active
   // (Android/desktop — unaffected by this change). 'css-fallback': a fixed
@@ -3533,6 +3708,10 @@ function LiveFrameView({
 
   return (
     <div className="live-root">
+      {/* In-event review prompt (fixed-position toast; renders nothing until
+          it's ~40min into the event). reviewSchedule is null while history-
+          browsing, so it never shows there. */}
+      <InEventReviewPrompt schedule={reviewSchedule} tracking={tracking} />
       <div className="page">
         {/* Brand text removed — it already lives on the circular rim (see
             .rim-brand below), repeating it here read redundantly. Just the
