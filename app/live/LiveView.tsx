@@ -3403,11 +3403,15 @@ function InEventReviewPrompt({
   if (!visible || done) return null
 
   return (
-    <div
-      className={`inevent-review${mounted ? ' is-in' : ''}`}
-      role="dialog"
-      aria-label="Leave a review"
-    >
+    <>
+      {/* Light dim+blur scrim behind the toast to pull the eye toward it. Non-
+          interactive, so the live image/controls underneath stay tappable. */}
+      <div className={`inevent-review-scrim${mounted ? ' is-in' : ''}`} aria-hidden="true" />
+      <div
+        className={`inevent-review${mounted ? ' is-in' : ''}`}
+        role="dialog"
+        aria-label="Leave a review"
+      >
       <button
         type="button"
         className="inevent-review-close"
@@ -3433,7 +3437,8 @@ function InEventReviewPrompt({
       >
         ⭐ Leave a review
       </a>
-    </div>
+      </div>
+    </>
   )
 }
 
