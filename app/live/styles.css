@@ -4277,10 +4277,10 @@
 .inevent-review {
   position: fixed;
   left: 50%;
-  bottom: 20px;
+  bottom: 15vh; /* ~15% of the viewport height up from the bottom */
   z-index: 60;
-  max-width: min(340px, calc(100vw - 32px));
-  padding: 15px 16px;
+  max-width: min(408px, calc(100vw - 32px)); /* ~20% larger than 340 */
+  padding: 18px 19px;
   background: rgba(16, 20, 28, 0.94);
   border: 1px solid rgba(255, 204, 77, 0.4);
   border-radius: 14px;
@@ -4329,17 +4329,17 @@
    text rather than crammed into the corner. */
 .inevent-review-close {
   position: absolute;
-  top: 8px;
-  right: 10px;
-  width: 24px;
-  height: 24px;
+  top: 10px;
+  right: 12px;
+  width: 28px;
+  height: 28px;
   display: flex;
   align-items: center;
   justify-content: center;
   border: none;
   background: none;
   color: rgba(237, 234, 227, 0.55);
-  font-size: 13px;
+  font-size: 15px;
   line-height: 1;
   cursor: pointer;
   border-radius: 8px;
@@ -4350,13 +4350,13 @@
   background: rgba(255, 255, 255, 0.08);
 }
 .inevent-review-lead {
-  margin: 0 26px 3px 0; /* right margin clears the close ✕ */
-  font-size: 15px;
+  margin: 0 28px 3px 0; /* right margin clears the close ✕ */
+  font-size: 18px;
   font-weight: 600;
 }
 .inevent-review-sub {
-  margin: 0 0 12px;
-  font-size: 13px;
+  margin: 0 0 14px;
+  font-size: 15.5px;
   color: rgba(237, 234, 227, 0.72);
 }
 /* Full-width so the left/right gaps to the card edge are equal — a centered
@@ -4365,10 +4365,10 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 7px;
-  padding: 10px 16px;
+  gap: 8px;
+  padding: 12px 18px;
   border-radius: 999px;
-  font-size: 13.5px;
+  font-size: 16px;
   letter-spacing: 0.3px;
   text-decoration: none;
   background: rgba(255, 204, 77, 0.16);
