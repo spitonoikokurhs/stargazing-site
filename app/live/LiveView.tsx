@@ -3329,9 +3329,20 @@ function InEventReviewPrompt({
   const [mounted, setMounted] = useState(false) // drives the fade-in transition
   const [done, setDone] = useState(false) // dismissed or clicked this session
 
+  // TEST HOOK: ?reviewPromptTest=1 forces the prompt to appear immediately,
+  // bypassing the 40-min/end-time gate AND the schedule requirement — so the
+  // operator can preview it on any /live page (incl. demo) without waiting for
+  // a real event to be 40 minutes in. It also skips the sessionStorage "already
+  // shown" persistence so a reload re-triggers it. Client-only, opt-in by that
+  // exact param; a normal guest URL never has it, so real behavior is untouched.
+  const testForce =
+    typeof window !== 'undefined' &&
+    new URLSearchParams(window.location.search).get('reviewPromptTest') === '1'
+
   // A per-event storage key so the "already shown" flag is scoped to tonight's
-  // event, not global (a different night must get its own prompt).
-  const storageKey = schedule ? `sg:inevent-review:${schedule.start}-${schedule.end}` : null
+  // event, not global (a different night must get its own prompt). Null in test
+  // mode so the preview isn't suppressed by a prior dismissal.
+  const storageKey = testForce || !schedule ? null : `sg:inevent-review:${schedule.start}-${schedule.end}`
 
   // On mount / schedule change, respect a prior dismissal for THIS event.
   useEffect(() => {
@@ -3344,8 +3355,14 @@ function InEventReviewPrompt({
   }, [storageKey])
 
   // Poll the clock once a minute; reveal when we're inside [start+40, end).
+  // In test mode, reveal immediately regardless of schedule/clock.
   useEffect(() => {
-    if (!schedule || done) return
+    if (done) return
+    if (testForce) {
+      setVisible(true)
+      return
+    }
+    if (!schedule) return
     const start = hhmmToMinutes(schedule.start)
     const end = hhmmToMinutes(schedule.end)
     if (start === null || end === null) return
@@ -3358,7 +3375,7 @@ function InEventReviewPrompt({
     check()
     const id = setInterval(check, 60 * 1000)
     return () => clearInterval(id)
-  }, [schedule, done])
+  }, [schedule, done, testForce])
 
   // Fire the fade-in one tick after becoming visible, and emit the impression
   // exactly once when it first appears.
