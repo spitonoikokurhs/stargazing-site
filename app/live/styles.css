@@ -4276,7 +4276,7 @@
   bottom: 16px;
   z-index: 60;
   max-width: min(320px, calc(100vw - 32px));
-  padding: 14px 16px 15px;
+  padding: 15px 16px;
   background: rgba(16, 20, 28, 0.94);
   border: 1px solid rgba(255, 204, 77, 0.4);
   border-radius: 14px;
@@ -4319,12 +4319,18 @@
     border-color: rgba(255, 204, 77, 0.85);
   }
 }
+/* Close ✕ aligned to the same optical inset as the content padding (top/right
+   ~10px inside the 15/16px pad), so the top-right corner reads balanced with the
+   text rather than crammed into the corner. */
 .inevent-review-close {
   position: absolute;
-  top: 6px;
-  right: 8px;
-  width: 26px;
-  height: 26px;
+  top: 8px;
+  right: 10px;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   border: none;
   background: none;
   color: rgba(237, 234, 227, 0.55);
@@ -4339,7 +4345,7 @@
   background: rgba(255, 255, 255, 0.08);
 }
 .inevent-review-lead {
-  margin: 0 22px 2px 0;
+  margin: 0 26px 3px 0; /* right margin clears the close ✕ */
   font-size: 15px;
   font-weight: 600;
 }
@@ -4348,9 +4354,14 @@
   font-size: 13px;
   color: rgba(237, 234, 227, 0.72);
 }
+/* Full-width so the left/right gaps to the card edge are equal — a centered
+   label reads balanced under the left-aligned text above it. */
 .inevent-review-btn {
-  display: inline-block;
-  padding: 9px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 10px 16px;
   border-radius: 999px;
   font-size: 13.5px;
   letter-spacing: 0.3px;
