@@ -12,7 +12,7 @@ import { formatNextSessionLines, NO_NEXT_SESSION_LINE } from '@/lib/live-farewel
 import { eventFor, nextEvent } from '@/lib/schedule'
 import { getOrCreateViewerId, getConsentedViewerId, clearStoredViewerId, getEphemeralViewerId } from '@/lib/consent'
 import { track, trackingContextFor, type TrackingContext } from '@/lib/track-client'
-import { REVIEW_URL } from '@/lib/review-funnel'
+import { REVIEW_URL, INEVENT_REVIEW_PHRASES } from '@/lib/review-funnel'
 import { FarewellAegeanUfo } from './FarewellAegeanUfo'
 import { FarewellEclipse } from './FarewellEclipse'
 import { resolveFarewellScene, forcedSceneFromQuery, type FarewellScene } from './farewell-scene-choice'
@@ -3329,6 +3329,33 @@ function InEventReviewPrompt({
   const [mounted, setMounted] = useState(false) // drives the fade-in transition
   const [done, setDone] = useState(false) // dismissed or clicked this session
 
+  // ONE phrase PER GUEST, stable for their whole session but different between
+  // guests — not a rotation. Derived from a stable per-guest seed (the tab's
+  // ephemeral viewer id, hashed into an index), so the SAME guest always sees
+  // the SAME line (no flicker on re-render) while different guests spread across
+  // the 10 phrases. Falls back to a once-picked index if no id is available.
+  // Computed once on mount via useState initializer.
+  const [phrase] = useState(() => {
+    const n = INEVENT_REVIEW_PHRASES.length
+    let seedStr: string | null = null
+    try {
+      seedStr = getEphemeralViewerId()
+    } catch {
+      seedStr = null
+    }
+    if (!seedStr) {
+      // No id (SSR/blocked storage): pick one index once. Math.random is fine
+      // here — it only needs to vary between guests, not be reproducible.
+      return INEVENT_REVIEW_PHRASES[Math.floor(Math.random() * n)]
+    }
+    // Simple deterministic string hash -> index. Same id => same phrase.
+    let h = 0
+    for (let i = 0; i < seedStr.length; i++) {
+      h = (h * 31 + seedStr.charCodeAt(i)) | 0
+    }
+    return INEVENT_REVIEW_PHRASES[Math.abs(h) % n]
+  })
+
   // TEST HOOK: ?reviewPromptTest=1 forces the prompt to appear immediately,
   // bypassing the 40-min/end-time gate AND the schedule requirement — so the
   // operator can preview it on any /live page (incl. demo) without waiting for
@@ -3423,8 +3450,8 @@ function InEventReviewPrompt({
       >
         ✕
       </button>
-      <p className="inevent-review-lead">Enjoying tonight?</p>
-      <p className="inevent-review-sub">A few words would mean a lot.</p>
+      <p className="inevent-review-lead">{phrase.lead}</p>
+      <p className="inevent-review-sub">{phrase.sub}</p>
       <a
         className="inevent-review-btn"
         href={REVIEW_URL}

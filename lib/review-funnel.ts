@@ -60,3 +60,22 @@ export const FUNNEL_COPY = {
     review: 'Share your review',
   },
 } as const
+
+// Rotating headlines for the IN-EVENT review prompt (the toast shown ~40min
+// into a session). The prompt appears once per event, so instead of a single
+// static line it gently cycles through these while it's on screen — keeps it
+// feeling human and fresh, and gives a guest more than one chance to connect
+// with a line. Tone: warm, calm, "a guest under the stars," never pushy. Each
+// entry is a { lead, sub } pair, mirroring the static copy above.
+export const INEVENT_REVIEW_PHRASES = [
+  { lead: 'Enjoying tonight?', sub: 'A few words would mean a lot.' },
+  { lead: 'How’s the sky treating you?', sub: 'We’d love to hear about it.' },
+  { lead: 'Moment worth keeping?', sub: 'Share it in a quick review.' },
+  { lead: 'Loving the view?', sub: 'Tell the next stargazer about it.' },
+  { lead: 'Under the same stars as us?', sub: 'A few words help more than you’d think.' },
+  { lead: 'Caught something beautiful?', sub: 'We’d be grateful for a review.' },
+  { lead: 'Night going well?', sub: 'Let others know what it’s like.' },
+  { lead: 'Enjoying the eyepiece?', sub: 'A quick review makes our night.' },
+  { lead: 'Glad you’re here?', sub: 'So are we — a few words would mean a lot.' },
+  { lead: 'One to remember?', sub: 'Help the next guest find us.' },
+] as const
