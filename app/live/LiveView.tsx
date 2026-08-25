@@ -12,7 +12,7 @@ import { formatNextSessionLines, NO_NEXT_SESSION_LINE } from '@/lib/live-farewel
 import { eventFor, nextEvent } from '@/lib/schedule'
 import { getOrCreateViewerId, getConsentedViewerId, clearStoredViewerId, getEphemeralViewerId } from '@/lib/consent'
 import { track, trackingContextFor, type TrackingContext } from '@/lib/track-client'
-import { REVIEW_URL, INEVENT_REVIEW_PHRASES } from '@/lib/review-funnel'
+import { REVIEW_URL, INEVENT_REVIEW_PHRASES, INEVENT_REVIEW_ACTIONS } from '@/lib/review-funnel'
 import { FarewellAegeanUfo } from './FarewellAegeanUfo'
 import { FarewellEclipse } from './FarewellEclipse'
 import { resolveFarewellScene, forcedSceneFromQuery, type FarewellScene } from './farewell-scene-choice'
@@ -3287,15 +3287,29 @@ function useShrinkTitleToFit(text: string): { ref: React.RefObject<HTMLHeadingEl
 // to leave a review. Design decisions (all confirmed with the operator):
 //   • Anchored to SCHEDULED start (not "when the guest connected"), so a
 //     reconnect / reload / Wi-Fi drop never restarts the timer — the trigger is
-//     purely "is it now past start+40min?", which is reconnect-immune.
-//   • Never shows once the event's scheduled END has passed — a late joiner
-//     near the end (or after) is not asked, avoiding "a popup after we finished."
-//   • Shows at most ONCE per event: a sessionStorage flag keyed by the event's
-//     date+start survives reloads, and dismiss/click both set it. Same-tab only,
-//     auto-erased — consistent with the ephemeral count-id's storage posture.
-//   • Bottom-corner toast, non-blocking (never covers the telescope image).
-// Reuses REVIEW_URL and its own dedicated analytics keys (funnel_inevent_*).
+//     purely a clock comparison, which is reconnect-immune.
+//   • Eligible only inside [start+40min, end-10min] AND while the tab is
+//     VISIBLE — it waits (never fires) while the browser tab is hidden, and a
+//     guest who returns mid-event sees it on the next visibility change. The
+//     end-10 guard keeps it out of the final stretch (see the constant's note on
+//     why 10, not 20, for ~60-min events); it never shows after the event ends.
+//   • Shows at most ONCE per event: a sessionStorage flag keyed by the event
+//     survives reloads, and "Write a review" / "Not now" / ✕ all set it. Same-tab
+//     only, auto-erased — consistent with the ephemeral count-id's posture.
+//   • Bottom-centre toast, non-blocking: no page scrim/blur, never covers the
+//     telescope image; one gentle glow sweep on entry, then it rests.
+//   • Independent of the farewell review ask — dismissing this does not suppress
+//     the end-of-night ask.
+// Reuses REVIEW_URL and its own dedicated analytics keys (funnel_inevent_*),
+// which are SKIPPED in ?reviewPromptTest=1 preview mode so previews never
+// pollute production counters.
 const REVIEW_PROMPT_DELAY_MIN = 40
+// Don't ask in the final stretch — a review right at the end blurs into "it's
+// done." Kept at 10 (not 20) because our events run ~60min: with a 40-min delay,
+// a 20-min tail would collapse the eligible window to a single minute (40..40),
+// far too fragile. 10 gives a comfortable ~10-min window (e.g. a 22:00–23:00
+// event shows between 22:40 and 22:50).
+const REVIEW_PROMPT_MIN_REMAINING_MIN = 10
 
 function hhmmToMinutes(hhmm: string): number | null {
   const m = /^(\d{1,2}):(\d{2})$/.exec(hhmm)
@@ -3381,35 +3395,58 @@ function InEventReviewPrompt({
     }
   }, [storageKey])
 
-  // Poll the clock once a minute; reveal when we're inside [start+40, end).
-  // In test mode, reveal immediately regardless of schedule/clock.
+  // Poll the clock once a minute; reveal when ALL hold:
+  //   • now >= scheduled start + 40min
+  //   • at least REVIEW_PROMPT_MIN_REMAINING_MIN remain before scheduled end
+  //   • the tab is currently VISIBLE (don't pop it while the guest is away —
+  //     wait until they're looking). document.hidden is re-checked each tick and
+  //     on visibilitychange, so a backgrounded tab holds the prompt until focus.
+  // Test mode reveals immediately regardless of schedule/clock (but still only
+  // when visible), so a preview behaves like the real thing minus the wait.
   useEffect(() => {
     if (done) return
-    if (testForce) {
-      setVisible(true)
-      return
-    }
-    if (!schedule) return
-    const start = hhmmToMinutes(schedule.start)
-    const end = hhmmToMinutes(schedule.end)
-    if (start === null || end === null) return
-    const showAt = start + REVIEW_PROMPT_DELAY_MIN
 
     const check = () => {
+      if (typeof document !== 'undefined' && document.hidden) return // wait for focus
+      if (testForce) {
+        setVisible(true)
+        return
+      }
+      if (!schedule) return
+      const start = hhmmToMinutes(schedule.start)
+      const end = hhmmToMinutes(schedule.end)
+      if (start === null || end === null) return
+      // After-midnight guard: our events run same-day (see config/schedule.json),
+      // and this minutes-since-midnight math can't represent an end < start. If a
+      // future event ever crossed midnight, we simply don't show rather than
+      // compute a wrong window — the safe direction.
+      if (end <= start) return
+      const showAt = start + REVIEW_PROMPT_DELAY_MIN
+      const latest = end - REVIEW_PROMPT_MIN_REMAINING_MIN
+      if (latest < showAt) return // window would be empty/invalid — never show
       const now = athensNowMinutes()
-      if (now >= showAt && now < end) setVisible(true)
+      if (now >= showAt && now <= latest) setVisible(true)
     }
+
     check()
     const id = setInterval(check, 60 * 1000)
-    return () => clearInterval(id)
+    // Re-check the moment the tab regains focus, so a guest who returns mid-event
+    // sees it promptly rather than waiting up to a minute for the next tick.
+    const onVis = () => check()
+    document.addEventListener('visibilitychange', onVis)
+    return () => {
+      clearInterval(id)
+      document.removeEventListener('visibilitychange', onVis)
+    }
   }, [schedule, done, testForce])
 
   // Fire the fade-in one tick after becoming visible, and emit the impression
-  // exactly once when it first appears.
+  // exactly once when it first appears. In test mode, analytics are SKIPPED so a
+  // preview never pollutes production counters.
   useEffect(() => {
     if (!visible) return
     const raf = requestAnimationFrame(() => setMounted(true))
-    track(tracking, 'funnel_inevent_review_impression')
+    if (!testForce) track(tracking, 'funnel_inevent_review_impression')
     return () => cancelAnimationFrame(raf)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible])
@@ -3429,22 +3466,23 @@ function InEventReviewPrompt({
 
   if (!visible || done) return null
 
+  // Analytics are skipped in test mode so a preview never pollutes real counters.
+  const emit = (key: 'funnel_inevent_review_click' | 'funnel_inevent_review_dismiss') => {
+    if (!testForce) track(tracking, key)
+  }
+
   return (
-    <>
-      {/* Light dim+blur scrim behind the toast to pull the eye toward it. Non-
-          interactive, so the live image/controls underneath stay tappable. */}
-      <div className={`inevent-review-scrim${mounted ? ' is-in' : ''}`} aria-hidden="true" />
-      <div
-        className={`inevent-review${mounted ? ' is-in' : ''}`}
-        role="dialog"
-        aria-label="Leave a review"
-      >
+    <div
+      className={`inevent-review${mounted ? ' is-in' : ''}`}
+      role="dialog"
+      aria-label={phrase.lead}
+    >
       <button
         type="button"
         className="inevent-review-close"
-        aria-label="Dismiss"
+        aria-label="Not now"
         onClick={() => {
-          track(tracking, 'funnel_inevent_review_dismiss')
+          emit('funnel_inevent_review_dismiss')
           finish()
         }}
       >
@@ -3452,20 +3490,31 @@ function InEventReviewPrompt({
       </button>
       <p className="inevent-review-lead">{phrase.lead}</p>
       <p className="inevent-review-sub">{phrase.sub}</p>
-      <a
-        className="inevent-review-btn"
-        href={REVIEW_URL}
-        target="_blank"
-        rel="noopener noreferrer"
-        onClick={() => {
-          track(tracking, 'funnel_inevent_review_click')
-          finish()
-        }}
-      >
-        ⭐ Leave a review
-      </a>
+      <div className="inevent-review-actions">
+        <a
+          className="inevent-review-btn"
+          href={REVIEW_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={() => {
+            emit('funnel_inevent_review_click')
+            finish()
+          }}
+        >
+          ⭐ {INEVENT_REVIEW_ACTIONS.review}
+        </a>
+        <button
+          type="button"
+          className="inevent-review-later"
+          onClick={() => {
+            emit('funnel_inevent_review_dismiss')
+            finish()
+          }}
+        >
+          {INEVENT_REVIEW_ACTIONS.dismiss}
+        </button>
       </div>
-    </>
+    </div>
   )
 }
 
